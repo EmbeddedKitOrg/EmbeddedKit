@@ -1,5 +1,5 @@
 /**
- * @file Pool.h
+ * @file MemPool.h
  * @brief 内存池管理模块 (仿照FreeRTOS heap4设计思路)
  * @details 实现动态内存分配功能，支持内存合并，减少碎片化
  *          采用单向链表管理空闲块，支持块分割与合并
@@ -8,8 +8,8 @@
  * @version v1.0
  */
 
-#ifndef __POOL_h
-#define __POOL_h
+#ifndef __MEMPOOL_h
+#define __MEMPOOL_h
 
 #include <stdint.h>
 #include <stddef.h>
