@@ -9,6 +9,7 @@
 
 #include "List.h"
 
+/* ========================= 宏定义区 ========================= */
 /**
  * @brief 获取链表第一个节点的宏定义
  * @param X 链表指针
@@ -23,12 +24,14 @@
  */
 #define GET_LAST_NODE(X) (X->List_Dummy->Node_Prev)
 
+/* ========================= 常数定义区 ========================= */
 /**
  * @brief 哨兵节点标识常量
  * @details 用于标识哨兵节点的特殊值
  */
 static const uint32_t __DUMMY = 0xABCD1234;
 
+/* ========================= 公用API函数定义区 ========================= */
 /**
  * @brief 静态创建节点
  * @details 在已分配的节点内存上初始化节点数据
@@ -36,8 +39,6 @@ static const uint32_t __DUMMY = 0xABCD1234;
  * @param content 节点存储的内容指针
  * @param order 节点序号
  * @return ListResult_t 操作结果
- * @retval LIST_SUCCESS 创建成功
- * @retval LIST_ERROR_NULL_POINTER 空指针错误
  */
 ListResult_t NodeCreate_Static(Node_t *node, void *content, uint32_t order)
 {
@@ -87,9 +88,6 @@ Node_t *NodeCreate_Dynamic(void *content, uint32_t order)
  * @param list 指向已分配内存的链表指针
  * @param head_node 链表的头节点
  * @return ListResult_t 操作结果
- * @retval LIST_SUCCESS 创建成功
- * @retval LIST_ERROR_NULL_POINTER 空指针错误
- * @retval LIST_ERROR_MEMORY_ALLOC 内存分配失败
  */
 ListResult_t ListCreate_Static(List_t *list, Node_t *head_node)
 {
@@ -152,8 +150,6 @@ List_t *ListCreate_Dynamic(Node_t *head_node)
  * @param list 目标链表指针
  * @param node 要插入的节点指针
  * @return ListResult_t 操作结果
- * @retval LIST_SUCCESS 插入成功
- * @retval LIST_ERROR_NULL_POINTER 空指针错误
  */
 ListResult_t ListInsertEnd(List_t *list, Node_t *node)
 {
@@ -189,8 +185,6 @@ ListResult_t ListInsertEnd(List_t *list, Node_t *node)
  * @param list 目标链表指针
  * @param node 要插入的节点指针
  * @return ListResult_t 操作结果
- * @retval LIST_SUCCESS 插入成功
- * @retval LIST_ERROR_NULL_POINTER 空指针错误
  */
 ListResult_t ListInsertHead(List_t *list, Node_t *node)
 {
@@ -227,8 +221,6 @@ ListResult_t ListInsertHead(List_t *list, Node_t *node)
  * @param node 要插入的节点指针
  * @return ListResult_t 操作结果
  * @retval LIST_SUCCESS 插入成功
- * @retval LIST_ERROR_NULL_POINTER 空指针错误
- * @retval LIST_ERROR_UNKNOWN 未知错误
  */
 ListResult_t ListInsertOrder(List_t *list, Node_t *node)
 {
@@ -289,11 +281,6 @@ ListResult_t ListInsertOrder(List_t *list, Node_t *node)
  * @param list 目标链表指针
  * @param node 要移除的节点指针
  * @return ListResult_t 操作结果
- * @retval LIST_SUCCESS 移除成功
- * @retval LIST_ERROR_NULL_POINTER 空指针错误
- * @retval LIST_ERROR_EMPTY_LIST 链表为空
- * @retval LIST_ERROR_NODE_NOT_OWNER 节点不属于该链表
- * @retval LIST_ERROR_NODE_NOT_FOUND 节点未找到
  */
 ListResult_t ListRemoveNode(List_t *list, Node_t *node)
 {
@@ -387,9 +374,6 @@ ListResult_t ListRemoveNode(List_t *list, Node_t *node)
  * @param node 要移动的节点指针
  * @param order 插入方式：0-插入到头部，<0-插入到尾部，>0-按序号插入
  * @return ListResult_t 操作结果
- * @retval LIST_SUCCESS 移动成功
- * @retval LIST_ERROR_NULL_POINTER 空指针错误
- * @retval LIST_ERROR_NODE_NOT_OWNER 节点不属于源链表
  */
 ListResult_t ListMoveNode(List_t *list_src, List_t *list_dst, Node_t *node, int order)
 {

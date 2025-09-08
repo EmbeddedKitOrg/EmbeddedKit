@@ -5,7 +5,7 @@
  *          采用单向链表管理空闲块，支持块分割与合并
  * @author N1netyNine99
  * @date 2025-09-04
- * @version v3.0
+ * @version v1.0
  */
 
 #ifndef __POOL_h

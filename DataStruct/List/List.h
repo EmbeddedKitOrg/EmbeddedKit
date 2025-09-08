@@ -1,3 +1,12 @@
+/**
+ * @file List.h
+ * @brief 双向链表数据结构头文件
+ * @details 定义了双向链表的数据结构和操作接口
+ * @author N1ntyNine99
+ * @date 2025-09-08
+ * @version 1.0
+ */
+
 #ifndef __LIST_H
 #define __LIST_H
 
