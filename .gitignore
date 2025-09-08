@@ -1,0 +1,71 @@
+# EmbedKit .gitignore 文件
+
+# 编译输出文件
+*.o
+*.obj
+*.elf
+*.hex
+*.bin
+*.map
+*.lst
+*.a
+*.so
+*.dylib
+*.dll
+
+# 调试文件
+*.dSYM/
+*.gdb_history
+*.trace
+
+# IDE 和编辑器文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# 构建目录
+build/
+dist/
+out/
+*.build/
+
+# 依赖和包文件
+node_modules/
+.npm/
+
+# 配置和密钥文件
+.env
+*.key
+*.pem
+config/secret.h
+config/private.h
+
+# 临时文件
+*.tmp
+*.temp
+*.log
+*.cache
+
+# 测试输出
+test_results/
+coverage/
+*.gcda
+*.gcno
+*.gcov
+
+# 文档生成的临时文件
+docs/_site/
+docs/.jekyll-cache/
+
+# 操作系统文件
+*.pid
+*.seed
+*.pid.lock
+
+# 硬件特定的配置文件
+*.jlink
+*.openocd
