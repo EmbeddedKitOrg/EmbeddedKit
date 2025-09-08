@@ -1,3 +1,12 @@
+/**
+ * @file Task.h
+ * @brief 任务调度器头文件
+ * @details 基于双链表+内存池实现的任务调度器接口定义
+ * @author N1ntyNine99
+ * @date 2025-09-04
+ * @version v2.0
+ */
+
 #ifndef __TASK_h
 #define __TASK_h
 

@@ -1,3 +1,12 @@
+/**
+ * @file DataStruct.h
+ * @brief 数据结构模块通用头文件
+ * @details 定义了数据结构模块的通用类型、宏定义和函数声明
+ * @author N1ntyNine99
+ * @date 2025-09-08
+ * @version 1.0
+ */
+
 #ifndef __DATASTRUCT_H
 #define __DATASTRUCT_H
 
