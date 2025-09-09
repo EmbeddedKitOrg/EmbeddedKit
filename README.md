@@ -1,245 +1,264 @@
-# EmbedKit
+# EmbeddedKit (EK)
 
-<div align="center">
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/username/embeddedkit) [![Platform](https://img.shields.io/badge/platform-STM32-green.svg)](https://github.com/username/embeddedkit)
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![C Standard](https://img.shields.io/badge/C-99/11-green.svg)](https://en.wikipedia.org/wiki/C99)
-[![Platform](https://img.shields.io/badge/platform-ARM%20|%20AVR%20|%20MSP430%20|%20RISC--V-lightgrey)](https://github.com/zuoliangyu/EmbedKit)
-[![Documentation](https://img.shields.io/badge/docs-docsify-brightgreen.svg)](https://github.com/zuoliangyu/EmbedKit)
+**EmbeddedKit** 是一个现代化的嵌入式组件库，旨在为STM32嵌入式开发提供高质量、可复用的模块化组件。通过统一的API设计和严格的编码规范，EmbeddedKit让嵌入式开发更加高效和可维护。
 
-**轻量级、模块化的嵌入式C语言开发库**
+## ✨ 特性
 
-[快速开始](#快速开始) • [在线文档](https://zuoliangyu.github.io/EmbedKit/) • [示例](examples/) • [问题反馈](https://github.com/zuoliangyu/EmbedKit/issues)
+- 🎯 **统一API设计** - 通过函数前缀明确标识返回类型，提高代码可读性
+- 📦 **模块化架构** - 清晰的内部/外部API边界，便于维护和扩展
+- 🔒 **类型安全** - 强类型定义和统一的错误处理机制
+- 📖 **完善文档** - 详细的API文档和编码规范
+- 🔧 **易于集成** - 直接包含到现有STM32项目中
+- 🚀 **高性能** - 针对嵌入式系统优化的轻量级实现
 
-</div>
+## 🚧 项目状态
 
----
+### 当前版本 (v1.0.x)
 
-## 📚 简介
+- ✅ **核心组件库** - 稳定发布，积极维护
+- ✅ **编码规范** - 完整文档，正在使用
 
-EmbedKit 是一个专为资源受限的嵌入式系统设计的轻量级C语言库集合。它提供了经过优化的常用数据结构、内存管理工具和实时任务调度器，帮助开发者快速构建可靠的嵌入式应用。
+### 未来规划 (v2.0.x)
 
-### ✨ 核心特性
+- 🔮 
 
-- 🚀 **极致轻量** - 最小ROM占用，可配置的RAM使用
-- 🔧 **模块化设计** - 按需引入，零依赖架构
-- ⚡ **高性能** - 针对嵌入式处理器优化的算法实现
-- 🛡️ **安全可靠** - 静态内存分配，可预测的执行时间
-- 📖 **文档完善** - 详细的API文档和使用示例
-- 🎯 **标准兼容** - 支持C99/C11标准，跨平台移植性强
+  EK_HAL硬件抽象层
 
-## 🏗️ 模块架构
+   \- 架构设计已完成，暂未实施
 
-```
-EmbedKit/
-├── core/               # 核心基础模块
-│   ├── common/        # 通用定义和宏
-│   └── config/        # 配置管理
-├── scheduler/         # 任务调度器
-│   ├── task.h        # 任务管理
-│   └── timer.h       # 定时器服务
-├── memory/           # 内存管理
-│   ├── pool.h        # 内存池
-│   └── heap.h        # 动态内存管理
-├── data_structures/  # 数据结构
-│   ├── list.h        # 链表
-│   ├── queue.h       # 队列
-│   ├── stack.h       # 栈
-│   └── ring_buffer.h # 环形缓冲区
-├── utils/            # 实用工具
-│   ├── crc.h         # CRC校验
-│   ├── debug.h       # 调试工具
-│   └── log.h         # 日志系统
-└── drivers/          # 硬件抽象层
-    ├── gpio.h        # GPIO接口
-    ├── uart.h        # 串口通信
-    └── spi.h         # SPI接口
-```
+  > ⚠️ **注意**: EK_HAL目前仅为设计文档，不包含在当前发布版本中。这是我们未来发展的重要方向，将在v2.0版本中正式推出。
 
 ## 🚀 快速开始
 
-### 环境要求
+### 平台支持
 
-- **编译器**: GCC 4.8+ / Clang 3.4+ / IAR / Keil MDK
-- **标准**: C99 或更高
-- **RAM**: 最低 2KB（基础功能）
-- **ROM**: 最低 8KB（包含核心模块）
+- **STM32系列**: F1/F4/F7/H7系列
+- **国产32位**: 基于ARM Cortex-M的国产芯片（如GD32、MM32等）
 
-### 安装
+### 集成到项目
 
-#### 方法1：作为Git子模块
+1. **添加源文件到项目** 将EmbeddedKit的`Inc/`和`Src/`文件夹添加到你的STM32项目中
 
-```bash
-git submodule add https://github.com/zuoliangyu/EmbedKit.git libs/EmbedKit
-git submodule update --init --recursive
-```
+2. **配置包含路径** 在IDE中添加EmbeddedKit的头文件路径：
 
-#### 方法2：直接下载
+   ```
+   ProjectRoot/EmbeddedKit/Inc/
+   ```
 
-```bash
-wget https://github.com/zuoliangyu/EmbedKit/releases/latest/download/embedkit.zip
-unzip embedkit.zip -d libs/
-```
+3. **包含头文件**
 
-### 基础示例
+   ```c
+   #include "EK_Common.h"
+   #include "EK_Gpio.h"
+   #include "EK_Timer.h"
+   ```
+
+4. **配置EK_Config.h** 根据你的项目需求修改配置参数
+
+### 基础使用示例
 
 ```c
-#include "embedkit/scheduler/task.h"
-#include "embedkit/memory/pool.h"
-#include "embedkit/data_structures/queue.h"
+#include "EK_Led.h"
 
-// 内存池配置
-#define POOL_SIZE 1024
-static uint8_t memory_pool[POOL_SIZE];
-
-// 任务函数
-void led_task(void* param) {
-    // 任务逻辑
-    toggle_led();
-}
-
-int main(void) {
-    // 初始化内存池
-    ek_pool_t* pool = ek_pool_init(memory_pool, POOL_SIZE, 32);
+int main(void) 
+{
+    // 系统初始化
+    SystemClock_Config();
     
-    // 初始化任务调度器
-    ek_scheduler_init();
+    // 初始化LED模块
+    if (EK_rInitLed() != EK_OK) {
+        // 错误处理
+        Error_Handler();
+    }
     
-    // 创建任务
-    ek_task_create(led_task, NULL, 100, 1);  // 100ms周期，优先级1
+    // 添加LED配置 (PC13引脚，高电平有效)
+    EK_rAddLed(0, 13, true);
     
-    // 启动调度器
-    ek_scheduler_start();
-    
-    // 不会到达这里
-    return 0;
+    // 主循环 - LED闪烁
+    while (1) {
+        EK_rToggleLed(0);       // 翻转LED状态
+        HAL_Delay(500);         // 延时500ms
+    }
 }
 ```
 
-## 📦 核心模块
+## 📁 项目结构
 
-### 任务调度器 (Scheduler)
+```
+EmbeddedKit/
+├── Inc/                    # 头文件 (添加到项目包含路径)
+│   ├── EK_Common.h        # 核心定义和错误码
+│   ├── EK_Config.h        # 配置文件
+│   ├── EK_Gpio.h          # GPIO模块
+│   ├── EK_Timer.h         # 定时器模块
+│   ├── EK_Uart.h          # UART模块
+│   └── EK_Led.h           # LED控制模块
+├── Src/                    # 源文件 (添加到项目编译)
+│   ├── EK_Gpio.c
+│   ├── EK_Timer.c
+│   ├── EK_Uart.c
+│   ├── EK_Led.c
+│   └── EK_Config.c
+├── Examples/               # 示例代码
+│   ├── STM32F4_Examples/  # STM32F4示例
+│   ├── STM32F1_Examples/  # STM32F1示例
+│   └── GD32_Examples/     # 国产32示例
+├── Docs/                   # 文档
+│   ├── CodingStandards.md # 编码规范
+│   ├── HAL_Architecture.md# HAL架构设计(未来)
+│   └── API/               # API文档
+└── Tools/                  # 配置工具和脚本
+```
 
-轻量级的协作式任务调度器，支持：
-- 优先级调度
-- 周期性任务
-- 软定时器
-- 低功耗支持
+## 📋 API概览
 
-[详细文档 →](docs/modules/scheduler.md)
+### 核心模块
 
-### 内存管理 (Memory)
+| 模块      | 功能               | 状态   |
+| --------- | ------------------ | ------ |
+| EK_Common | 公共定义和错误处理 | ✅ 稳定 |
+| EK_Gpio   | GPIO控制和管理     | ✅ 稳定 |
+| EK_Timer  | 定时器功能         | ✅ 稳定 |
+| EK_Uart   | 串口通信           | ✅ 稳定 |
+| EK_Led    | LED控制封装        | ✅ 稳定 |
 
-高效的内存管理方案：
-- **内存池**: 固定大小块分配，O(1)时间复杂度
-- **堆管理**: 可选的动态内存分配
-- **内存对齐**: 自动处理平台对齐要求
+### 函数命名规范
 
-[详细文档 →](docs/modules/memory.md)
+所有函数使用类型前缀标识返回值：
 
-### 数据结构 (Data Structures)
-
-优化的常用数据结构：
-- **链表**: 单向/双向链表
-- **队列**: FIFO队列，支持优先级
-- **环形缓冲**: 无锁设计，适合中断环境
-- **栈**: 固定大小栈实现
-
-[详细文档 →](docs/modules/data_structures.md)
-
-## 🎯 使用场景
-
-EmbedKit 适用于以下嵌入式应用场景：
-
-- 🏭 **工业控制** - PLC、传感器节点、执行器控制
-- 🏠 **智能家居** - IoT设备、智能开关、环境监测
-- 🚗 **汽车电子** - ECU、车身控制、仪表系统
-- 🔬 **医疗设备** - 监护仪、便携式诊断设备
-- 🤖 **机器人** - 电机控制、传感器融合、路径规划
-
-## 📊 性能指标
-
-| 操作 | 时间复杂度 | 典型执行时间 (Cortex-M4 @ 72MHz) |
-|------|------------|-----------------------------------|
-| 内存池分配 | O(1) | < 100 cycles |
-| 任务切换 | O(1) | < 200 cycles |
-| 队列入队 | O(1) | < 50 cycles |
-| 链表插入 | O(1) | < 30 cycles |
+| 前缀 | 返回类型  | 示例                   |
+| ---- | --------- | ---------------------- |
+| `v`  | void      | `EK_vInitSystem()`     |
+| `r`  | EK_Result | `EK_rConfigureTimer()` |
+| `b`  | bool      | `EK_bIsSystemReady()`  |
+| `u`  | unsigned  | `EK_uGetSystemClock()` |
+| `i`  | int       | `EK_iGetSensorValue()` |
+| `p`  | pointer   | `EK_pGetBuffer()`      |
 
 ## 🔧 配置
 
-EmbedKit 支持通过配置文件定制功能：
+### 基本配置
+
+在`EK_Config.h`中配置基本参数：
 
 ```c
-// embedkit_config.h
-#define EK_USE_SCHEDULER    1  // 启用任务调度器
-#define EK_USE_MEMORY_POOL  1  // 启用内存池
-#define EK_MAX_TASKS        16 // 最大任务数
-#define EK_TICK_RATE_HZ     1000 // 系统tick频率
+// 系统配置
+#define EK_SYSTEM_CLOCK_HZ      48000000    // 根据你的系统时钟修改
+#define EK_MAX_MODULES          10
+
+// 缓冲区配置
+#define EK_MAX_BUFFER_SIZE      1024
+#define EK_DEFAULT_TIMEOUT      5000
+
+// 模块使能
+#define EK_USE_GPIO_MODULE      1
+#define EK_USE_TIMER_MODULE     1
+#define EK_USE_UART_MODULE      1
+#define EK_USE_LED_MODULE       1
+
+// 调试配置
+#define EK_DEBUG_ENABLE         1
+#define EK_LOG_LEVEL            EK_LOG_INFO
 ```
 
-## 📚 文档
 
-完整的项目文档请访问：**[https://zuoliangyu.github.io/EmbedKit/](https://zuoliangyu.github.io/EmbedKit/)**
 
-主要内容包括：
-- 📖 **API参考手册** - 详细的接口文档
-- 🏗️ **架构设计** - 模块设计理念
-- 🔧 **移植指南** - 不同平台适配
-- 💡 **最佳实践** - 使用建议和技巧
-- ❓ **常见问题** - FAQ和故障排除
+## 💡 使用示例
 
-## 🧪 测试
+### GPIO控制
 
-运行单元测试：
+```c
+#include "EK_Gpio.h"
 
-```bash
-make test
+// 初始化GPIO
+EK_rInitGpio();
+
+// 配置输出引脚
+EK_rConfigGpioOutput(GPIOC, GPIO_PIN_13);
+
+// 控制GPIO
+EK_vSetGpioHigh(GPIOC, GPIO_PIN_13);
+EK_vSetGpioLow(GPIOC, GPIO_PIN_13);
 ```
 
-运行性能测试：
+### 定时器使用
 
-```bash
-make benchmark
+```c
+#include "EK_Timer.h"
+
+// 初始化定时器
+EK_rInitTimer();
+
+// 配置1ms定时器
+EK_rConfigTimer(TIM2, 1000, timer_callback);
+
+// 启动定时器
+EK_rStartTimer(TIM2);
 ```
+
+### UART通信
+
+```c
+#include "EK_Uart.h"
+
+// 初始化UART
+EK_rInitUart(USART1, 115200);
+
+// 发送数据
+uint8_t data[] = "Hello EmbeddedKit!";
+EK_rUartSend(USART1, data, sizeof(data));
+
+// 接收数据
+uint8_t recv_buf[64];
+size_t recv_len = EK_sUartReceive(USART1, recv_buf, sizeof(recv_buf));
+```
+
+## 📖 文档
+
+- 编码规范 - 详细的代码风格和命名规范
+- API参考 - 完整的API文档
+- EK_HAL架构设计 - 硬件抽象层设计(未来版本)
+- 移植指南 - 新平台移植说明
 
 ## 🤝 贡献
 
-我们欢迎所有形式的贡献！请查看[贡献指南](CONTRIBUTING.md)了解如何参与项目。
+我们欢迎社区贡献！请参考以下步骤：
 
-### 开发流程
+1. Fork 本仓库
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 遵循编码规范
+4. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+5. 推送分支 (`git push origin feature/AmazingFeature`)
+6. 创建 Pull Request
 
-1. Fork 项目
-2. 创建特性分支 (`git checkout -b feature/amazing-feature`)
-3. 提交更改 (`git commit -m 'Add amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 创建 Pull Request
+### 贡献指南
+
+- 🔍 **代码质量**: 所有代码必须遵循EK编码规范
+- 📝 **文档**: 新功能需要包含相应的文档更新
+- 🏷️ **命名规范**: 严格遵循EK命名约定
+- ✅ **测试**: 在目标硬件上验证功能正确性
+
+## 👥 团队成员
+
+- **[@zuolan](https://github.com/zuoliangyu)** - 项目维护者
+- **[@N1netyNine99](https://github.com/00lllooolll00)** - 核心开发者
 
 ## 📄 许可证
 
-本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件
+本项目采用 MIT 许可证 - 查看 LICENSE 文件了解详情。
 
-## 👥 团队
+## 📞 支持
 
-- **维护者**: [zuoliangyu](https://github.com/zuoliangyu)
-- **贡献者**: 查看[贡献者列表](https://github.com/zuoliangyu/EmbedKit/contributors)
+- 🐛 **问题反馈**: [GitHub Issues](https://github.com/username/embeddedkit/issues)
 
-## 🙏 致谢
-
-感谢所有为 EmbedKit 做出贡献的开发者！
-
-## 📮 联系我们
-
-- **Issues**: [GitHub Issues](https://github.com/zuoliangyu/EmbedKit/issues)
-- **讨论**: [GitHub Discussions](https://github.com/zuoliangyu/EmbedKit/discussions)
-- **邮件**: embedkit@example.com
-
----
+## ⭐ Star History
 
 <div align="center">
 
-**[返回顶部](#embedkit)**
+**文档** | **示例** | **贡献指南**
 
-Made with ❤️ for embedded developers
+Made with ❤️ for STM32 Developers
 
-</div>测试自动部署
+</div>

@@ -1,8 +1,0 @@
-blank_issues_enabled: true
-contact_links:
-  - name: 💬 讨论和问答
-    url: https://github.com/zuolan/EmbedKit/discussions
-    about: 对于一般问题、使用帮助和讨论，请使用Discussions功能
-  - name: 📖 文档
-    url: https://github.com/zuolan/EmbedKit/wiki
-    about: 查看项目文档和使用指南
