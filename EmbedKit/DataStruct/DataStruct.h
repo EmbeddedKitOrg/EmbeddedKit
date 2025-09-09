@@ -14,9 +14,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-1
-2
-3
 
 #ifdef __cplusplus
 extern "C"
