@@ -29,7 +29,7 @@
  * @brief 哨兵节点标识常量
  * @details 用于标识哨兵节点的特殊值
  */
-static const uint32_t __DUMMY = 0xABCD1234;
+static const uint32_t __DUMMY__ = 0xABCD1234;
 
 /* ========================= 公用API函数定义区 ========================= */
 /**
@@ -102,7 +102,7 @@ DS_Result_t ListCreate_Static(List_t *list, Node_t *head_node)
     GET_FIRST_NODE(list) = head_node;
     GET_LAST_NODE(list) = head_node;
     list->List_Dummy->Node_Owner = list;
-    list->List_Dummy->Node_Content = (void *)&__DUMMY;
+    list->List_Dummy->Node_Content = (void *)&__DUMMY__;
 
     return DS_SUCCESS;
 }
@@ -139,7 +139,7 @@ List_t *ListCreate_Dynamic(Node_t *head_node)
     GET_FIRST_NODE(list) = head_node;
     GET_LAST_NODE(list) = head_node;
     list->List_Dummy->Node_Owner = list;
-    list->List_Dummy->Node_Content = (void *)&__DUMMY;
+    list->List_Dummy->Node_Content = (void *)&__DUMMY__;
 
     return list;
 }
