@@ -1,5 +1,5 @@
 /**
- * @file Task.c
+ * @file TaskSchedule.c
  * @brief 基于双链表+内存池实现的轻量级任务调度器
  * @details 实现了一个非抢占式任务调度器，具有以下特性：
  *          - 基于优先级的任务调度（数值越小优先级越高）
@@ -11,15 +11,13 @@
  *          - 提供任务状态查询和优先级调整功能
  *          - 支持用户自定义空闲任务和错误处理
  * 
- * @note 调度器采用协作式多任务，任务需要主动让出CPU
  * @warning 任务函数不能使用阻塞操作，应使用rTaskDelay()进行延时
  * 
  * @author N1ntyNine99
  * @date 2025-09-04
  * @version v2.0
  */
-
-#include "Task.h"
+#include "TaskSchedule.h"
 #include "../MemPool/MemPool.h"
 
 static TaskSchedule_t RunSchedule; // 任务执行链表
@@ -430,7 +428,7 @@ pTaskHandler_t pTaskCreate_Static(TaskNode_t *node, TaskHandler_t *static_handle
  * @param Priority 任务优先级
  * @param task_handler 用于接收任务句柄指针的指针
  * @return TaskRes_t 添加结果
- * @note 适用于动态分配场景，节点内存由内存池管理，需要使用TaskDelay设置延时
+ * @note 适用于动态分配场景，节点内存由内存池管理，需要使用rTaskDelay设置延时
  */
 TaskRes_t rTaskCreate_Dynamic(void (*pfunc)(void), uint8_t Priority, pTaskHandler_t *task_handler)
 {
@@ -460,7 +458,7 @@ TaskRes_t rTaskCreate_Dynamic(void (*pfunc)(void), uint8_t Priority, pTaskHandle
     /*用户段*/
     *func_ptr = pfunc; // 将函数指针存储到内存池分配的空间中
     node->TaskHandler.TaskCallBack.DynamicCallBack = func_ptr; // 指向内存池中的函数指针
-    node->TaskHandler.Task_TrigTime = 0; // 初始化为0，需要通过TaskDelay设置
+    node->TaskHandler.Task_TrigTime = 0; // 初始化为0，需要通过rTaskDelay设置
     node->TaskHandler.Task_Priority = Priority;
 
     TaskRes_t result = _task_insert_node(&WaitSchedule, node);
