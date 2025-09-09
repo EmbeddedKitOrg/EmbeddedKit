@@ -247,11 +247,11 @@ size_t recv_len = EK_sUartReceive(USART1, recv_buf, sizeof(recv_buf));
 
 ## 📄 许可证
 
-本项目采用 MIT 许可证 - 查看 LICENSE 文件了解详情。
+本项目采用 [MIT 许可证](https://github.com/zuoliangyu/EmbeddedKit/blob/master/LICENSE)
 
 ## 📞 支持
 
-- 🐛 **问题反馈**: [GitHub Issues](https://github.com/username/embeddedkit/issues)
+- 🐛 **问题反馈**: [GitHub Issues](https://github.com/zuoliangyu/EmbeddedKit/issues)
 
 ## ⭐ Star History
 
