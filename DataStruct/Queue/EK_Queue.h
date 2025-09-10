@@ -17,7 +17,8 @@ extern "C"
 {
 #endif
 
-typedef struct Queue_t
+/* ========================= 类型定义区 ========================= */
+typedef struct EK_Queue_t
 {
     void *Queue_Buf; /**< 队列缓冲区 */
     index_t Queue_Front; /**< 第一个元素的索引 待出队的元素索引 */
@@ -25,18 +26,19 @@ typedef struct Queue_t
     size_t Queue_Size; /**< 当前的元素个数 */
     const size_t Queue_Capacity; /**< 队列容量 */
     const bool Queue_isDynamic; /**< 判断是否是动态创建的队列 */
-} Queue_t;
+} EK_Queue_t;
 
-Queue_t *EK_pQueueCreate_Dynamic(size_t capacity);
-EK_Result_t EK_rQueueCreate_Static(Queue_t *queue_handler, void *buffer, const size_t capacity);
-EK_Result_t EK_rQueueDelete(Queue_t *queue);
-bool EK_bQueueIsEmpty(Queue_t *queue);
-bool EK_bQueueIsFull(Queue_t *queue);
-size_t EK_sQueueGetSize(Queue_t *queue);
-size_t EK_sQueueGetRemain(Queue_t *queue);
-EK_Result_t EK_rQueueEnqueue(Queue_t *queue, void *data, size_t data_size);
-EK_Result_t EK_rQueueDequeue(Queue_t *queue, void *data_buffer, size_t data_size);
-EK_Result_t EK_rQueuePeekFront(Queue_t *queue, void *data_buffer, size_t data_size);
+/* ========================= 函数声明区 ========================= */
+EK_Queue_t *EK_pQueueCreate_Dynamic(size_t capacity);
+EK_Result_t EK_rQueueCreate_Static(EK_Queue_t *queue_handler, void *buffer, const size_t capacity);
+EK_Result_t EK_rQueueDelete(EK_Queue_t *queue);
+bool EK_bQueueIsEmpty(EK_Queue_t *queue);
+bool EK_bQueueIsFull(EK_Queue_t *queue);
+size_t EK_sQueueGetSize(EK_Queue_t *queue);
+size_t EK_sQueueGetRemain(EK_Queue_t *queue);
+EK_Result_t EK_rQueueEnqueue(EK_Queue_t *queue, void *data, size_t data_size);
+EK_Result_t EK_rQueueDequeue(EK_Queue_t *queue, void *data_buffer, size_t data_size);
+EK_Result_t EK_rQueuePeekFront(EK_Queue_t *queue, void *data_buffer, size_t data_size);
 
 #ifdef __cplusplus
 }

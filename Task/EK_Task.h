@@ -43,12 +43,12 @@ typedef struct
     void *Task_OwnerNode; // 拥有任务的节点
 } EK_TaskHandler_t;
 
-typedef struct EK_TaskNode_t
+typedef struct EK_TaskEK_Node_t
 {
-    struct EK_TaskNode_t *Next; // 下一个节点
+    struct EK_TaskEK_Node_t *Next; // 下一个节点
     void *Owner; // 拥有节点的链表
     EK_TaskHandler_t TaskHandler; // 任务句柄
-} EK_TaskNode_t;
+} EK_TaskEK_Node_t;
 
 /**
  * @brief 任务信息结构体
@@ -66,11 +66,11 @@ typedef struct
 } EK_TaskInfo_t;
 
 typedef EK_TaskHandler_t *EK_pTaskHandler_t; // 任务句柄指针(aka EK_TaskHandler_t*)
-typedef EK_TaskNode_t *EK_pTaskNode_t; // 节点句柄指针(aka EK_TaskNode_t*)
+typedef EK_TaskEK_Node_t *EK_pTaskEK_Node_t; // 节点句柄指针(aka EK_TaskEK_Node_t*)
 
 /* ========================= 函数声明区 ========================= */
 EK_Result_t EK_rTaskInit(void);
-EK_pTaskHandler_t EK_pTaskCreate_Static(EK_TaskNode_t *node, EK_TaskHandler_t *static_handler);
+EK_pTaskHandler_t EK_pTaskCreate_Static(EK_TaskEK_Node_t *node, EK_TaskHandler_t *static_handler);
 EK_Result_t EK_rTaskCreate_Dynamic(void (*pfunc)(void), uint8_t Priority, EK_pTaskHandler_t *task_handler);
 EK_Result_t EK_rTaskDelete(EK_pTaskHandler_t task_handler);
 EK_Result_t EK_rTaskSuspend(EK_pTaskHandler_t task_handler);

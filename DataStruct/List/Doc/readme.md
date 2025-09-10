@@ -14,25 +14,25 @@ EK_List 是一个高效的双向链表数据结构实现，采用哨兵节点设
 
 ## 数据结构
 
-### Node_t - 节点结构体
+### EK_Node_t - 节点结构体
 ```c
-typedef struct Node_t
+typedef struct EK_Node_t
 {
-    void *Node_Content;      // 节点存储内容指针
-    struct Node_t *Node_Prev; // 前一个节点指针
-    struct Node_t *Node_Next; // 后一个节点指针
-    List_t *Node_Owner;      // 节点所有者链表
+    void *Node_Data;      // 节点存储内容指针
+    struct EK_Node_t *Node_Prev; // 前一个节点指针
+    struct EK_Node_t *Node_Next; // 后一个节点指针
+    EK_List_t *Node_Owner;      // 节点所有者链表
     uint32_t Node_Order;     // 节点序号
-} Node_t;
+} EK_Node_t;
 ```
 
-### List_t - 链表结构体
+### EK_List_t - 链表结构体
 ```c
-typedef struct List_t
+typedef struct EK_List_t
 {
-    Node_t *List_Dummy;      // 哨兵节点（Prev指向尾，Next指向头）
+    EK_Node_t *List_Dummy;      // 哨兵节点（Prev指向尾，Next指向头）
     uint16_t List_Count;     // 链表节点数量
-} List_t;
+} EK_List_t;
 ```
 
 ## API 接口
@@ -41,7 +41,7 @@ typedef struct List_t
 
 #### 静态节点创建
 ```c
-EK_Result_t EK_rNodeCreate_Static(Node_t *node, void *content, uint32_t order);
+EK_Result_t EK_rNodeCreate_Static(EK_Node_t *node, void *content, uint32_t order);
 ```
 - **功能**：在用户提供的内存上初始化节点
 - **参数**：
@@ -52,7 +52,7 @@ EK_Result_t EK_rNodeCreate_Static(Node_t *node, void *content, uint32_t order);
 
 #### 动态节点创建
 ```c
-Node_t *EK_pNodeCreate_Dynamic(void *content, uint32_t order);
+EK_Node_t *EK_pNodeCreate_Dynamic(void *content, uint32_t order);
 ```
 - **功能**：动态分配内存并创建节点
 - **参数**：
@@ -64,7 +64,7 @@ Node_t *EK_pNodeCreate_Dynamic(void *content, uint32_t order);
 
 #### 静态链表创建
 ```c
-EK_Result_t EK_rListCreate_Static(List_t *list, Node_t *head_node);
+EK_Result_t EK_rListCreate_Static(EK_List_t *list, EK_Node_t *head_node);
 ```
 - **功能**：在用户提供的内存上初始化链表
 - **参数**：
@@ -74,7 +74,7 @@ EK_Result_t EK_rListCreate_Static(List_t *list, Node_t *head_node);
 
 #### 动态链表创建
 ```c
-List_t *EK_pListCreate_Dynamic(Node_t *head_node);
+EK_List_t *EK_pListCreate_Dynamic(EK_Node_t *head_node);
 ```
 - **功能**：动态分配内存并创建链表
 - **参数**：
@@ -85,21 +85,21 @@ List_t *EK_pListCreate_Dynamic(Node_t *head_node);
 
 #### 尾部插入
 ```c
-EK_Result_t EK_rListInsertEnd(List_t *list, Node_t *node);
+EK_Result_t EK_rListInsertEnd(EK_List_t *list, EK_Node_t *node);
 ```
 - **功能**：在链表尾部插入节点
 - **时间复杂度**：O(1)
 
 #### 头部插入
 ```c
-EK_Result_t EK_rListInsertHead(List_t *list, Node_t *node);
+EK_Result_t EK_rListInsertHead(EK_List_t *list, EK_Node_t *node);
 ```
 - **功能**：在链表头部插入节点
 - **时间复杂度**：O(1)
 
 #### 按序插入
 ```c
-EK_Result_t EK_rListInsertOrder(List_t *list, Node_t *node);
+EK_Result_t EK_rListInsertOrder(EK_List_t *list, EK_Node_t *node);
 ```
 - **功能**：按节点序号有序插入
 - **排序规则**：序号小的在前
@@ -109,14 +109,14 @@ EK_Result_t EK_rListInsertOrder(List_t *list, Node_t *node);
 
 #### 节点删除
 ```c
-EK_Result_t EK_rListRemoveNode(List_t *list, Node_t *node);
+EK_Result_t EK_rListRemoveNode(EK_List_t *list, EK_Node_t *node);
 ```
 - **功能**：从链表中移除指定节点
 - **特性**：自动处理头尾节点特殊情况
 
 #### 节点移动
 ```c
-EK_Result_t EK_rListMoveNode(List_t *list_src, List_t *list_dst, Node_t *node, int order);
+EK_Result_t EK_rListMoveNode(EK_List_t *list_src, EK_List_t *list_dst, EK_Node_t *node, int order);
 ```
 - **功能**：将节点从源链表移动到目标链表
 - **参数**：
@@ -127,8 +127,8 @@ EK_Result_t EK_rListMoveNode(List_t *list_src, List_t *list_dst, Node_t *node, i
 ### 1. 任务调度队列
 ```c
 // 创建任务队列
-List_t *ready_queue = EK_pListCreate_Dynamic(first_task_node);
-List_t *wait_queue = EK_pListCreate_Dynamic(wait_task_node);
+EK_List_t *ready_queue = EK_pListCreate_Dynamic(first_task_node);
+EK_List_t *wait_queue = EK_pListCreate_Dynamic(wait_task_node);
 
 // 任务状态切换
 EK_rListMoveNode(wait_queue, ready_queue, task_node, -1); // 移到就绪队列尾部
@@ -137,8 +137,8 @@ EK_rListMoveNode(wait_queue, ready_queue, task_node, -1); // 移到就绪队列�
 ### 2. 优先级管理
 ```c
 // 创建优先级节点
-Node_t *high_priority_node = EK_pNodeCreate_Dynamic(task_data, 1);    // 高优先级
-Node_t *low_priority_node = EK_pNodeCreate_Dynamic(task_data, 10);    // 低优先级
+EK_Node_t *high_priority_node = EK_pNodeCreate_Dynamic(task_data, 1);    // 高优先级
+EK_Node_t *low_priority_node = EK_pNodeCreate_Dynamic(task_data, 10);    // 低优先级
 
 // 按优先级插入
 EK_rListInsertOrder(priority_list, high_priority_node);
@@ -155,7 +155,7 @@ typedef struct {
 } Event_t;
 
 Event_t event = {.event_id = 1, .timestamp = get_tick(), .event_data = data};
-Node_t *event_node = EK_pNodeCreate_Dynamic(&event, event.timestamp);
+EK_Node_t *event_node = EK_pNodeCreate_Dynamic(&event, event.timestamp);
 
 // 按时间戳有序插入事件队列
 EK_rListInsertOrder(event_queue, event_node);
@@ -164,8 +164,8 @@ EK_rListInsertOrder(event_queue, event_node);
 ### 4. 资源池管理
 ```c
 // 空闲资源链表
-List_t *free_buffers;
-List_t *used_buffers;
+EK_List_t *free_buffers;
+EK_List_t *used_buffers;
 
 // 分配资源：从空闲链表移到使用链表
 EK_rListMoveNode(free_buffers, used_buffers, buffer_node, -1);
@@ -201,7 +201,7 @@ EK_rListMoveNode(used_buffers, free_buffers, buffer_node, 0);
 1. **内存管理**：动态创建的节点需要手动释放内存
 2. **节点重用**：节点从链表移除后可以重新插入其他链表
 3. **线程安全**：模块本身不提供线程同步，多线程环境需要外部保护
-4. **节点内容**：Node_Content 只存储指针，不负责内容内存的管理
+4. **节点内容**：Node_Data 只存储指针，不负责内容内存的管理
 
 ## 性能特点
 

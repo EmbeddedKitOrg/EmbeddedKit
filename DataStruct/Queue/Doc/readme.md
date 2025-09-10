@@ -15,9 +15,9 @@ EK_Queue 是一个基于循环缓冲区实现的FIFO（先进先出）队列数�
 
 ## 数据结构
 
-### Queue_t - 队列结构体
+### EK_Queue_t - 队列结构体
 ```c
-typedef struct Queue_t
+typedef struct EK_Queue_t
 {
     void *Queue_Buf;              // 队列缓冲区指针
     index_t Queue_Front;          // 队头索引（待出队元素）
@@ -25,7 +25,7 @@ typedef struct Queue_t
     size_t Queue_Size;            // 当前元素个数（字节数）
     const size_t Queue_Capacity;  // 队列容量（字节数）
     const bool Queue_isDynamic;   // 动态创建标志
-} Queue_t;
+} EK_Queue_t;
 ```
 
 ### 关键字段说明
@@ -41,7 +41,7 @@ typedef struct Queue_t
 
 #### 动态队列创建
 ```c
-Queue_t *EK_pQueueCreate_Dynamic(size_t capacity);
+EK_Queue_t *EK_pQueueCreate_Dynamic(size_t capacity);
 ```
 - **功能**：动态分配内存创建队列
 - **参数**：`capacity` - 队列容量（字节数）
@@ -50,7 +50,7 @@ Queue_t *EK_pQueueCreate_Dynamic(size_t capacity);
 
 #### 静态队列创建
 ```c
-EK_Result_t EK_rQueueCreate_Static(Queue_t *queue_handler, void *buffer, const size_t capacity);
+EK_Result_t EK_rQueueCreate_Static(EK_Queue_t *queue_handler, void *buffer, const size_t capacity);
 ```
 - **功能**：使用用户提供的内存初始化队列
 - **参数**：
@@ -61,7 +61,7 @@ EK_Result_t EK_rQueueCreate_Static(Queue_t *queue_handler, void *buffer, const s
 
 ### 队列销毁
 ```c
-EK_Result_t EK_rQueueDelete(Queue_t *queue);
+EK_Result_t EK_rQueueDelete(EK_Queue_t *queue);
 ```
 - **功能**：销毁队列并释放资源
 - **动态队列**：释放malloc分配的内存
@@ -71,28 +71,28 @@ EK_Result_t EK_rQueueDelete(Queue_t *queue);
 
 #### 空队列检查
 ```c
-bool EK_bQueueIsEmpty(Queue_t *queue);
+bool EK_bQueueIsEmpty(EK_Queue_t *queue);
 ```
 - **功能**：检查队列是否为空
 - **返回值**：空队列返回true
 
 #### 满队列检查
 ```c
-bool EK_bQueueIsFull(Queue_t *queue);
+bool EK_bQueueIsFull(EK_Queue_t *queue);
 ```
 - **功能**：检查队列是否已满
 - **返回值**：满队列返回true
 
 #### 获取队列大小
 ```c
-size_t EK_sQueueGetSize(Queue_t *queue);
+size_t EK_sQueueGetSize(EK_Queue_t *queue);
 ```
 - **功能**：获取当前存储的数据量
 - **返回值**：当前数据字节数
 
 #### 获取剩余空间
 ```c
-size_t EK_sQueueGetRemain(Queue_t *queue);
+size_t EK_sQueueGetRemain(EK_Queue_t *queue);
 ```
 - **功能**：获取剩余可用空间
 - **返回值**：剩余字节数
@@ -101,7 +101,7 @@ size_t EK_sQueueGetRemain(Queue_t *queue);
 
 #### 入队操作
 ```c
-EK_Result_t EK_rQueueEnqueue(Queue_t *queue, void *data, size_t data_size);
+EK_Result_t EK_rQueueEnqueue(EK_Queue_t *queue, void *data, size_t data_size);
 ```
 - **功能**：向队列尾部添加数据
 - **参数**：
@@ -115,7 +115,7 @@ EK_Result_t EK_rQueueEnqueue(Queue_t *queue, void *data, size_t data_size);
 
 #### 出队操作
 ```c
-EK_Result_t EK_rQueueDequeue(Queue_t *queue, void *data_buffer, size_t data_size);
+EK_Result_t EK_rQueueDequeue(EK_Queue_t *queue, void *data_buffer, size_t data_size);
 ```
 - **功能**：从队列头部取出数据
 - **参数**：
@@ -128,7 +128,7 @@ EK_Result_t EK_rQueueDequeue(Queue_t *queue, void *data_buffer, size_t data_size
 
 #### 数据预览
 ```c
-EK_Result_t EK_rQueuePeekFront(Queue_t *queue, void *data_buffer, size_t data_size);
+EK_Result_t EK_rQueuePeekFront(EK_Queue_t *queue, void *data_buffer, size_t data_size);
 ```
 - **功能**：查看队头数据但不移除
 - **用途**：数据预处理、协议解析等场景
@@ -138,7 +138,7 @@ EK_Result_t EK_rQueuePeekFront(Queue_t *queue, void *data_buffer, size_t data_si
 ### 1. 串口数据缓冲
 ```c
 // 创建串口接收队列
-Queue_t *uart_rx_queue = EK_pQueueCreate_Dynamic(1024);
+EK_Queue_t *uart_rx_queue = EK_pQueueCreate_Dynamic(1024);
 
 // 中断接收数据
 void UART_IRQ_Handler(void) {
@@ -167,7 +167,7 @@ typedef struct {
     uint8_t data[256];
 } Packet_t;
 
-Queue_t *packet_queue = EK_pQueueCreate_Dynamic(4096);
+EK_Queue_t *packet_queue = EK_pQueueCreate_Dynamic(4096);
 
 // 接收数据包
 void receive_packet(Packet_t *packet) {
@@ -188,7 +188,7 @@ void check_next_packet(void) {
 ```c
 #define AUDIO_BUFFER_SIZE 8192
 static uint8_t audio_buffer[AUDIO_BUFFER_SIZE];
-Queue_t audio_queue;
+EK_Queue_t audio_queue;
 
 // 静态创建音频队列
 void audio_init(void) {
@@ -220,7 +220,7 @@ typedef struct {
     void (*callback)(uint32_t);
 } Command_t;
 
-Queue_t *cmd_queue = EK_pQueueCreate_Dynamic(sizeof(Command_t) * 16);
+EK_Queue_t *cmd_queue = EK_pQueueCreate_Dynamic(sizeof(Command_t) * 16);
 
 // 添加命令
 void add_command(uint8_t id, uint32_t param, void (*cb)(uint32_t)) {
@@ -246,7 +246,7 @@ void execute_commands(void) {
 ### 5. 数据流量控制
 ```c
 // 网络数据发送队列
-Queue_t *tx_queue = EK_pQueueCreate_Dynamic(4096);
+EK_Queue_t *tx_queue = EK_pQueueCreate_Dynamic(4096);
 
 void network_send_data(uint8_t *data, size_t len) {
     // 检查队列剩余空间

@@ -19,8 +19,8 @@ EK_Task 是一个基于双链表和内存池实现的非抢占式任务调度器
 ### 调度队列
 ```c
 typedef struct {
-    EK_TaskNode_t *Head;    // 队列头指针
-    EK_TaskNode_t *Tail;    // 队列尾指针
+    EK_TaskEK_Node_t *Head;    // 队列头指针
+    EK_TaskEK_Node_t *Tail;    // 队列尾指针
     uint16_t Count;         // 节点数量
 } EK_TaskSchedule_t;
 ```
@@ -54,13 +54,13 @@ typedef struct {
 } EK_TaskHandler_t;
 ```
 
-### EK_TaskNode_t - 任务节点
+### EK_TaskEK_Node_t - 任务节点
 ```c
-typedef struct EK_TaskNode_t {
-    struct EK_TaskNode_t *Next; // 下一个节点
+typedef struct EK_TaskEK_Node_t {
+    struct EK_TaskEK_Node_t *Next; // 下一个节点
     void *Owner;                // 所属队列指针
     EK_TaskHandler_t TaskHandler; // 任务控制块
-} EK_TaskNode_t;
+} EK_TaskEK_Node_t;
 ```
 
 ### EK_TaskInfo_t - 任务信息
@@ -104,7 +104,7 @@ void EK_vTaskStart(uint32_t (*tick_get)(void));
 
 #### 静态任务创建
 ```c
-EK_pTaskHandler_t EK_pTaskCreate_Static(EK_TaskNode_t *node, EK_TaskHandler_t *static_handler);
+EK_pTaskHandler_t EK_pTaskCreate_Static(EK_TaskEK_Node_t *node, EK_TaskHandler_t *static_handler);
 ```
 - **功能**：使用用户提供的内存创建任务
 - **参数**：
@@ -378,7 +378,7 @@ void setup_realtime_system(void) {
 ### 5. 静态任务系统
 ```c
 // 静态任务节点和控制块
-static EK_TaskNode_t led_node, uart_node, timer_node;
+static EK_TaskEK_Node_t led_node, uart_node, timer_node;
 static EK_TaskHandler_t led_handler, uart_handler, timer_handler;
 
 void setup_static_tasks(void) {
@@ -455,14 +455,14 @@ int main(void) {
 ### 1. 优先级调度
 ```c
 // 任务按优先级插入队列（数值越小优先级越高）
-static EK_Result_t _task_insert_node(EK_TaskSchedule_t *list, EK_TaskNode_t *node) {
+static EK_Result_t _task_insert_node(EK_TaskSchedule_t *list, EK_TaskEK_Node_t *node) {
     // 空队列或优先级最高，插入头部
     if (list->Count == 0 || node->TaskHandler.Task_Priority < list->Head->TaskHandler.Task_Priority) {
         // 插入头部逻辑
     }
     
     // 遍历查找合适位置
-    EK_TaskNode_t *p = list->Head;
+    EK_TaskEK_Node_t *p = list->Head;
     while (p->Next != NULL) {
         if (p->Next->TaskHandler.Task_Priority >= node->TaskHandler.Task_Priority) {
             // 找到插入位置
@@ -494,7 +494,7 @@ while (p != NULL) {
 ### 3. 任务执行
 ```c
 // 按优先级顺序执行就绪任务
-EK_TaskNode_t *ptr = RunSchedule.Head;
+EK_TaskEK_Node_t *ptr = RunSchedule.Head;
 while (ptr != NULL) {
     // 检查任务是否被挂起
     if (!TASK_IS_ACTIVE(ptr->TaskHandler.Task_Info)) {
@@ -533,7 +533,7 @@ while (ptr != NULL) {
 - **调度开销**：O(n) - 遍历就绪队列
 
 ### 内存开销
-- **静态任务**：sizeof(EK_TaskNode_t) ≈ 32字节/任务
+- **静态任务**：sizeof(EK_TaskEK_Node_t) ≈ 32字节/任务
 - **动态任务**：32字节 + sizeof(void*) ≈ 40字节/任务
 - **系统开销**：两个调度队列结构体 ≈ 24字节
 

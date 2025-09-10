@@ -17,34 +17,35 @@ extern "C"
 {
 #endif
 
-typedef struct List_t List_t;
+/* ========================= 类型定义区 ========================= */
+typedef struct EK_List_t EK_List_t;
 
-typedef struct Node_t
+typedef struct EK_Node_t
 {
-    void *Node_Content; /**< 节点存储内容 */
-    struct Node_t *Node_Prev; /**< 前一个节点 */
-    struct Node_t *Node_Next; /**< 后一个节点 */
-    List_t *Node_Owner; /**< 节点所有者 */
+    void *Node_Data; /**< 节点存储内容 */
+    struct EK_Node_t *Node_Prev; /**< 前一个节点 */
+    struct EK_Node_t *Node_Next; /**< 后一个节点 */
+    EK_List_t *Node_Owner; /**< 节点所有者 */
     uint32_t Node_Order; /**< 节点序号 */
-} Node_t;
+} EK_Node_t;
 
-typedef struct List_t
+typedef struct EK_List_t
 {
-    Node_t *List_Dummy; /**< 哨兵节点 Prev 指向尾 Next指向头 */
+    EK_Node_t *List_Dummy; /**< 哨兵节点 Prev 指向尾 Next指向头 */
     uint16_t List_Count; /**< 链表存储的节点数目 */
-} List_t;
+} EK_List_t;
 
-EK_Result_t EK_rNodeCreate_Static(Node_t *node, void *content, uint32_t order);
-Node_t *EK_pNodeCreate_Dynamic(void *content, uint32_t order);
-
-EK_Result_t EK_rListCreate_Static(List_t *list, Node_t *head_node);
-List_t *EK_pListCreate_Dynamic(Node_t *head_node);
-
-EK_Result_t EK_rListInsertEnd(List_t *list, Node_t *node);
-EK_Result_t EK_rListInsertHead(List_t *list, Node_t *node);
-EK_Result_t EK_rListInsertOrder(List_t *list, Node_t *node);
-EK_Result_t EK_rListRemoveNode(List_t *list, Node_t *node);
-EK_Result_t EK_rListMoveNode(List_t *list_src, List_t *list_dst, Node_t *node, int order);
+/* ========================= 函数声明区 ========================= */
+EK_Result_t EK_rNodeCreate_Static(EK_Node_t *node, void *content, uint32_t order);
+EK_Node_t *EK_pNodeCreate_Dynamic(void *content, uint32_t order);
+EK_Result_t EK_rListCreate_Static(EK_List_t *list, EK_Node_t *dummy_node);
+EK_List_t *EK_pListCreate_Dynamic(void);
+EK_Result_t EK_rListInsertEnd(EK_List_t *list, EK_Node_t *node);
+EK_Result_t EK_rListInsertHead(EK_List_t *list, EK_Node_t *node);
+EK_Result_t EK_rListInsertOrder(EK_List_t *list, EK_Node_t *node);
+EK_Result_t EK_rListRemoveNode(EK_List_t *list, EK_Node_t *node);
+EK_Result_t EK_rListMoveNode(EK_List_t *list_src, EK_List_t *list_dst, EK_Node_t *node, int order);
+EK_Result_t EK_rListOrder(EK_List_t *list, bool is_descend);
 
 #ifdef __cplusplus
 }

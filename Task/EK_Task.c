@@ -79,8 +79,8 @@ typedef enum
  */
 typedef struct
 {
-    EK_TaskNode_t *Head; // 链表头指针
-    EK_TaskNode_t *Tail; // 链表尾指针
+    EK_TaskEK_Node_t *Head; // 链表头指针
+    EK_TaskEK_Node_t *Tail; // 链表尾指针
     uint16_t Count; // 节点数量
 } EK_TaskSchedule_t;
 
@@ -188,7 +188,7 @@ static void Task_Error(EK_TaskErrorCode_t error_code)
  * @return EK_Result_t 插入结果
  * @note 这是一个通用的内部函数，只负责按优先级排序插入，不负责内存分配
  */
-static EK_Result_t r_task_insert_node(EK_TaskSchedule_t *list, EK_TaskNode_t *node)
+static EK_Result_t r_task_insert_node(EK_TaskSchedule_t *list, EK_TaskEK_Node_t *node)
 {
     if (node == NULL || list == NULL) return EK_NULL_POINTER;
 
@@ -206,7 +206,7 @@ static EK_Result_t r_task_insert_node(EK_TaskSchedule_t *list, EK_TaskNode_t *no
     }
 
     // 链表遍历指针
-    EK_TaskNode_t *p = list->Head;
+    EK_TaskEK_Node_t *p = list->Head;
 
     // 查看优先级是否高于链表头 越小越高
     if (node->TaskHandler.Task_Priority < list->Head->TaskHandler.Task_Priority)
@@ -220,7 +220,7 @@ static EK_Result_t r_task_insert_node(EK_TaskSchedule_t *list, EK_TaskNode_t *no
 
     while (p->Next != NULL)
     {
-        EK_TaskNode_t *p_next = p->Next;
+        EK_TaskEK_Node_t *p_next = p->Next;
         // 找到优先级恰当的地方
         if (p_next->TaskHandler.Task_Priority >= node->TaskHandler.Task_Priority)
         {
@@ -249,7 +249,7 @@ static EK_Result_t r_task_insert_node(EK_TaskSchedule_t *list, EK_TaskNode_t *no
  * @param node 要移除的节点
  * @return EK_Result_t 插入结果
  */
-static EK_Result_t r_task_remove_node(EK_TaskSchedule_t *list, EK_TaskNode_t *node)
+static EK_Result_t r_task_remove_node(EK_TaskSchedule_t *list, EK_TaskEK_Node_t *node)
 {
     if (node == NULL || list == NULL) return EK_NULL_POINTER;
     if (list->Count == 0) return EK_NOT_FOUND;
@@ -280,7 +280,7 @@ static EK_Result_t r_task_remove_node(EK_TaskSchedule_t *list, EK_TaskNode_t *no
     }
 
     // 遍历查找要删除的节点
-    EK_TaskNode_t *p = list->Head;
+    EK_TaskEK_Node_t *p = list->Head;
     while (p->Next != NULL)
     {
         if (p->Next == node)
@@ -314,7 +314,7 @@ static EK_Result_t r_task_remove_node(EK_TaskSchedule_t *list, EK_TaskNode_t *no
  * @param node 节点
  * @return EK_Result_t 执行情况
  */
-static EK_Result_t r_task_move_node(EK_TaskSchedule_t *list_src, EK_TaskSchedule_t *list_dst, EK_TaskNode_t *node)
+static EK_Result_t r_task_move_node(EK_TaskSchedule_t *list_src, EK_TaskSchedule_t *list_dst, EK_TaskEK_Node_t *node)
 {
     if (node == NULL || list_src == NULL || list_dst == NULL) return EK_NULL_POINTER;
     if (list_src == list_dst) return EK_INVALID_PARAM;
@@ -336,7 +336,7 @@ static EK_Result_t r_task_move_node(EK_TaskSchedule_t *list_src, EK_TaskSchedule
  * @param node 获取节点的指针的指针
  * @return EK_Result_t 执行情况
  */
-static EK_Result_t _task_search_node(EK_TaskSchedule_t *list, EK_TaskHandler_t *task_handler, EK_pTaskNode_t *node)
+static EK_Result_t _task_search_node(EK_TaskSchedule_t *list, EK_TaskHandler_t *task_handler, EK_pTaskEK_Node_t *node)
 {
     *node = NULL; // 节点默认为NULL
 
@@ -345,7 +345,7 @@ static EK_Result_t _task_search_node(EK_TaskSchedule_t *list, EK_TaskHandler_t *
     // 利用双向关联特性快速验证 - 如果Task_OwnerNode有效，可以直接验证
     if (task_handler->Task_OwnerNode != NULL)
     {
-        EK_pTaskNode_t candidate_node = (EK_pTaskNode_t)task_handler->Task_OwnerNode;
+        EK_pTaskEK_Node_t candidate_node = (EK_pTaskEK_Node_t)task_handler->Task_OwnerNode;
 
         // 验证双向关联的一致性
         if (&(candidate_node->TaskHandler) == task_handler && candidate_node->Owner == list)
@@ -357,7 +357,7 @@ static EK_Result_t _task_search_node(EK_TaskSchedule_t *list, EK_TaskHandler_t *
     }
 
     // 如果双向关联无效或不一致，回退到链表遍历 - O(n)复杂度
-    EK_TaskNode_t *p = list->Head;
+    EK_TaskEK_Node_t *p = list->Head;
     while (p != NULL)
     {
         // 找到对应节点
@@ -413,7 +413,7 @@ EK_Result_t EK_rTaskInit(void)
  * @return EK_pTaskHandler_t 返回节点中的任务句柄指针，失败返回NULL
  * @note 适用于静态分配场景，节点内存和函数指针都由用户管理，不使用内存池
  */
-EK_pTaskHandler_t EK_pTaskCreate_Static(EK_TaskNode_t *node, EK_TaskHandler_t *static_handler)
+EK_pTaskHandler_t EK_pTaskCreate_Static(EK_TaskEK_Node_t *node, EK_TaskHandler_t *static_handler)
 {
     if (node == NULL || static_handler == NULL) return NULL;
 
@@ -448,7 +448,7 @@ EK_Result_t EK_rTaskCreate_Dynamic(void (*pfunc)(void), uint8_t Priority, EK_pTa
 {
     if (pfunc == NULL) return EK_NULL_POINTER;
 
-    EK_TaskNode_t *node = (EK_TaskNode_t *)EK_pMemPool_Malloc(sizeof(EK_TaskNode_t));
+    EK_TaskEK_Node_t *node = (EK_TaskEK_Node_t *)EK_pMemPool_Malloc(sizeof(EK_TaskEK_Node_t));
     if (node == NULL)
     {
         return EK_NO_MEMORY;
@@ -517,7 +517,7 @@ EK_Result_t EK_rTaskDelete(EK_pTaskHandler_t task_handler)
     // 利用Task_OwnerNode直接获取节点，避免链表搜索 - O(1)复杂度
     if (target_handler->Task_OwnerNode == NULL) return EK_NULL_POINTER;
 
-    EK_pTaskNode_t node = (EK_pTaskNode_t)target_handler->Task_OwnerNode;
+    EK_pTaskEK_Node_t node = (EK_pTaskEK_Node_t)target_handler->Task_OwnerNode;
     EK_pTaskSchedule_t owner_list = (EK_pTaskSchedule_t)node->Owner;
 
     if (owner_list == NULL) return EK_NULL_POINTER;
@@ -612,7 +612,7 @@ EK_Result_t EK_rTaskSetPriority(EK_pTaskHandler_t task_handler, uint8_t Priority
     // 利用双向关联特性直接获取节点和所属链表
     if (target_handler->Task_OwnerNode == NULL) return EK_NULL_POINTER;
 
-    EK_pTaskNode_t node = (EK_pTaskNode_t)target_handler->Task_OwnerNode;
+    EK_pTaskEK_Node_t node = (EK_pTaskEK_Node_t)target_handler->Task_OwnerNode;
     EK_pTaskSchedule_t owner_list = (EK_pTaskSchedule_t)node->Owner;
 
     if (owner_list == NULL) return EK_NULL_POINTER;
@@ -669,7 +669,7 @@ EK_Result_t EK_rTaskGetInfo(EK_pTaskHandler_t task_handler, EK_TaskInfo_t *task_
     EK_TaskState_t task_state = TASK_STATE_UNKNOWN;
     if (target_handler->Task_OwnerNode != NULL)
     {
-        EK_pTaskNode_t node = (EK_pTaskNode_t)target_handler->Task_OwnerNode;
+        EK_pTaskEK_Node_t node = (EK_pTaskEK_Node_t)target_handler->Task_OwnerNode;
         if (node->Owner != NULL)
         {
             EK_pTaskSchedule_t owner_list = (EK_pTaskSchedule_t)node->Owner;
@@ -690,7 +690,7 @@ EK_Result_t EK_rTaskGetInfo(EK_pTaskHandler_t task_handler, EK_TaskInfo_t *task_
     task_info->isStatic = TASK_IS_STATIC(target_handler->Task_Info);
     task_info->Priority = target_handler->Task_Priority;
     task_info->MaxUsedTime = target_handler->Task_MaxUsed;
-    task_info->Memory = sizeof(EK_TaskNode_t); // 每个任务节点占用的内存大小
+    task_info->Memory = sizeof(EK_TaskEK_Node_t); // 每个任务节点占用的内存大小
     task_info->state = task_state;
 
     return EK_OK;
@@ -744,12 +744,12 @@ void EK_vTaskStart(uint32_t (*tick_get)(void))
         {
             last_tick = current_tick;
 
-            EK_TaskNode_t *p = WaitSchedule.Head; // 遍历指针
+            EK_TaskEK_Node_t *p = WaitSchedule.Head; // 遍历指针
 
             // 先处理所有等待的任务
             while (p != NULL)
             {
-                EK_TaskNode_t *p_next = p->Next; // 保存节点移动前的下一个节点位置
+                EK_TaskEK_Node_t *p_next = p->Next; // 保存节点移动前的下一个节点位置
 
                 // 非激活直接跳过当前的节点
                 if (TASK_IS_ACTIVE(p->TaskHandler.Task_Info) == false)
@@ -789,10 +789,10 @@ void EK_vTaskStart(uint32_t (*tick_get)(void))
         }
 
         // 处理就绪的任务 - 使用临时标记避免重复执行
-        EK_TaskNode_t *ptr = RunSchedule.Head;
+        EK_TaskEK_Node_t *ptr = RunSchedule.Head;
         while (ptr != NULL)
         {
-            EK_TaskNode_t *p_next = ptr->Next; // 保存下一个节点
+            EK_TaskEK_Node_t *p_next = ptr->Next; // 保存下一个节点
 
             uint32_t start_tick = 0; // 在这里定义避免警告
             uint32_t diff_tick = 0; // 在这里定义避免警告
@@ -843,7 +843,7 @@ void EK_vTaskStart(uint32_t (*tick_get)(void))
             }
 
             // 利用高效的搜索函数验证 ptr 是否仍然有效（可能在任务执行过程中被删除）
-            EK_TaskNode_t *found_node = NULL;
+            EK_TaskEK_Node_t *found_node = NULL;
             EK_Result_t search_result = _task_search_node(&RunSchedule, &ptr->TaskHandler, &found_node);
 
             if (search_result != EK_OK || found_node != ptr)

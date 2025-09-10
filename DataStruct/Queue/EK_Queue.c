@@ -16,10 +16,10 @@
 /**
  * @brief 动态创建一个队列（使用动态内存分配）
  * @param capacity 队列容量（字节数）
- * @return Queue_t* 返回创建的队列指针，失败返回NULL
+ * @return EK_Queue_t* 返回创建的队列指针，失败返回NULL
  * @note 适用于动态分配场景，队列内存由malloc管理，需要使用QueueDelete释放
  */
-Queue_t *EK_pQueueCreate_Dynamic(size_t capacity)
+EK_Queue_t *EK_pQueueCreate_Dynamic(size_t capacity)
 {
     if (capacity == 0) return NULL;
 
@@ -28,7 +28,7 @@ Queue_t *EK_pQueueCreate_Dynamic(size_t capacity)
     if (buffer == NULL) return NULL;
 
     // 使用复合字面量创建队列
-    Queue_t *queue = (Queue_t *)_MALLOC(sizeof(Queue_t));
+    EK_Queue_t *queue = (EK_Queue_t *)_MALLOC(sizeof(EK_Queue_t));
     if (queue == NULL)
     {
         _FREE(buffer);
@@ -36,14 +36,14 @@ Queue_t *EK_pQueueCreate_Dynamic(size_t capacity)
     }
 
     // 使用memcpy来初始化整个结构体
-    Queue_t temp_queue = {.Queue_Buf = buffer,
-                          .Queue_Front = 0,
-                          .Queue_Rear = 0,
-                          .Queue_Size = 0,
-                          .Queue_Capacity = capacity,
-                          .Queue_isDynamic = true};
+    EK_Queue_t temp_queue = {.Queue_Buf = buffer,
+                             .Queue_Front = 0,
+                             .Queue_Rear = 0,
+                             .Queue_Size = 0,
+                             .Queue_Capacity = capacity,
+                             .Queue_isDynamic = true};
 
-    memcpy(queue, &temp_queue, sizeof(Queue_t));
+    memcpy(queue, &temp_queue, sizeof(EK_Queue_t));
     return queue;
 }
 
@@ -55,20 +55,20 @@ Queue_t *EK_pQueueCreate_Dynamic(size_t capacity)
  * @return EK_Result_t 创建成功返回EK_OK，失败返回对应错误码
  * @note 适用于静态分配场景，队列结构体和缓冲区内存都由用户管理
  */
-EK_Result_t EK_rQueueCreate_Static(Queue_t *queue_handler, void *buffer, const size_t capacity)
+EK_Result_t EK_rQueueCreate_Static(EK_Queue_t *queue_handler, void *buffer, const size_t capacity)
 {
     // 判断入参是否无效
     if (queue_handler == NULL || capacity == 0) return EK_INVALID_PARAM;
 
     // 使用临时结构体和memcpy来初始化
-    Queue_t temp_queue = {.Queue_Buf = buffer,
-                          .Queue_Front = 0,
-                          .Queue_Rear = 0,
-                          .Queue_Size = 0,
-                          .Queue_Capacity = capacity,
-                          .Queue_isDynamic = false};
+    EK_Queue_t temp_queue = {.Queue_Buf = buffer,
+                             .Queue_Front = 0,
+                             .Queue_Rear = 0,
+                             .Queue_Size = 0,
+                             .Queue_Capacity = capacity,
+                             .Queue_isDynamic = false};
 
-    memcpy(queue_handler, &temp_queue, sizeof(Queue_t));
+    memcpy(queue_handler, &temp_queue, sizeof(EK_Queue_t));
     return EK_OK;
 }
 
@@ -79,7 +79,7 @@ EK_Result_t EK_rQueueCreate_Static(Queue_t *queue_handler, void *buffer, const s
  * @note 对于动态队列会释放malloc分配的内存，对于静态队列只清空缓冲区
  * @warning 删除后队列指针将变为无效，不应再使用
  */
-EK_Result_t EK_rQueueDelete(Queue_t *queue)
+EK_Result_t EK_rQueueDelete(EK_Queue_t *queue)
 {
     if (queue == NULL) return EK_NULL_POINTER;
 
@@ -110,7 +110,7 @@ EK_Result_t EK_rQueueDelete(Queue_t *queue)
  * @return bool 队列为空返回true，非空或队列指针无效返回false
  * @note 当队列指针为NULL时返回false，表示检查失败
  */
-bool EK_bQueueIsEmpty(Queue_t *queue)
+bool EK_bQueueIsEmpty(EK_Queue_t *queue)
 {
     if (queue == NULL) return false;
     return (queue->Queue_Size == 0);
@@ -122,7 +122,7 @@ bool EK_bQueueIsEmpty(Queue_t *queue)
  * @return bool 队列已满返回true，未满或队列指针无效返回false
  * @note 当队列指针为NULL时返回false，表示检查失败
  */
-bool EK_bQueueIsFull(Queue_t *queue)
+bool EK_bQueueIsFull(EK_Queue_t *queue)
 {
     if (queue == NULL) return false;
     return (queue->Queue_Size >= queue->Queue_Capacity);
@@ -134,7 +134,7 @@ bool EK_bQueueIsFull(Queue_t *queue)
  * @return size_t 返回队列中数据的字节数，队列指针无效时返回0
  * @note 返回值表示队列中实际存储的数据量，不是队列容量
  */
-size_t EK_sQueueGetSize(Queue_t *queue)
+size_t EK_sQueueGetSize(EK_Queue_t *queue)
 {
     if (queue == NULL) return 0;
     return queue->Queue_Size;
@@ -146,7 +146,7 @@ size_t EK_sQueueGetSize(Queue_t *queue)
  * @return size_t 返回队列剩余可用的字节数，队列指针无效时返回0
  * @note 返回值表示还可以向队列中写入多少字节的数据
  */
-size_t EK_sQueueGetRemain(Queue_t *queue)
+size_t EK_sQueueGetRemain(EK_Queue_t *queue)
 {
     if (queue == NULL) return 0;
     int64_t temp = queue->Queue_Capacity - queue->Queue_Size;
@@ -162,7 +162,7 @@ size_t EK_sQueueGetRemain(Queue_t *queue)
  * @note 会检查队列剩余空间是否足够，数据会被复制到队列内部缓冲区
  * @warning 确保data指向的内存区域至少有data_size字节有效数据
  */
-EK_Result_t EK_rQueueEnqueue(Queue_t *queue, void *data, size_t data_size)
+EK_Result_t EK_rQueueEnqueue(EK_Queue_t *queue, void *data, size_t data_size)
 {
     // 参数有效性检查
     if (queue == NULL || data == NULL || data_size == 0) return EK_INVALID_PARAM;
@@ -196,7 +196,7 @@ EK_Result_t EK_rQueueEnqueue(Queue_t *queue, void *data, size_t data_size)
  * @return EK_Result_t 操作结果，成功返回EK_OK
  * @note 会检查队列中数据是否足够，数据会从队列中移除并复制到data_buffer中
  */
-EK_Result_t EK_rQueueDequeue(Queue_t *queue, void *data_buffer, size_t data_size)
+EK_Result_t EK_rQueueDequeue(EK_Queue_t *queue, void *data_buffer, size_t data_size)
 {
     // 参数有效性检查
     if (queue == NULL || data_buffer == NULL || data_size == 0) return EK_INVALID_PARAM;
@@ -230,7 +230,7 @@ EK_Result_t EK_rQueueDequeue(Queue_t *queue, void *data_buffer, size_t data_size
  * @return EK_Result_t 操作结果，成功返回EK_OK
  * @note 只查看数据不会从队列中移除，队列状态保持不变
  */
-EK_Result_t EK_rQueuePeekFront(Queue_t *queue, void *data_buffer, size_t data_size)
+EK_Result_t EK_rQueuePeekFront(EK_Queue_t *queue, void *data_buffer, size_t data_size)
 {
     // 参数有效性检查
     if (queue == NULL || data_buffer == NULL || data_size == 0) return EK_INVALID_PARAM;

@@ -141,10 +141,10 @@ if (!EK_bMemPool_Init()) {
 typedef struct Node {
     int data;
     struct Node *next;
-} Node_t;
+} EK_Node_t;
 
-Node_t *create_node(int value) {
-    Node_t *node = (Node_t*)EK_pMemPool_Malloc(sizeof(Node_t));
+EK_Node_t *create_node(int value) {
+    EK_Node_t *node = (EK_Node_t*)EK_pMemPool_Malloc(sizeof(EK_Node_t));
     if (node) {
         node->data = value;
         node->next = NULL;
@@ -152,7 +152,7 @@ Node_t *create_node(int value) {
     return node;
 }
 
-void destroy_node(Node_t *node) {
+void destroy_node(EK_Node_t *node) {
     if (node) {
         EK_bMemPool_Free(node);
     }
