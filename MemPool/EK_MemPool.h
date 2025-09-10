@@ -1,20 +1,16 @@
 /**
- * @file MemPool.h
- * @brief 内存池管理模块 (仿照FreeRTOS heap4设计思路)
- * @details 实现动态内存分配功能，支持内存合并，减少碎片化
- *          采用单向链表管理空闲块，支持块分割与合并
- * @author N1netyNine99
- * @date 2025-09-04
- * @version v1.0
+ * @file EK_MemPool.h
+ * @brief 内存池管理头文件
+ * @details 定义了内存池的数据结构和操作接口
+ * @author N1ntyNine99
+ * @date 2025-09-08
+ * @version 1.0
  */
 
-#ifndef __MEMPOOL_h
-#define __MEMPOOL_h
+#ifndef __EK_MEMPOOL_H
+#define __EK_MEMPOOL_H
 
-#include <stdint.h>
-#include <stddef.h>
-#include <stdbool.h>
-#include <string.h>
+#include "../EK_Common.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -62,13 +58,13 @@ typedef struct
 } PoolStats_t;
 
 /* ========================= 函数声明区 ========================= */
-bool MemPool_Init(void);
-void MemPool_Deinit(void);
-void *MemPool_Malloc(size_t size);
-bool MemPool_Free(void *ptr);
-void MemPool_GetStats(PoolStats_t *stats);
-size_t MemPool_GetFreeSize(void);
-bool MemPool_CheckIntegrity(void);
+bool EK_bMemPool_Init(void);
+void EK_vMemPool_Deinit(void);
+void *EK_pMemPool_Malloc(size_t size);
+bool EK_bMemPool_Free(void *ptr);
+void EK_vMemPool_GetStats(PoolStats_t *stats);
+size_t EK_sMemPool_GetFreeSize(void);
+bool EK_bMemPool_CheckIntegrity(void);
 
 #ifdef __cplusplus
 }

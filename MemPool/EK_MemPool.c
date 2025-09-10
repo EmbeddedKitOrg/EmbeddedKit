@@ -1,5 +1,5 @@
 /**
- * @file MemPool.c
+ * @file EK_MemPool.c
  * @brief 内存池管理模块实现 (仿照FreeRTOS heap4设计思路)
  * @details 实现动态内存分配与回收功能，采用单向链表管理空闲块
  *          支持块分割与合并减少碎片，使用首次适应算法
@@ -9,7 +9,7 @@
  */
 
 /* ========================= 头文件包含区 ========================= */
-#include "MemPool.h"
+#include "EK_MemPool.h"
 
 /* ========================= 宏定义区 ========================= */
 /** @brief 已分配标记位(最高位) */
@@ -47,11 +47,11 @@ static PoolStats_t pool_statistics = {0};
 static bool pool_initialized = false;
 
 /* ========================= 内部函数前置声明区 ========================= */
-static void _init_heap(void);
-static void _insert_free_block(MemBlock_t *block_to_insert);
-static MemBlock_t *_find_suitable_block(size_t wanted_size);
-static void _split_block(MemBlock_t *block, size_t wanted_size);
-static void _merge_blocks(void *ptr);
+static void v_init_heap(void);
+static void v_insert_free_block(MemBlock_t *block_to_insert);
+static MemBlock_t *p_find_suitable_block(size_t wanted_size);
+static void v_split_block(MemBlock_t *block, size_t wanted_size);
+static void v_merge_blocks(void *ptr);
 
 /* ========================= 内存池初始化区 ========================= */
 
@@ -61,7 +61,7 @@ static void _merge_blocks(void *ptr);
  * @retval 无
  * @note 设置初始空闲块和链表结构
  */
-static void _init_heap(void)
+static void v_init_heap(void)
 {
     MemBlock_t *first_block;
     uint8_t *aligned_heap;
@@ -106,7 +106,7 @@ static void _init_heap(void)
  * @retval true 初始化成功
  * @retval false 初始化失败
  */
-bool MemPool_Init(void)
+bool EK_bMemPool_Init(void)
 {
     /* 检查是否已经初始化 */
     if (pool_initialized)
@@ -118,7 +118,7 @@ bool MemPool_Init(void)
     memset(heap_memory, 0, MEMPOOL_SIZE);
 
     /* 初始化堆结构 */
-    _init_heap();
+    v_init_heap();
 
     pool_initialized = true;
     return true;
@@ -129,7 +129,7 @@ bool MemPool_Init(void)
  * @param 无
  * @retval 无
  */
-void MemPool_Deinit(void)
+void EK_vMemPool_Deinit(void)
 {
     pool_initialized = false;
     memset(&pool_statistics, 0, sizeof(pool_statistics));
@@ -144,7 +144,7 @@ void MemPool_Deinit(void)
  * @retval 无
  * @note 按地址顺序插入以便后续合并
  */
-static void _insert_free_block(MemBlock_t *block_to_insert)
+static void v_insert_free_block(MemBlock_t *block_to_insert)
 {
     MemBlock_t *current = &free_list_start;
 
@@ -165,7 +165,7 @@ static void _insert_free_block(MemBlock_t *block_to_insert)
  * @retval 找到的块指针，NULL表示未找到
  * @note 使用首次适应算法
  */
-static MemBlock_t *_find_suitable_block(size_t wanted_size)
+static MemBlock_t *p_find_suitable_block(size_t wanted_size)
 {
     MemBlock_t *current, *prev = &free_list_start;
 
@@ -193,7 +193,7 @@ static MemBlock_t *_find_suitable_block(size_t wanted_size)
  * @retval 无
  * @note 如果剩余部分足够大，将其作为新的空闲块
  */
-static void _split_block(MemBlock_t *block, size_t wanted_size)
+static void v_split_block(MemBlock_t *block, size_t wanted_size)
 {
     MemBlock_t *new_block;
     size_t block_size = GET_SIZE(block->block_size);
@@ -210,7 +210,7 @@ static void _split_block(MemBlock_t *block, size_t wanted_size)
         block->block_size = wanted_size;
 
         /* 将新块插入空闲链表 */
-        _insert_free_block(new_block);
+        v_insert_free_block(new_block);
     }
 }
 
@@ -220,7 +220,7 @@ static void _split_block(MemBlock_t *block, size_t wanted_size)
  * @retval 无
  * @note 检查前后相邻块并进行合并
  */
-static void _merge_blocks(void *ptr)
+static void v_merge_blocks(void *ptr)
 {
     MemBlock_t *block = (MemBlock_t *)((uint8_t *)ptr - sizeof(MemBlock_t));
     MemBlock_t *current, *prev;
@@ -264,7 +264,7 @@ static void _merge_blocks(void *ptr)
     /* 如果块没有被合并到已存在的空闲块中，插入到链表 */
     if (prev->next_free != block)
     {
-        _insert_free_block(block);
+        v_insert_free_block(block);
     }
 }
 
@@ -275,7 +275,7 @@ static void _merge_blocks(void *ptr)
  * @retval NULL 分配失败
  * @note 使用首次适应算法查找合适的空闲块
  */
-void *MemPool_Malloc(size_t size)
+void *EK_pMemPool_Malloc(size_t size)
 {
     MemBlock_t *block;
     void *return_ptr = NULL;
@@ -309,11 +309,11 @@ void *MemPool_Malloc(size_t size)
     }
 
     /* 查找合适的空闲块 */
-    block = _find_suitable_block(wanted_size);
+    block = p_find_suitable_block(wanted_size);
     if (block != NULL)
     {
         /* 分割块(如果剩余部分足够大) */
-        _split_block(block, wanted_size);
+        v_split_block(block, wanted_size);
 
         /* 标记块为已分配 */
         block->block_size = SET_ALLOCATED(wanted_size);
@@ -341,7 +341,7 @@ void *MemPool_Malloc(size_t size)
  * @retval false 释放失败
  * @note 会自动与相邻的空闲块合并
  */
-bool MemPool_Free(void *ptr)
+bool EK_bMemPool_Free(void *ptr)
 {
     MemBlock_t *block;
     size_t block_size;
@@ -375,7 +375,7 @@ bool MemPool_Free(void *ptr)
     pool_statistics.free_count++;
 
     /* 合并相邻块并插入空闲链表 */
-    _merge_blocks(ptr);
+    v_merge_blocks(ptr);
 
     return true;
 }
@@ -387,7 +387,7 @@ bool MemPool_Free(void *ptr)
  * @param stats 指向统计信息结构体的指针
  * @retval 无
  */
-void MemPool_GetStats(PoolStats_t *stats)
+void EK_vMemPool_GetStats(PoolStats_t *stats)
 {
     if (stats != NULL && pool_initialized)
     {
@@ -400,7 +400,7 @@ void MemPool_GetStats(PoolStats_t *stats)
  * @param 无
  * @retval 剩余可用字节数
  */
-size_t MemPool_GetFreeSize(void)
+size_t EK_sMemPool_GetFreeSize(void)
 {
     return pool_initialized ? pool_statistics.free_bytes : 0;
 }
@@ -411,7 +411,7 @@ size_t MemPool_GetFreeSize(void)
  * @retval true: 内存池完整, false: 检测到损坏
  * @note 遍历空闲链表检查完整性
  */
-bool MemPool_CheckIntegrity(void)
+bool EK_bMemPool_CheckIntegrity(void)
 {
     MemBlock_t *current;
     size_t total_free = 0;

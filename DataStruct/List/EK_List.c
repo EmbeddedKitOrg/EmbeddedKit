@@ -1,5 +1,5 @@
 /**
- * @file List.c
+ * @file EK_List.c
  * @brief 双向链表实现文件
  * @details 提供双向链表的创建、插入、删除等基本操作功能
  * @author N1netyNine99
@@ -7,7 +7,7 @@
  * @version 1.0
  */
 
-#include "List.h"
+#include "EK_List.h"
 
 /* ========================= 宏定义区 ========================= */
 /**
@@ -38,11 +38,11 @@ static const uint32_t __DUMMY__ = 0xABCD1234;
  * @param node 指向已分配内存的节点指针
  * @param content 节点存储的内容指针
  * @param order 节点序号
- * @return DS_Result_t 操作结果
+ * @return EK_Result_t 操作结果
  */
-DS_Result_t NodeCreate_Static(Node_t *node, void *content, uint32_t order)
+EK_Result_t EK_rNodeCreate_Static(Node_t *node, void *content, uint32_t order)
 {
-    if (node == NULL || content == NULL) return DS_ERROR_NULL_POINTER;
+    if (node == NULL || content == NULL) return EK_NULL_POINTER;
 
     node->Node_Content = content;
     node->Node_Order = order;
@@ -50,7 +50,7 @@ DS_Result_t NodeCreate_Static(Node_t *node, void *content, uint32_t order)
     node->Node_Prev = NULL;
     node->Node_Owner = NULL;
 
-    return DS_SUCCESS;
+    return EK_OK;
 }
 
 /**
@@ -62,7 +62,7 @@ DS_Result_t NodeCreate_Static(Node_t *node, void *content, uint32_t order)
  * @retval 非NULL 创建成功，返回节点指针
  * @retval NULL 创建失败（参数为空或内存分配失败）
  */
-Node_t *NodeCreate_Dynamic(void *content, uint32_t order)
+Node_t *EK_pNodeCreate_Dynamic(void *content, uint32_t order)
 {
     if (content == NULL) return NULL;
     Node_t *node = (Node_t *)_MALLOC(sizeof(Node_t));
@@ -87,15 +87,15 @@ Node_t *NodeCreate_Dynamic(void *content, uint32_t order)
  * @details 在已分配的链表内存上初始化链表，并设置头节点
  * @param list 指向已分配内存的链表指针
  * @param head_node 链表的头节点
- * @return DS_Result_t 操作结果
+ * @return EK_Result_t 操作结果
  */
-DS_Result_t ListCreate_Static(List_t *list, Node_t *head_node)
+EK_Result_t EK_rListCreate_Static(List_t *list, Node_t *head_node)
 {
-    if (list == NULL || head_node == NULL) return DS_ERROR_NULL_POINTER;
+    if (list == NULL || head_node == NULL) return EK_NULL_POINTER;
 
     // 初始化哨兵节点
     list->List_Dummy = (Node_t *)_MALLOC(sizeof(Node_t));
-    if (list->List_Dummy == NULL) return DS_ERROR_MEMORY_ALLOC;
+    if (list->List_Dummy == NULL) return EK_NO_MEMORY;
 
     list->List_Count = 1;
     head_node->Node_Owner = list;
@@ -104,7 +104,7 @@ DS_Result_t ListCreate_Static(List_t *list, Node_t *head_node)
     list->List_Dummy->Node_Owner = list;
     list->List_Dummy->Node_Content = (void *)&__DUMMY__;
 
-    return DS_SUCCESS;
+    return EK_OK;
 }
 
 /**
@@ -115,7 +115,7 @@ DS_Result_t ListCreate_Static(List_t *list, Node_t *head_node)
  * @retval 非NULL 创建成功，返回链表指针
  * @retval NULL 创建失败（参数为空或内存分配失败）
  */
-List_t *ListCreate_Dynamic(Node_t *head_node)
+List_t *EK_pListCreate_Dynamic(Node_t *head_node)
 {
     if (head_node == NULL) return NULL;
 
@@ -149,11 +149,11 @@ List_t *ListCreate_Dynamic(Node_t *head_node)
  * @details 将指定节点插入到链表的尾部位置
  * @param list 目标链表指针
  * @param node 要插入的节点指针
- * @return DS_Result_t 操作结果
+ * @return EK_Result_t 操作结果
  */
-DS_Result_t ListInsertEnd(List_t *list, Node_t *node)
+EK_Result_t EK_rListInsertEnd(List_t *list, Node_t *node)
 {
-    if (list == NULL || node == NULL) return DS_ERROR_NULL_POINTER;
+    if (list == NULL || node == NULL) return EK_NULL_POINTER;
 
     // 空链表
     if (list->List_Count == 0)
@@ -162,7 +162,7 @@ DS_Result_t ListInsertEnd(List_t *list, Node_t *node)
         GET_FIRST_NODE(list) = node;
         GET_LAST_NODE(list) = node;
         list->List_Count = 1;
-        return DS_SUCCESS;
+        return EK_OK;
     }
 
     Node_t *temp = GET_LAST_NODE(list);
@@ -176,7 +176,7 @@ DS_Result_t ListInsertEnd(List_t *list, Node_t *node)
     list->List_Dummy->Node_Prev = node; //维护哨兵节点
     GET_LAST_NODE(list) = node;
 
-    return DS_SUCCESS;
+    return EK_OK;
 }
 
 /**
@@ -184,11 +184,11 @@ DS_Result_t ListInsertEnd(List_t *list, Node_t *node)
  * @details 将指定节点插入到链表的头部位置
  * @param list 目标链表指针
  * @param node 要插入的节点指针
- * @return DS_Result_t 操作结果
+ * @return EK_Result_t 操作结果
  */
-DS_Result_t ListInsertHead(List_t *list, Node_t *node)
+EK_Result_t EK_rListInsertHead(List_t *list, Node_t *node)
 {
-    if (list == NULL || node == NULL) return DS_ERROR_NULL_POINTER;
+    if (list == NULL || node == NULL) return EK_NULL_POINTER;
 
     // 空链表
     if (list->List_Count == 0)
@@ -197,7 +197,7 @@ DS_Result_t ListInsertHead(List_t *list, Node_t *node)
         GET_FIRST_NODE(list) = node;
         GET_LAST_NODE(list) = node;
         list->List_Count = 1;
-        return DS_SUCCESS;
+        return EK_OK;
     }
 
     Node_t *temp = GET_FIRST_NODE(list);
@@ -211,7 +211,7 @@ DS_Result_t ListInsertHead(List_t *list, Node_t *node)
     list->List_Dummy->Node_Next = node; //维护哨兵节点
     GET_FIRST_NODE(list) = node;
 
-    return DS_SUCCESS;
+    return EK_OK;
 }
 
 /**
@@ -219,12 +219,12 @@ DS_Result_t ListInsertHead(List_t *list, Node_t *node)
  * @details 根据节点的序号值，将节点插入到链表中合适的位置以保持有序
  * @param list 目标链表指针
  * @param node 要插入的节点指针
- * @return DS_Result_t 操作结果
+ * @return EK_Result_t 操作结果
  * @retval DS_SUCCESS 插入成功
  */
-DS_Result_t ListInsertOrder(List_t *list, Node_t *node)
+EK_Result_t EK_rListInsertOrder(List_t *list, Node_t *node)
 {
-    if (list == NULL || node == NULL) return DS_ERROR_NULL_POINTER;
+    if (list == NULL || node == NULL) return EK_NULL_POINTER;
 
     // 空链表
     if (list->List_Count == 0)
@@ -233,19 +233,19 @@ DS_Result_t ListInsertOrder(List_t *list, Node_t *node)
         GET_FIRST_NODE(list) = node;
         GET_LAST_NODE(list) = node;
         list->List_Count = 1;
-        return DS_SUCCESS;
+        return EK_OK;
     }
 
     // 比首节点都小
     if (node->Node_Order <= GET_FIRST_NODE(list)->Node_Order)
     {
-        return ListInsertHead(list, node);
+        return EK_rListInsertHead(list, node);
     }
 
     // 比尾节点都大
     if (node->Node_Order >= GET_LAST_NODE(list)->Node_Order)
     {
-        return ListInsertEnd(list, node);
+        return EK_rListInsertEnd(list, node);
     }
 
     Node_t *p = GET_FIRST_NODE(list);
@@ -267,12 +267,12 @@ DS_Result_t ListInsertOrder(List_t *list, Node_t *node)
 
             node->Node_Owner = list;
             list->List_Count++;
-            return DS_SUCCESS;
+            return EK_OK;
         }
         p = p->Node_Next;
     }
 
-    return DS_ERROR_UNKNOWN;
+    return EK_UNKNOWN;
 }
 
 /**
@@ -280,13 +280,13 @@ DS_Result_t ListInsertOrder(List_t *list, Node_t *node)
  * @details 将指定节点从链表中移除，并重新连接相邻节点
  * @param list 目标链表指针
  * @param node 要移除的节点指针
- * @return DS_Result_t 操作结果
+ * @return EK_Result_t 操作结果
  */
-DS_Result_t ListRemoveNode(List_t *list, Node_t *node)
+EK_Result_t EK_rListRemoveNode(List_t *list, Node_t *node)
 {
-    if (list == NULL || node == NULL) return DS_ERROR_NULL_POINTER;
-    if (list->List_Count == 0) return DS_ERROR_EMPTY;
-    if (node->Node_Owner != list) return DS_ERROR_NOT_FOUND;
+    if (list == NULL || node == NULL) return EK_NULL_POINTER;
+    if (list->List_Count == 0) return EK_EMPTY;
+    if (node->Node_Owner != list) return EK_NOT_FOUND;
 
     // 只有一个节点
     if (list->List_Count == 1)
@@ -303,9 +303,9 @@ DS_Result_t ListRemoveNode(List_t *list, Node_t *node)
                 list->List_Dummy->Node_Prev = list->List_Dummy;
 
                 list->List_Count = 0;
-                return DS_SUCCESS;
+                return EK_OK;
             }
-            return DS_ERROR_NOT_FOUND;
+            return EK_NOT_FOUND;
         }
     }
 
@@ -327,7 +327,7 @@ DS_Result_t ListRemoveNode(List_t *list, Node_t *node)
         node->Node_Prev = NULL;
         node->Node_Owner = NULL;
 
-        return DS_SUCCESS;
+        return EK_OK;
     }
 
     // 是尾节点
@@ -348,7 +348,7 @@ DS_Result_t ListRemoveNode(List_t *list, Node_t *node)
         node->Node_Prev = NULL;
         node->Node_Owner = NULL;
 
-        return DS_SUCCESS;
+        return EK_OK;
     }
 
     // 将 node 前后节点相互连接
@@ -363,7 +363,7 @@ DS_Result_t ListRemoveNode(List_t *list, Node_t *node)
     node->Node_Prev = NULL;
     node->Node_Owner = NULL;
 
-    return DS_SUCCESS;
+    return EK_OK;
 }
 
 /**
@@ -373,34 +373,34 @@ DS_Result_t ListRemoveNode(List_t *list, Node_t *node)
  * @param list_dst 目标链表指针
  * @param node 要移动的节点指针
  * @param order 插入方式：0-插入到头部，<0-插入到尾部，>0-按序号插入
- * @return DS_Result_t 操作结果
+ * @return EK_Result_t 操作结果
  */
-DS_Result_t ListMoveNode(List_t *list_src, List_t *list_dst, Node_t *node, int order)
+EK_Result_t EK_rListMoveNode(List_t *list_src, List_t *list_dst, Node_t *node, int order)
 {
-    if (list_dst == NULL || list_src == NULL) return DS_ERROR_NULL_POINTER;
-    if (node->Node_Owner != list_src) return DS_ERROR_NOT_FOUND;
+    if (list_dst == NULL || list_src == NULL) return EK_NULL_POINTER;
+    if (node->Node_Owner != list_src) return EK_NOT_FOUND;
 
-    if (list_src == list_dst) return DS_SUCCESS;
+    if (list_src == list_dst) return EK_OK;
 
     // 从原链表移除节点
-    DS_Result_t res = ListRemoveNode(list_src, node);
-    if (res != DS_SUCCESS) return res;
+    EK_Result_t res = EK_rListRemoveNode(list_src, node);
+    if (res != EK_OK) return res;
 
     if (order == 0) // 插入到头部
     {
-        res = ListInsertHead(list_dst, node);
-        if (res != DS_SUCCESS) return res;
+        res = EK_rListInsertHead(list_dst, node);
+        if (res != EK_OK) return res;
     }
     else if (order < 0) // 插入到尾部
     {
-        res = ListInsertEnd(list_dst, node);
-        if (res != DS_SUCCESS) return res;
+        res = EK_rListInsertEnd(list_dst, node);
+        if (res != EK_OK) return res;
     }
     else // 按序号插入
     {
-        res = ListInsertOrder(list_dst, node);
-        if (res != DS_SUCCESS) return res;
+        res = EK_rListInsertOrder(list_dst, node);
+        if (res != EK_OK) return res;
     }
 
-    return DS_SUCCESS;
+    return EK_OK;
 }

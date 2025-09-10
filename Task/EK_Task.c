@@ -1,5 +1,5 @@
 /**
- * @file TaskSchedule.c
+ * @file EK_Task.c
  * @brief 基于双链表+内存池实现的轻量级任务调度器
  * @details 实现了一个非抢占式任务调度器，具有以下特性：
  *          - 基于优先级的任务调度（数值越小优先级越高）
@@ -17,12 +17,8 @@
  * @date 2025-09-04
  * @version v2.0
  */
-#include "TaskSchedule.h"
-#include "../MemPool/MemPool.h"
-
-static TaskSchedule_t RunSchedule; // 任务执行链表
-static TaskSchedule_t WaitSchedule; // 任务等待链表
-static TaskHandler_t *_CurTask_Handler; //当前正在占用CPU的任务的句柄
+#include "EK_Task.h"
+#include "../MemPool/EK_MemPool.h"
 
 /* ========================= 宏定义区 ========================= */
 /**
@@ -75,7 +71,25 @@ typedef enum
     TASK_ERR_RUN_TO_WAIT, /**< 运行链表到等待链表移动失败 */
     TASK_ERR_MEMORY_CORRUPT, /**< 内存损坏 */
     TASK_ERR_LIST_CORRUPT /**< 链表结构损坏 */
-} TaskErrorCode_t;
+} EK_TaskErrorCode_t;
+
+/**
+ * @brief 任务调度器结构体
+ * @note 用于管理任务的执行链表和等待链表
+ */
+typedef struct
+{
+    EK_TaskNode_t *Head; // 链表头指针
+    EK_TaskNode_t *Tail; // 链表尾指针
+    uint16_t Count; // 节点数量
+} EK_TaskSchedule_t;
+
+typedef EK_TaskSchedule_t *EK_pTaskSchedule_t; // 调度链表指针(aka EK_TaskSchedule_t*)
+
+/* ========================= 内部全局变量区 ========================= */
+static EK_TaskSchedule_t RunSchedule; // 任务执行链表
+static EK_TaskSchedule_t WaitSchedule; // 任务等待链表
+static EK_TaskHandler_t *_CurTask_Handler; //当前正在占用CPU的任务的句柄
 
 /* ========================= 弱定义函数区 ========================= */
 /**
@@ -108,14 +122,14 @@ __weak void TaskIdle(void)
  * @note 不同的错误代码会进入不同的死循环，便于调试时定位问题
  * 调试时可以在各个循环处打断点来确定具体的错误原因
  */
-static void Task_Error(TaskErrorCode_t error_code)
+static void Task_Error(EK_TaskErrorCode_t error_code)
 {
     switch (error_code)
     {
         case TASK_ERR_TICK_NULL: // tick获取函数为空
             while (1)
             {
-                TaskErrorCode_t code = (TaskErrorCode_t)1;
+                EK_TaskErrorCode_t code = (EK_TaskErrorCode_t)1;
                 UNUSED_VAR(code);
                 // 错误1: tick_get函数指针为NULL
                 // 检查Task_Start()调用时是否传入了有效的tick获取函数
@@ -124,7 +138,7 @@ static void Task_Error(TaskErrorCode_t error_code)
         case TASK_ERR_WAIT_TO_RUN: // 等待链表到运行链表移动失败
             while (1)
             {
-                TaskErrorCode_t code = (TaskErrorCode_t)2;
+                EK_TaskErrorCode_t code = (EK_TaskErrorCode_t)2;
                 UNUSED_VAR(code);
                 // 错误2: 任务从等待链表移动到运行链表失败
                 // 可能原因: 链表结构被破坏或内存问题
@@ -133,7 +147,7 @@ static void Task_Error(TaskErrorCode_t error_code)
         case TASK_ERR_RUN_TO_WAIT: // 运行链表到等待链表移动失败
             while (1)
             {
-                TaskErrorCode_t code = (TaskErrorCode_t)3;
+                EK_TaskErrorCode_t code = (EK_TaskErrorCode_t)3;
                 UNUSED_VAR(code);
                 // 错误3: 任务从运行链表移动到等待链表失败
                 // 可能原因: 链表结构被破坏或内存问题
@@ -142,7 +156,7 @@ static void Task_Error(TaskErrorCode_t error_code)
         case TASK_ERR_MEMORY_CORRUPT: // 内存损坏
             while (1)
             {
-                TaskErrorCode_t code = (TaskErrorCode_t)4;
+                EK_TaskErrorCode_t code = (EK_TaskErrorCode_t)4;
                 UNUSED_VAR(code);
                 // 错误4: 内存池或任务节点内存损坏
                 // 检查内存池完整性或任务节点是否被意外修改
@@ -151,7 +165,7 @@ static void Task_Error(TaskErrorCode_t error_code)
         case TASK_ERR_LIST_CORRUPT: // 链表结构损坏
             while (1)
             {
-                TaskErrorCode_t code = (TaskErrorCode_t)5;
+                EK_TaskErrorCode_t code = (EK_TaskErrorCode_t)5;
                 UNUSED_VAR(code);
                 // 错误5: 链表结构损坏
                 // 检查链表头、尾指针和计数是否一致
@@ -160,7 +174,7 @@ static void Task_Error(TaskErrorCode_t error_code)
         default: // 未知错误
             while (1)
             {
-                TaskErrorCode_t code = (TaskErrorCode_t)0xFF; // 使用有效值替代-1
+                EK_TaskErrorCode_t code = (EK_TaskErrorCode_t)0xFF; // 使用有效值替代-1
                 UNUSED_VAR(code);
                 // 未知错误: 检查调用Task_Error()的地方传入的错误代码
             }
@@ -171,12 +185,12 @@ static void Task_Error(TaskErrorCode_t error_code)
  * @brief 将任务节点按优先级插入到链表中
  * @param list 目标链表
  * @param node 要插入的节点
- * @return TaskRes_t 插入结果
+ * @return EK_Result_t 插入结果
  * @note 这是一个通用的内部函数，只负责按优先级排序插入，不负责内存分配
  */
-static TaskRes_t _task_insert_node(TaskSchedule_t *list, TaskNode_t *node)
+static EK_Result_t r_task_insert_node(EK_TaskSchedule_t *list, EK_TaskNode_t *node)
 {
-    if (node == NULL || list == NULL) return TASK_ERROR_NULL_POINTER;
+    if (node == NULL || list == NULL) return EK_NULL_POINTER;
 
     node->Next = NULL;
 
@@ -188,11 +202,11 @@ static TaskRes_t _task_insert_node(TaskSchedule_t *list, TaskNode_t *node)
         list->Tail = node;
         list->Count = 1;
         node->Owner = list;
-        return TASK_OK;
+        return EK_OK;
     }
 
     // 链表遍历指针
-    TaskNode_t *p = list->Head;
+    EK_TaskNode_t *p = list->Head;
 
     // 查看优先级是否高于链表头 越小越高
     if (node->TaskHandler.Task_Priority < list->Head->TaskHandler.Task_Priority)
@@ -201,12 +215,12 @@ static TaskRes_t _task_insert_node(TaskSchedule_t *list, TaskNode_t *node)
         list->Head = node;
         list->Count++;
         node->Owner = list;
-        return TASK_OK;
+        return EK_OK;
     }
 
     while (p->Next != NULL)
     {
-        TaskNode_t *p_next = p->Next;
+        EK_TaskNode_t *p_next = p->Next;
         // 找到优先级恰当的地方
         if (p_next->TaskHandler.Task_Priority >= node->TaskHandler.Task_Priority)
         {
@@ -214,7 +228,7 @@ static TaskRes_t _task_insert_node(TaskSchedule_t *list, TaskNode_t *node)
             node->Next = p_next;
             list->Count++;
             node->Owner = list;
-            return TASK_OK;
+            return EK_OK;
         }
         // 当前位置不匹配 移动向下一个节点
         p = p->Next;
@@ -226,19 +240,19 @@ static TaskRes_t _task_insert_node(TaskSchedule_t *list, TaskNode_t *node)
     list->Tail = node;
     list->Count++;
     node->Owner = list;
-    return TASK_OK;
+    return EK_OK;
 }
 
 /**
  * @brief 将任务节点从链表中移除
  * @param list 目标链表
  * @param node 要移除的节点
- * @return TaskRes_t 插入结果
+ * @return EK_Result_t 插入结果
  */
-static TaskRes_t _task_remove_node(TaskSchedule_t *list, TaskNode_t *node)
+static EK_Result_t r_task_remove_node(EK_TaskSchedule_t *list, EK_TaskNode_t *node)
 {
-    if (node == NULL || list == NULL) return TASK_ERROR_NULL_POINTER;
-    if (list->Count == 0) return TASK_ERROR_TASK_NOT_FOUND;
+    if (node == NULL || list == NULL) return EK_NULL_POINTER;
+    if (list->Count == 0) return EK_NOT_FOUND;
 
     // 只有一个节点
     if (list->Count == 1)
@@ -250,9 +264,9 @@ static TaskRes_t _task_remove_node(TaskSchedule_t *list, TaskNode_t *node)
             node->Next = NULL;
             node->Owner = NULL;
             list->Count = 0;
-            return TASK_OK;
+            return EK_OK;
         }
-        return TASK_ERROR_TASK_NOT_FOUND;
+        return EK_NOT_FOUND;
     }
 
     // 如果要删除的是头节点
@@ -262,11 +276,11 @@ static TaskRes_t _task_remove_node(TaskSchedule_t *list, TaskNode_t *node)
         list->Count--;
         node->Next = NULL;
         node->Owner = NULL;
-        return TASK_OK;
+        return EK_OK;
     }
 
     // 遍历查找要删除的节点
-    TaskNode_t *p = list->Head;
+    EK_TaskNode_t *p = list->Head;
     while (p->Next != NULL)
     {
         if (p->Next == node)
@@ -283,13 +297,13 @@ static TaskRes_t _task_remove_node(TaskSchedule_t *list, TaskNode_t *node)
             list->Count--;
             node->Next = NULL;
             node->Owner = NULL;
-            return TASK_OK;
+            return EK_OK;
         }
         p = p->Next;
     }
 
     // 没有找到指定节点
-    return TASK_ERROR_TASK_NOT_FOUND;
+    return EK_NOT_FOUND;
 }
 
 /**
@@ -298,20 +312,20 @@ static TaskRes_t _task_remove_node(TaskSchedule_t *list, TaskNode_t *node)
  * @param list_src 节点来源
  * @param list_dst 节点目的地
  * @param node 节点
- * @return TaskRes_t 执行情况
+ * @return EK_Result_t 执行情况
  */
-static TaskRes_t _task_move_node(TaskSchedule_t *list_src, TaskSchedule_t *list_dst, TaskNode_t *node)
+static EK_Result_t r_task_move_node(EK_TaskSchedule_t *list_src, EK_TaskSchedule_t *list_dst, EK_TaskNode_t *node)
 {
-    if (node == NULL || list_src == NULL || list_dst == NULL) return TASK_ERROR_NULL_POINTER;
-    if (list_src == list_dst) return TASK_ERROR_INVALID_PARAM;
+    if (node == NULL || list_src == NULL || list_dst == NULL) return EK_NULL_POINTER;
+    if (list_src == list_dst) return EK_INVALID_PARAM;
 
-    TaskRes_t result = _task_remove_node(list_src, node);
-    if (result != TASK_OK) return result;
+    EK_Result_t result = r_task_remove_node(list_src, node);
+    if (result != EK_OK) return result;
 
-    result = _task_insert_node(list_dst, node);
-    if (result != TASK_OK) return result;
+    result = r_task_insert_node(list_dst, node);
+    if (result != EK_OK) return result;
 
-    return TASK_OK;
+    return EK_OK;
 }
 
 /**
@@ -320,30 +334,30 @@ static TaskRes_t _task_move_node(TaskSchedule_t *list_src, TaskSchedule_t *list_
  * @param list 查询的链表
  * @param task_handler 查询的任务句柄
  * @param node 获取节点的指针的指针
- * @return TaskRes_t 执行情况
+ * @return EK_Result_t 执行情况
  */
-static TaskRes_t _task_search_node(TaskSchedule_t *list, TaskHandler_t *task_handler, pTaskNode_t *node)
+static EK_Result_t _task_search_node(EK_TaskSchedule_t *list, EK_TaskHandler_t *task_handler, EK_pTaskNode_t *node)
 {
     *node = NULL; // 节点默认为NULL
 
-    if (task_handler == NULL || list == NULL) return TASK_ERROR_NULL_POINTER;
+    if (task_handler == NULL || list == NULL) return EK_NULL_POINTER;
 
     // 利用双向关联特性快速验证 - 如果Task_OwnerNode有效，可以直接验证
     if (task_handler->Task_OwnerNode != NULL)
     {
-        pTaskNode_t candidate_node = (pTaskNode_t)task_handler->Task_OwnerNode;
+        EK_pTaskNode_t candidate_node = (EK_pTaskNode_t)task_handler->Task_OwnerNode;
 
         // 验证双向关联的一致性
         if (&(candidate_node->TaskHandler) == task_handler && candidate_node->Owner == list)
         {
             // 双向关联一致，直接返回结果 - O(1)复杂度
             *node = candidate_node;
-            return TASK_OK;
+            return EK_OK;
         }
     }
 
     // 如果双向关联无效或不一致，回退到链表遍历 - O(n)复杂度
-    TaskNode_t *p = list->Head;
+    EK_TaskNode_t *p = list->Head;
     while (p != NULL)
     {
         // 找到对应节点
@@ -359,23 +373,23 @@ static TaskRes_t _task_search_node(TaskSchedule_t *list, TaskHandler_t *task_han
             {
                 p->Owner = list; // 修复Owner
             }
-            return TASK_OK;
+            return EK_OK;
         }
 
         p = p->Next;
     }
 
-    return TASK_ERROR_TASK_NOT_FOUND;
+    return EK_NOT_FOUND;
 }
 /* ========================= 公用API函数定义区 ========================= */
 /**
  * @brief 初始化任务系统
- * @return TaskRes_t 初始化结果
+ * @return EK_Result_t 初始化结果
  */
-TaskRes_t rTaskInit(void)
+EK_Result_t EK_rTaskInit(void)
 {
     // 初始化内存池
-    if (MemPool_Init() == false) return TASK_ERROR_POOL_NOT_INIT;
+    if (EK_bMemPool_Init() == false) return EK_NOT_INITIALIZED;
 
     // 链表头初始化
     RunSchedule.Head = NULL;
@@ -387,19 +401,19 @@ TaskRes_t rTaskInit(void)
     WaitSchedule.Count = 0;
 
     // 添加任务初始化
-    if (TaskCreation() == false) return TASK_ERROR_INIT_FAILED;
+    if (TaskCreation() == false) return EK_ERROR;
 
-    return TASK_OK;
+    return EK_OK;
 }
 
 /**
  * @brief 静态添加一个任务（节点内存由用户提供）
  * @param node 用户提供的节点内存
  * @param static_handler 用户的静态任务句柄
- * @return pTaskHandler_t 返回节点中的任务句柄指针，失败返回NULL
+ * @return EK_pTaskHandler_t 返回节点中的任务句柄指针，失败返回NULL
  * @note 适用于静态分配场景，节点内存和函数指针都由用户管理，不使用内存池
  */
-pTaskHandler_t pTaskCreate_Static(TaskNode_t *node, TaskHandler_t *static_handler)
+EK_pTaskHandler_t EK_pTaskCreate_Static(EK_TaskNode_t *node, EK_TaskHandler_t *static_handler)
 {
     if (node == NULL || static_handler == NULL) return NULL;
 
@@ -413,7 +427,7 @@ pTaskHandler_t pTaskCreate_Static(TaskNode_t *node, TaskHandler_t *static_handle
     node->TaskHandler.Task_OwnerNode = node;
 
     // 插入到等待队列
-    if (_task_insert_node(&WaitSchedule, node) != TASK_OK)
+    if (r_task_insert_node(&WaitSchedule, node) != EK_OK)
     {
         return NULL;
     }
@@ -427,25 +441,25 @@ pTaskHandler_t pTaskCreate_Static(TaskNode_t *node, TaskHandler_t *static_handle
  * @param pfunc 任务回调函数
  * @param Priority 任务优先级
  * @param task_handler 用于接收任务句柄指针的指针
- * @return TaskRes_t 添加结果
+ * @return EK_Result_t 添加结果
  * @note 适用于动态分配场景，节点内存由内存池管理，需要使用rTaskDelay设置延时
  */
-TaskRes_t rTaskCreate_Dynamic(void (*pfunc)(void), uint8_t Priority, pTaskHandler_t *task_handler)
+EK_Result_t EK_rTaskCreate_Dynamic(void (*pfunc)(void), uint8_t Priority, EK_pTaskHandler_t *task_handler)
 {
-    if (pfunc == NULL) return TASK_ERROR_NULL_POINTER;
+    if (pfunc == NULL) return EK_NULL_POINTER;
 
-    TaskNode_t *node = (TaskNode_t *)MemPool_Malloc(sizeof(TaskNode_t));
+    EK_TaskNode_t *node = (EK_TaskNode_t *)EK_pMemPool_Malloc(sizeof(EK_TaskNode_t));
     if (node == NULL)
     {
-        return TASK_ERROR_MEMORY_ALLOC;
+        return EK_NO_MEMORY;
     }
 
     // 从内存池分配函数指针空间
-    void (**func_ptr)(void) = (void (**)(void))MemPool_Malloc(sizeof(void (*)(void)));
+    void (**func_ptr)(void) = (void (**)(void))EK_pMemPool_Malloc(sizeof(void (*)(void)));
     if (func_ptr == NULL)
     {
-        MemPool_Free(node); // 释放已分配的节点内存
-        return TASK_ERROR_MEMORY_ALLOC;
+        EK_bMemPool_Free(node); // 释放已分配的节点内存
+        return EK_NO_MEMORY;
     }
 
     node->Next = NULL;
@@ -461,11 +475,11 @@ TaskRes_t rTaskCreate_Dynamic(void (*pfunc)(void), uint8_t Priority, pTaskHandle
     node->TaskHandler.Task_TrigTime = 0; // 初始化为0，需要通过rTaskDelay设置
     node->TaskHandler.Task_Priority = Priority;
 
-    TaskRes_t result = _task_insert_node(&WaitSchedule, node);
-    if (result != TASK_OK)
+    EK_Result_t result = r_task_insert_node(&WaitSchedule, node);
+    if (result != EK_OK)
     {
-        MemPool_Free(func_ptr); // 释放函数指针内存
-        MemPool_Free(node); // 插入失败时释放内存
+        EK_bMemPool_Free(func_ptr); // 释放函数指针内存
+        EK_bMemPool_Free(node); // 插入失败时释放内存
         return result;
     }
 
@@ -474,51 +488,51 @@ TaskRes_t rTaskCreate_Dynamic(void (*pfunc)(void), uint8_t Priority, pTaskHandle
         *task_handler = &(node->TaskHandler); // 返回指向节点中TaskHandler的指针
     }
 
-    return TASK_OK;
+    return EK_OK;
 }
 
 /**
  * @brief 动态移除一个任务（释放内存池分配的节点）
  * @param task_handler 要移除的任务句柄，如果为NULL则移除当前任务
- * @return TaskRes_t 移除结果
+ * @return EK_Result_t 移除结果
  * @note 适用于动态分配的任务，会释放节点内存和函数指针内存
  */
-TaskRes_t rTaskDelete(pTaskHandler_t task_handler)
+EK_Result_t EK_rTaskDelete(EK_pTaskHandler_t task_handler)
 {
-    pTaskHandler_t target_handler = task_handler;
+    EK_pTaskHandler_t target_handler = task_handler;
 
     // 如果传入NULL，则操作当前任务
     if (target_handler == NULL)
     {
-        if (_CurTask_Handler == NULL) return TASK_ERROR_NULL_POINTER;
+        if (_CurTask_Handler == NULL) return EK_NULL_POINTER;
         target_handler = _CurTask_Handler;
     }
 
     // 传入的是由静态创建的任务
     if (TASK_IS_STATIC(target_handler->Task_Info) == true)
     {
-        return TASK_ERROR_INVALID_PARAM;
+        return EK_INVALID_PARAM;
     }
 
     // 利用Task_OwnerNode直接获取节点，避免链表搜索 - O(1)复杂度
-    if (target_handler->Task_OwnerNode == NULL) return TASK_ERROR_NULL_POINTER;
+    if (target_handler->Task_OwnerNode == NULL) return EK_NULL_POINTER;
 
-    pTaskNode_t node = (pTaskNode_t)target_handler->Task_OwnerNode;
-    pTaskSchedule_t owner_list = (pTaskSchedule_t)node->Owner;
+    EK_pTaskNode_t node = (EK_pTaskNode_t)target_handler->Task_OwnerNode;
+    EK_pTaskSchedule_t owner_list = (EK_pTaskSchedule_t)node->Owner;
 
-    if (owner_list == NULL) return TASK_ERROR_NULL_POINTER;
+    if (owner_list == NULL) return EK_NULL_POINTER;
 
     // 直接从对应链表中移除，无需搜索
-    TaskRes_t result = _task_remove_node(owner_list, node);
-    if (result == TASK_OK)
+    EK_Result_t result = r_task_remove_node(owner_list, node);
+    if (result == EK_OK)
     {
         // 只有动态分配的任务才释放函数指针占用的内存池空间
         if (!TASK_IS_STATIC(target_handler->Task_Info) && target_handler->TaskCallBack.DynamicCallBack != NULL)
         {
-            MemPool_Free(target_handler->TaskCallBack.DynamicCallBack);
+            EK_bMemPool_Free(target_handler->TaskCallBack.DynamicCallBack);
         }
 
-        MemPool_Free(node);
+        EK_bMemPool_Free(node);
         // 如果移除的是当前任务，清空当前任务句柄
         if (target_handler == _CurTask_Handler)
         {
@@ -532,85 +546,85 @@ TaskRes_t rTaskDelete(pTaskHandler_t task_handler)
 /**
  * @brief 挂起一个任务
  * @param task_handler 要挂起的任务句柄，如果为NULL则挂起当前任务
- * @return TaskRes_t 挂起结果
+ * @return EK_Result_t 挂起结果
  * @note 只是将任务的激活标志位设置为false，任务不会被执行
  */
-TaskRes_t rTaskSuspend(pTaskHandler_t task_handler)
+EK_Result_t EK_rTaskSuspend(EK_pTaskHandler_t task_handler)
 {
-    pTaskHandler_t target_handler = task_handler;
+    EK_pTaskHandler_t target_handler = task_handler;
 
     // 如果传入NULL，则操作当前任务
     if (target_handler == NULL)
     {
-        if (_CurTask_Handler == NULL) return TASK_ERROR_NULL_POINTER;
+        if (_CurTask_Handler == NULL) return EK_NULL_POINTER;
         target_handler = _CurTask_Handler;
     }
 
     target_handler->Task_Info = TASK_SET_SUSPENDED(target_handler->Task_Info);
-    return TASK_OK;
+    return EK_OK;
 }
 
 /**
  * @brief 恢复一个任务
  * @param task_handler 要恢复的任务句柄，如果为NULL则恢复当前任务
- * @return TaskRes_t 恢复结果
+ * @return EK_Result_t 恢复结果
  * @note 将任务的激活标志位设置为true，任务可以被执行
  */
-TaskRes_t rTaskResume(pTaskHandler_t task_handler)
+EK_Result_t EK_rTaskResume(EK_pTaskHandler_t task_handler)
 {
-    pTaskHandler_t target_handler = task_handler;
+    EK_pTaskHandler_t target_handler = task_handler;
 
     // 如果传入NULL，则操作当前任务
     if (target_handler == NULL)
     {
-        if (_CurTask_Handler == NULL) return TASK_ERROR_NULL_POINTER;
+        if (_CurTask_Handler == NULL) return EK_NULL_POINTER;
         target_handler = _CurTask_Handler;
     }
 
     target_handler->Task_Info = TASK_SET_ACTIVE(target_handler->Task_Info);
-    return TASK_OK;
+    return EK_OK;
 }
 
 /**
  * @brief 设置任务优先级
  * @param task_handler 要设置优先级的任务句柄，如果为NULL则设置当前任务
  * @param Priority 新的优先级值
- * @return TaskRes_t 设置结果
+ * @return EK_Result_t 设置结果
  * @note 修改任务的优先级，数值越小优先级越高，会自动重新排序链表
  */
-TaskRes_t rTaskSetPriority(pTaskHandler_t task_handler, uint8_t Priority)
+EK_Result_t EK_rTaskSetPriority(EK_pTaskHandler_t task_handler, uint8_t Priority)
 {
-    pTaskHandler_t target_handler = task_handler;
+    EK_pTaskHandler_t target_handler = task_handler;
 
     // 如果传入NULL，则操作当前任务
     if (target_handler == NULL)
     {
-        if (_CurTask_Handler == NULL) return TASK_ERROR_NULL_POINTER;
+        if (_CurTask_Handler == NULL) return EK_NULL_POINTER;
         target_handler = _CurTask_Handler;
     }
 
     // 如果优先级没有改变，直接返回
     if (target_handler->Task_Priority == Priority)
     {
-        return TASK_OK;
+        return EK_OK;
     }
 
     // 利用双向关联特性直接获取节点和所属链表
-    if (target_handler->Task_OwnerNode == NULL) return TASK_ERROR_NULL_POINTER;
+    if (target_handler->Task_OwnerNode == NULL) return EK_NULL_POINTER;
 
-    pTaskNode_t node = (pTaskNode_t)target_handler->Task_OwnerNode;
-    pTaskSchedule_t owner_list = (pTaskSchedule_t)node->Owner;
+    EK_pTaskNode_t node = (EK_pTaskNode_t)target_handler->Task_OwnerNode;
+    EK_pTaskSchedule_t owner_list = (EK_pTaskSchedule_t)node->Owner;
 
-    if (owner_list == NULL) return TASK_ERROR_NULL_POINTER;
+    if (owner_list == NULL) return EK_NULL_POINTER;
 
     // 更新优先级
     target_handler->Task_Priority = Priority;
 
     // 从当前链表移除并重新插入以维持优先级排序
-    TaskRes_t result = _task_remove_node(owner_list, node);
-    if (result == TASK_OK)
+    EK_Result_t result = r_task_remove_node(owner_list, node);
+    if (result == EK_OK)
     {
-        result = _task_insert_node(owner_list, node);
+        result = r_task_insert_node(owner_list, node);
     }
 
     return result;
@@ -619,17 +633,17 @@ TaskRes_t rTaskSetPriority(pTaskHandler_t task_handler, uint8_t Priority)
  * @brief 获取任务信息
  * @param task_handler 要获取信息的任务句柄，如果为NULL则获取当前任务信息
  * @param task_info 用于存储任务信息的结构体指针
- * @return TaskRes_t 获取结果
+ * @return EK_Result_t 获取结果
  * @note 获取任务的最大消耗时间、内存占用、状态和优先级等信息
  */
-TaskRes_t rTaskGetInfo(pTaskHandler_t task_handler, TaskInfo_t *task_info)
+EK_Result_t EK_rTaskGetInfo(EK_pTaskHandler_t task_handler, EK_TaskInfo_t *task_info)
 {
-    pTaskHandler_t target_handler = task_handler;
+    EK_pTaskHandler_t target_handler = task_handler;
 
     // 参数检查
     if (task_info == NULL)
     {
-        return TASK_ERROR_NULL_POINTER;
+        return EK_NULL_POINTER;
     }
 
     // 初始化信息结构体
@@ -646,19 +660,19 @@ TaskRes_t rTaskGetInfo(pTaskHandler_t task_handler, TaskInfo_t *task_info)
     {
         if (_CurTask_Handler == NULL)
         {
-            return TASK_ERROR_NULL_POINTER; // 当前没有运行的任务
+            return EK_NULL_POINTER; // 当前没有运行的任务
         }
         target_handler = _CurTask_Handler;
     }
 
     // 利用双向关联特性获取任务状态
-    TaskState_t task_state = TASK_STATE_UNKNOWN;
+    EK_TaskState_t task_state = TASK_STATE_UNKNOWN;
     if (target_handler->Task_OwnerNode != NULL)
     {
-        pTaskNode_t node = (pTaskNode_t)target_handler->Task_OwnerNode;
+        EK_pTaskNode_t node = (EK_pTaskNode_t)target_handler->Task_OwnerNode;
         if (node->Owner != NULL)
         {
-            pTaskSchedule_t owner_list = (pTaskSchedule_t)node->Owner;
+            EK_pTaskSchedule_t owner_list = (EK_pTaskSchedule_t)node->Owner;
             if (owner_list == &WaitSchedule)
             {
                 task_state = TASK_STATE_WAITING;
@@ -676,24 +690,24 @@ TaskRes_t rTaskGetInfo(pTaskHandler_t task_handler, TaskInfo_t *task_info)
     task_info->isStatic = TASK_IS_STATIC(target_handler->Task_Info);
     task_info->Priority = target_handler->Task_Priority;
     task_info->MaxUsedTime = target_handler->Task_MaxUsed;
-    task_info->Memory = sizeof(TaskNode_t); // 每个任务节点占用的内存大小
+    task_info->Memory = sizeof(EK_TaskNode_t); // 每个任务节点占用的内存大小
     task_info->state = task_state;
 
-    return TASK_OK;
+    return EK_OK;
 }
 
 /**
  * @brief 设置任务延时
  * @param delay_ms 延时时间(毫秒)
- * @return TaskRes_t 设置结果
+ * @return EK_Result_t 设置结果
  * @note 设置任务的触发间隔时间，高16位存储设定值，低16位存储当前值
  */
-TaskRes_t rTaskDelay(uint16_t delay_ms)
+EK_Result_t EK_rTaskDelay(uint16_t delay_ms)
 {
-    if (_CurTask_Handler == NULL) return TASK_ERROR_NULL_POINTER;
+    if (_CurTask_Handler == NULL) return EK_NULL_POINTER;
 
     _CurTask_Handler->Task_TrigTime = TASK_SET_TRIG_TIME(delay_ms, delay_ms);
-    return TASK_OK;
+    return EK_OK;
 }
 
 /**
@@ -701,9 +715,9 @@ TaskRes_t rTaskDelay(uint16_t delay_ms)
  * 
  * @return size_t 剩余的可用字节数
  */
-size_t uTaskGetFreeMemory(void)
+size_t EK_sTaskGetFreeMemory(void)
 {
-    return MemPool_GetFreeSize();
+    return EK_sMemPool_GetFreeSize();
 }
 
 /**
@@ -711,7 +725,7 @@ size_t uTaskGetFreeMemory(void)
  * 
  * @param tick_get 获得时钟心跳源
  */
-void vTaskStart(uint32_t (*tick_get)(void))
+void EK_vTaskStart(uint32_t (*tick_get)(void))
 {
     if (tick_get == NULL)
     {
@@ -730,12 +744,12 @@ void vTaskStart(uint32_t (*tick_get)(void))
         {
             last_tick = current_tick;
 
-            TaskNode_t *p = WaitSchedule.Head; // 遍历指针
+            EK_TaskNode_t *p = WaitSchedule.Head; // 遍历指针
 
             // 先处理所有等待的任务
             while (p != NULL)
             {
-                TaskNode_t *p_next = p->Next; // 保存节点移动前的下一个节点位置
+                EK_TaskNode_t *p_next = p->Next; // 保存节点移动前的下一个节点位置
 
                 // 非激活直接跳过当前的节点
                 if (TASK_IS_ACTIVE(p->TaskHandler.Task_Info) == false)
@@ -757,7 +771,7 @@ void vTaskStart(uint32_t (*tick_get)(void))
                 // 检查是否需要移动到运行链表（包括初始值为0和倒计时到0的情况）
                 if (cur_time == 0)
                 {
-                    if (_task_move_node(&WaitSchedule, &RunSchedule, p) != TASK_OK)
+                    if (r_task_move_node(&WaitSchedule, &RunSchedule, p) != EK_OK)
                     {
                         Task_Error(TASK_ERR_WAIT_TO_RUN); // 等待链表到运行链表移动失败
                     }
@@ -775,10 +789,10 @@ void vTaskStart(uint32_t (*tick_get)(void))
         }
 
         // 处理就绪的任务 - 使用临时标记避免重复执行
-        TaskNode_t *ptr = RunSchedule.Head;
+        EK_TaskNode_t *ptr = RunSchedule.Head;
         while (ptr != NULL)
         {
-            TaskNode_t *p_next = ptr->Next; // 保存下一个节点
+            EK_TaskNode_t *p_next = ptr->Next; // 保存下一个节点
 
             uint32_t start_tick = 0; // 在这里定义避免警告
             uint32_t diff_tick = 0; // 在这里定义避免警告
@@ -788,7 +802,7 @@ void vTaskStart(uint32_t (*tick_get)(void))
             {
                 // 任务已被挂起，直接将其移回等待链表，不执行
                 ptr->TaskHandler.Task_TrigTime = TASK_RESET_TIME(ptr->TaskHandler.Task_TrigTime);
-                if (_task_move_node(&RunSchedule, &WaitSchedule, ptr) != TASK_OK)
+                if (r_task_move_node(&RunSchedule, &WaitSchedule, ptr) != EK_OK)
                 {
                     Task_Error(TASK_ERR_RUN_TO_WAIT);
                 }
@@ -829,10 +843,10 @@ void vTaskStart(uint32_t (*tick_get)(void))
             }
 
             // 利用高效的搜索函数验证 ptr 是否仍然有效（可能在任务执行过程中被删除）
-            TaskNode_t *found_node = NULL;
-            TaskRes_t search_result = _task_search_node(&RunSchedule, &ptr->TaskHandler, &found_node);
+            EK_TaskNode_t *found_node = NULL;
+            EK_Result_t search_result = _task_search_node(&RunSchedule, &ptr->TaskHandler, &found_node);
 
-            if (search_result != TASK_OK || found_node != ptr)
+            if (search_result != EK_OK || found_node != ptr)
             {
                 // 当前任务节点已被删除或不在运行链表中，跳过后续处理
                 ptr = p_next;
@@ -848,7 +862,7 @@ void vTaskStart(uint32_t (*tick_get)(void))
             ptr->TaskHandler.Task_TrigTime = TASK_RESET_TIME(ptr->TaskHandler.Task_TrigTime);
 
             // 尝试移动节点，如果失败说明节点已经不在运行链表中
-            if (_task_move_node(&RunSchedule, &WaitSchedule, ptr) != TASK_OK)
+            if (r_task_move_node(&RunSchedule, &WaitSchedule, ptr) != EK_OK)
             {
                 // 节点移动失败，可能是因为节点已经被删除或移动
                 // 不进入错误处理，直接继续下一个任务

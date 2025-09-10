@@ -1,5 +1,5 @@
 /**
- * @file List.h
+ * @file EK_List.h
  * @brief 双向链表数据结构头文件
  * @details 定义了双向链表的数据结构和操作接口
  * @author N1ntyNine99
@@ -7,10 +7,10 @@
  * @version 1.0
  */
 
-#ifndef __LIST_H
-#define __LIST_H
+#ifndef __EK_LIST_H
+#define __EK_LIST_H
 
-#include "../DataStruct.h"
+#include "../../EK_Common.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -34,15 +34,17 @@ typedef struct List_t
     uint16_t List_Count; /**< 链表存储的节点数目 */
 } List_t;
 
-DS_Result_t NodeCreate_Static(Node_t *node, void *content, uint32_t order);
-Node_t *NodeCreate_Dynamic(void *content, uint32_t order);
-DS_Result_t ListCreate_Static(List_t *list, Node_t *head_node);
-List_t *ListCreate_Dynamic(Node_t *head_node);
-DS_Result_t ListInsertEnd(List_t *list, Node_t *node);
-DS_Result_t ListInsertHead(List_t *list, Node_t *node);
-DS_Result_t ListInsertOrder(List_t *list, Node_t *node);
-DS_Result_t ListRemoveNode(List_t *list, Node_t *node);
-DS_Result_t ListMoveNode(List_t *list_src, List_t *list_dst, Node_t *node, int order);
+EK_Result_t EK_rNodeCreate_Static(Node_t *node, void *content, uint32_t order);
+Node_t *EK_pNodeCreate_Dynamic(void *content, uint32_t order);
+
+EK_Result_t EK_rListCreate_Static(List_t *list, Node_t *head_node);
+List_t *EK_pListCreate_Dynamic(Node_t *head_node);
+
+EK_Result_t EK_rListInsertEnd(List_t *list, Node_t *node);
+EK_Result_t EK_rListInsertHead(List_t *list, Node_t *node);
+EK_Result_t EK_rListInsertOrder(List_t *list, Node_t *node);
+EK_Result_t EK_rListRemoveNode(List_t *list, Node_t *node);
+EK_Result_t EK_rListMoveNode(List_t *list_src, List_t *list_dst, Node_t *node, int order);
 
 #ifdef __cplusplus
 }
