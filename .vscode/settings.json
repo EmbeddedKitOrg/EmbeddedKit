@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "ek_list.h": "c"
+        "ek_list.h": "c",
+        "stdlib.h": "c"
     }
 }

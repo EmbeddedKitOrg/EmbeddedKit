@@ -28,6 +28,7 @@ EK_MemPool 是一个仿照 FreeRTOS heap4 设计思路实现的高效内存池�
 ```
 
 ### 可调整参数
+在"**EK_Config.h**中设置"
 - **MEMPOOL_SIZE**：内存池总容量，建议至少1KB
 - **MEMPOOL_ALIGNMENT**：对齐大小，必须是2的幂次，通常为4或8字节
 

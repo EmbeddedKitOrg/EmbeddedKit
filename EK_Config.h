@@ -12,9 +12,17 @@
 
 #include "EK_Common.h"
 
-#ifdef __cplusplus
-extern "C"{
-#endif
+/**
+ * @brief 内存分配宏定义
+ * @details 函数签名要求是 void* xxx(size_t)
+ */
+#define _MALLOC(x) malloc(x)
+
+/**
+ * @brief 内存释放宏定义
+ * @details 函数入参要求是 void*
+ */
+#define _FREE(X) free(X)
 
 /**
  * @brief 内存池总大小 (字节)
@@ -28,10 +36,11 @@ extern "C"{
  */
 #define MEMPOOL_ALIGNMENT (8)
 
-
-#ifdef __cplusplus
-}
-#endif
-
+/**
+ * @brief 链表相关，是否启用递归排序 0:不启用 1:启用
+ * @note 启用递归排序可以提高排序效率，但可能导致栈溢出
+ * @note 禁用递归排序可以避免栈溢出，但可能导致排序效率下降
+ */
+#define LIST_RECURSION_SORT (1)
 
 #endif

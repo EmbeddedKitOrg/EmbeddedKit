@@ -51,7 +51,7 @@ static EK_Result_t r_list_init(EK_List_t *list)
 
     return EK_OK;
 }
-
+#if (LIST_RECURSION_SORT != 0)
 /**
  * @brief 找到链表的一个中点
  * 
@@ -124,8 +124,8 @@ static EK_Result_t r_split_list(EK_List_t *list, EK_Node_t *node, EK_List_t *lis
         EK_Node_t *second_node = first_node->Node_Next;
 
         // 设置左链表（只有一个节点）
-        GET_FIRST_NODE(list_left) = first_node;
-        GET_LAST_NODE(list_left) = first_node;
+        list_left->List_Dummy->Node_Next = first_node;
+        list_left->List_Dummy->Node_Prev = first_node;
 
         first_node->Node_Next = list_left->List_Dummy;
         first_node->Node_Prev = list_left->List_Dummy;
@@ -136,8 +136,8 @@ static EK_Result_t r_split_list(EK_List_t *list, EK_Node_t *node, EK_List_t *lis
         // 设置右链表（剩余节点）
         if (second_node != list->List_Dummy)
         {
-            GET_FIRST_NODE(list_right) = second_node;
-            GET_LAST_NODE(list_right) = GET_LAST_NODE(list);
+            list_right->List_Dummy->Node_Next = second_node;
+            list_right->List_Dummy->Node_Prev = GET_LAST_NODE(list);
 
             second_node->Node_Prev = list_right->List_Dummy;
             list->List_Dummy->Node_Prev->Node_Next = list_right->List_Dummy;
@@ -161,8 +161,8 @@ static EK_Result_t r_split_list(EK_List_t *list, EK_Node_t *node, EK_List_t *lis
         EK_Node_t *right_tail = GET_LAST_NODE(list);
 
         // 设置左链表
-        GET_FIRST_NODE(list_left) = left_head;
-        GET_LAST_NODE(list_left) = left_tail;
+        list_left->List_Dummy->Node_Next = left_head;
+        list_left->List_Dummy->Node_Prev = left_tail;
 
         left_head->Node_Prev = list_left->List_Dummy;
         left_tail->Node_Next = list_left->List_Dummy;
@@ -179,8 +179,8 @@ static EK_Result_t r_split_list(EK_List_t *list, EK_Node_t *node, EK_List_t *lis
         // 设置右链表（如果右半部分不为空）
         if (right_head != list->List_Dummy)
         {
-            GET_FIRST_NODE(list_right) = right_head;
-            GET_LAST_NODE(list_right) = right_tail;
+            list_right->List_Dummy->Node_Next = right_head;
+            list_right->List_Dummy->Node_Prev = right_tail;
 
             right_head->Node_Prev = list_right->List_Dummy;
             right_tail->Node_Next = list_right->List_Dummy;
@@ -279,12 +279,16 @@ static EK_Result_t r_merge_list(EK_List_t *list1, EK_List_t *list2, EK_List_t *l
             selected_node = p1;
             p1 = p1->Node_Next; // 移动到下一个节点
             EK_rListRemoveNode(list1, selected_node);
+            // 检查p1是否仍然有效
+            if (list1->List_Count == 0) p1 = list1->List_Dummy;
         }
         else
         {
             selected_node = p2;
             p2 = p2->Node_Next; // 移动到下一个节点
             EK_rListRemoveNode(list2, selected_node);
+            // 检查p2是否仍然有效
+            if (list2->List_Count == 0) p2 = list2->List_Dummy;
         }
 
         // 将选中的节点插入到合并链表的尾部
@@ -314,7 +318,7 @@ static EK_Result_t r_merge_list(EK_List_t *list1, EK_List_t *list2, EK_List_t *l
 
     return EK_OK;
 }
-
+#endif
 /* ========================= 公用API函数定义区 ========================= */
 /**
  * @brief 静态创建节点
@@ -428,8 +432,10 @@ EK_Result_t EK_rListInsertEnd(EK_List_t *list, EK_Node_t *node)
     if (list->List_Count == 0)
     {
         node->Node_Owner = list;
-        GET_FIRST_NODE(list) = node;
-        GET_LAST_NODE(list) = node;
+        node->Node_Next = list->List_Dummy;
+        node->Node_Prev = list->List_Dummy;
+        list->List_Dummy->Node_Next = node;
+        list->List_Dummy->Node_Prev = node;
         list->List_Count = 1;
         return EK_OK;
     }
@@ -443,7 +449,6 @@ EK_Result_t EK_rListInsertEnd(EK_List_t *list, EK_Node_t *node)
 
     temp->Node_Next = node;
     list->List_Dummy->Node_Prev = node; //维护哨兵节点
-    GET_LAST_NODE(list) = node;
 
     return EK_OK;
 }
@@ -463,8 +468,10 @@ EK_Result_t EK_rListInsertHead(EK_List_t *list, EK_Node_t *node)
     if (list->List_Count == 0)
     {
         node->Node_Owner = list;
-        GET_FIRST_NODE(list) = node;
-        GET_LAST_NODE(list) = node;
+        node->Node_Next = list->List_Dummy;
+        node->Node_Prev = list->List_Dummy;
+        list->List_Dummy->Node_Next = node;
+        list->List_Dummy->Node_Prev = node;
         list->List_Count = 1;
         return EK_OK;
     }
@@ -478,7 +485,6 @@ EK_Result_t EK_rListInsertHead(EK_List_t *list, EK_Node_t *node)
 
     temp->Node_Prev = node;
     list->List_Dummy->Node_Next = node; //维护哨兵节点
-    GET_FIRST_NODE(list) = node;
 
     return EK_OK;
 }
@@ -499,8 +505,10 @@ EK_Result_t EK_rListInsertOrder(EK_List_t *list, EK_Node_t *node)
     if (list->List_Count == 0)
     {
         node->Node_Owner = list;
-        GET_FIRST_NODE(list) = node;
-        GET_LAST_NODE(list) = node;
+        node->Node_Next = list->List_Dummy;
+        node->Node_Prev = list->List_Dummy;
+        list->List_Dummy->Node_Next = node;
+        list->List_Dummy->Node_Prev = node;
         list->List_Count = 1;
         return EK_OK;
     }
@@ -581,9 +589,6 @@ EK_Result_t EK_rListRemoveNode(EK_List_t *list, EK_Node_t *node)
     // 是头节点
     if (node == GET_FIRST_NODE(list))
     {
-        // 修改原本头节点
-        GET_FIRST_NODE(list) = node->Node_Next;
-
         // 维护哨兵节点和新头节点的连接
         list->List_Dummy->Node_Next = node->Node_Next;
         node->Node_Next->Node_Prev = list->List_Dummy;
@@ -602,9 +607,6 @@ EK_Result_t EK_rListRemoveNode(EK_List_t *list, EK_Node_t *node)
     // 是尾节点
     if (node == GET_LAST_NODE(list))
     {
-        // 修改原本尾节点
-        GET_LAST_NODE(list) = node->Node_Prev;
-
         // 维护哨兵节点和新尾节点的连接
         list->List_Dummy->Node_Prev = node->Node_Prev;
         node->Node_Prev->Node_Next = list->List_Dummy;
@@ -680,60 +682,151 @@ EK_Result_t EK_rListMoveNode(EK_List_t *list_src, EK_List_t *list_dst, EK_Node_t
  * @param list 想要排序的链表指针
  * @param is_descend 是否为降序 false:升序 true:降序
  * @return EK_Result_t 操作结果
+ * @note 如果启用了递归排序，则会在链表节点大于20个之后使用递归归并排序
+ *       存在栈溢出的风险!
  */
-EK_Result_t EK_rListOrder(EK_List_t *list, bool is_descend)
+EK_Result_t EK_rListSort(EK_List_t *list, bool is_descend)
 {
     if (list == NULL) return EK_NULL_POINTER;
     if (list->List_Count <= 1) return EK_OK; // 空链表或单节点无需排序
 
-    // 找到中点
-    EK_Node_t *mid_node = p_find_mid(list);
-    if (mid_node == NULL) return EK_ERROR;
-
-    // 创建左右子链表
-    EK_List_t *left_list = EK_pListCreate_Dynamic();
-    EK_List_t *right_list = EK_pListCreate_Dynamic();
-    if (left_list == NULL || right_list == NULL)
+#if (LIST_RECURSION_SORT != 0)
+    // 小型链表采用选择排序法
+    if (list->List_Count < 20)
     {
-        if (left_list) _FREE(left_list->List_Dummy), _FREE(left_list);
-        if (right_list) _FREE(right_list->List_Dummy), _FREE(right_list);
-        return EK_NO_MEMORY;
+#endif
+        EK_Node_t *current = GET_FIRST_NODE(list);
+
+        while (current != list->List_Dummy && current->Node_Next != list->List_Dummy)
+        {
+            EK_Node_t *min_max_node = current;
+            EK_Node_t *search_node = current->Node_Next;
+
+            // 在剩余节点中找到最小值（升序）或最大值（降序）
+            while (search_node != list->List_Dummy)
+            {
+                bool should_select = is_descend ? (search_node->Node_Order > min_max_node->Node_Order)
+                                                : (search_node->Node_Order < min_max_node->Node_Order);
+
+                if (should_select)
+                {
+                    min_max_node = search_node;
+                }
+                search_node = search_node->Node_Next;
+            }
+
+            // 如果找到了更合适的节点，交换数据
+            if (min_max_node != current)
+            {
+                void *temp_data = current->Node_Data;
+                uint32_t temp_order = current->Node_Order;
+
+                current->Node_Data = min_max_node->Node_Data;
+                current->Node_Order = min_max_node->Node_Order;
+
+                min_max_node->Node_Data = temp_data;
+                min_max_node->Node_Order = temp_order;
+            }
+
+            current = current->Node_Next;
+        }
+
+        return EK_OK;
+#if (LIST_RECURSION_SORT != 0)
     }
 
-    // 分割链表
-    EK_Result_t result = r_split_list(list, mid_node, left_list, right_list);
-    if (result != EK_OK)
+    else // 大型链表使用递归归并排序
     {
-        _FREE(left_list->List_Dummy), _FREE(left_list);
-        _FREE(right_list->List_Dummy), _FREE(right_list);
+        // 找到链表中点
+        EK_Node_t *mid_node = p_find_mid(list);
+        if (mid_node == NULL) return EK_ERROR;
+
+        // 创建左右子链表
+        EK_List_t *left_list = EK_pListCreate_Dynamic();
+        EK_List_t *right_list = EK_pListCreate_Dynamic();
+        if (left_list == NULL || right_list == NULL)
+        {
+            if (left_list)
+            {
+                _FREE(left_list->List_Dummy);
+                _FREE(left_list);
+            }
+            if (right_list)
+            {
+                _FREE(right_list->List_Dummy);
+                _FREE(right_list);
+            }
+            return EK_NO_MEMORY;
+        }
+
+        // 分割链表
+        EK_Result_t result = r_split_list(list, mid_node, left_list, right_list);
+        if (result != EK_OK)
+        {
+            _FREE(left_list->List_Dummy);
+            _FREE(left_list);
+            _FREE(right_list->List_Dummy);
+            _FREE(right_list);
+            return result;
+        }
+
+        // 递归排序左右子链表
+        result = EK_rListSort(left_list, is_descend);
+        if (result != EK_OK)
+        {
+            // 将节点放回原链表
+            while (left_list->List_Count > 0)
+            {
+                EK_Node_t *node = GET_FIRST_NODE(left_list);
+                EK_rListRemoveNode(left_list, node);
+                EK_rListInsertEnd(list, node);
+            }
+            while (right_list->List_Count > 0)
+            {
+                EK_Node_t *node = GET_FIRST_NODE(right_list);
+                EK_rListRemoveNode(right_list, node);
+                EK_rListInsertEnd(list, node);
+            }
+            _FREE(left_list->List_Dummy);
+            _FREE(left_list);
+            _FREE(right_list->List_Dummy);
+            _FREE(right_list);
+            return result;
+        }
+
+        result = EK_rListSort(right_list, is_descend);
+        if (result != EK_OK)
+        {
+            // 将节点放回原链表
+            while (left_list->List_Count > 0)
+            {
+                EK_Node_t *node = GET_FIRST_NODE(left_list);
+                EK_rListRemoveNode(left_list, node);
+                EK_rListInsertEnd(list, node);
+            }
+            while (right_list->List_Count > 0)
+            {
+                EK_Node_t *node = GET_FIRST_NODE(right_list);
+                EK_rListRemoveNode(right_list, node);
+                EK_rListInsertEnd(list, node);
+            }
+            _FREE(left_list->List_Dummy);
+            _FREE(left_list);
+            _FREE(right_list->List_Dummy);
+            _FREE(right_list);
+            return result;
+        }
+
+        // 合并排序后的左右子链表
+        result = r_merge_list(left_list, right_list, list, is_descend);
+
+        // 清理临时链表
+        _FREE(left_list->List_Dummy);
+        _FREE(left_list);
+        _FREE(right_list->List_Dummy);
+        _FREE(right_list);
+
         return result;
     }
-
-    // 递归排序左右子链表
-    result = EK_rListOrder(left_list, is_descend);
-    if (result != EK_OK)
-    {
-        _FREE(left_list->List_Dummy), _FREE(left_list);
-        _FREE(right_list->List_Dummy), _FREE(right_list);
-        return result;
-    }
-
-    result = EK_rListOrder(right_list, is_descend);
-    if (result != EK_OK)
-    {
-        _FREE(left_list->List_Dummy), _FREE(left_list);
-        _FREE(right_list->List_Dummy), _FREE(right_list);
-        return result;
-    }
-
-    // 合并排序后的左右子链表
-    result = r_merge_list(left_list, right_list, list, is_descend);
-
-    // 清理临时链表
-    _FREE(left_list->List_Dummy);
-    _FREE(left_list);
-    _FREE(right_list->List_Dummy);
-    _FREE(right_list);
-
-    return result;
+#endif
 }

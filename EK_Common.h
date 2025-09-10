@@ -56,47 +56,36 @@
 #define UNUSED_VAR(X) ((void)(x))
 #endif
 
-/**
- * @brief 内存分配宏定义
- * @details 函数签名要求是 void* xxx(size_t)
- */
-#define _MALLOC(x) malloc(x)
-
-/**
- * @brief 内存释放宏定义
- * @details 函数入参要求是 void*
- */
-#define _FREE(X) free(X)
-
 #ifdef __cpluscplus
-extern "C"{
+extern "C"
+{
 #endif
 
 /**
  * @brief EmbeddedKit 全局统一状态枚举
  * @details 所有模块统一使用此枚举返回操作状态
  */
-typedef enum {
-    EK_OK = 0,              /*!< 操作成功 */
-    EK_ERROR = -1,          /*!< 通用错误 */
-    EK_INVALID_PARAM = -2,  /*!< 参数错误 */
-    EK_TIMEOUT = -3,        /*!< 超时错误 */
-    EK_NO_MEMORY = -4,      /*!< 内存不足/内存分配失败 */
-    EK_NOT_INITIALIZED = -5,/*!< 未初始化 */
-    EK_NOT_FOUND = -6,      /*!< 未找到 */
+typedef enum
+{
+    EK_OK = 0, /*!< 操作成功 */
+    EK_ERROR = -1, /*!< 通用错误 */
+    EK_INVALID_PARAM = -2, /*!< 参数错误 */
+    EK_TIMEOUT = -3, /*!< 超时错误 */
+    EK_NO_MEMORY = -4, /*!< 内存不足/内存分配失败 */
+    EK_NOT_INITIALIZED = -5, /*!< 未初始化 */
+    EK_NOT_FOUND = -6, /*!< 未找到 */
     EK_ALREADY_EXISTS = -7, /*!< 已存在 */
-    EK_FULL = -8,           /*!< 已满 */
-    EK_EMPTY = -9,          /*!< 为空 */
+    EK_FULL = -8, /*!< 已满 */
+    EK_EMPTY = -9, /*!< 为空 */
     EK_INSUFFICIENT_SPACE = -10, /*!< 空间不足 */
-    EK_UNKNOWN = -11,       /*!< 未知错误 */
-    EK_NULL_POINTER = -12   /*!< 空指针错误 */
+    EK_UNKNOWN = -11, /*!< 未知错误 */
+    EK_NULL_POINTER = -12 /*!< 空指针错误 */
 } EK_Result_t;
 
 /**
  * @brief 索引类型定义
  */
 typedef uint32_t index_t;
-
 
 #ifdef __cpluscplus
 }
