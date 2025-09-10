@@ -12,6 +12,10 @@
 
 #include "../../EK_Common.h"
 
+#ifndef LIST_RECURSION_SORT
+#define LIST_RECURSION_SORT = 1
+#endif
+
 #ifdef __cplusplus
 extern "C"
 {
