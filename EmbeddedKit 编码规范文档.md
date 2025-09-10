@@ -19,14 +19,14 @@ author: 左岚
 
 | 前缀 | 返回类型                  | 说明             | 示例                   |
 | ---- | ------------------------- | ---------------- | ---------------------- |
-| `v_` | void                      | 无返回值         | `EK_VInitSystem()`     |
-| `r_` | EK_Result                 | 全局统一状态枚举 | `EK_RConfigureTimer()` |
-| `i_` | int                       | 有符号整数       | `EK_IGetSensorValue()` |
-| `u_` | uint32_t/uint16_t/uint8_t | 无符号整数       | `EK_UGetSystemClock()` |
-| `c_` | char                      | 字符类型         | `EK_CGetStatusChar()`  |
-| `b_` | bool                      | 布尔类型         | `EK_BIsSystemReady()`  |
-| `p_` | pointer                   | 指针类型         | `EK_PGetBuffer()`      |
-| `s_` | size_t                    | 大小/长度类型    | `EK_SGetBufferSize()`  |
+| `v_` | void                      | 无返回值         | `EK_vInitSystem()`     |
+| `r_` | EK_Result                 | 全局统一状态枚举 | `EK_rConfigureTimer()` |
+| `i_` | int                       | 有符号整数       | `EK_iGetSensorValue()` |
+| `u_` | uint32_t/uint16_t/uint8_t | 无符号整数       | `EK_uGetSystemClock()` |
+| `c_` | char                      | 字符类型         | `EK_cGetStatusChar()`  |
+| `b_` | bool                      | 布尔类型         | `EK_bIsSystemReady()`  |
+| `p_` | pointer                   | 指针类型         | `EK_pGetBuffer()`      |
+| `s_` | size_t                    | 大小/长度类型    | `EK_sGetBufferSize()`  |
 
 ## 文件命名规范
 
@@ -96,7 +96,7 @@ EmbeddedKit/
 - 示例
 
   ```c
-  // 公开API函数void EK_VInitSystem(void);EK_Result EK_RConfigureTimer(uint32_t frequency);bool EK_BCheckSensorStatus(void);// 公开结构体typedef struct {    uint32_t frequency;    uint8_t mode;} EK_TimerConfig;// 公开枚举typedef enum {    EK_STATUS_OK = 0,    EK_STATUS_ERROR,    EK_STATUS_TIMEOUT} EK_Status;
+  // 公开API函数void EK_vInitSystem(void);EK_Result EK_rConfigureTimer(uint32_t frequency);bool EK_bCheckSensorStatus(void);// 公开结构体typedef struct {    uint32_t frequency;    uint8_t mode;} EK_TimerConfig;// 公开枚举typedef enum {    EK_STATUS_OK = 0,    EK_STATUS_ERROR,    EK_STATUS_TIMEOUT} EK_Status;
   ```
 
 #### 全局变量和静态变量
@@ -127,8 +127,8 @@ EmbeddedKit/
 
 ```c
 // 公开API
-void EK_VInitGpio(uint32_t pin, uint32_t mode);
-void EK_VResetSystem(void);
+void EK_vInitGpio(uint32_t pin, uint32_t mode);
+void EK_vResetSystem(void);
 // 内部函数
 static void v_clear_buffer(void);
 static void v_update_status(void);
@@ -138,8 +138,8 @@ static void v_update_status(void);
 
 ```c
 // 公开API
-EK_Result EK_RConfigureUart(uint32_t baudrate);
-int EK_RCheckConnection(void);
+EK_Result EK_rConfigureUart(uint32_t baudrate);
+int EK_rCheckConnection(void);
 // 内部函数
 static int r_validate_data(uint8_t* data);
 static bool r_is_valid_pin(uint32_t pin);
@@ -149,8 +149,8 @@ static bool r_is_valid_pin(uint32_t pin);
 
 ```c
 // 公开API
-uint8_t* EK_PGetBuffer(size_t size);
-char* EK_PGetVersionString(void);
+uint8_t* EK_pGetBuffer(size_t size);
+char* EK_pGetVersionString(void);
 // 内部函数
 static uint32_t* p_get_register_address(uint32_t offset);
 static void* p_allocate_memory(size_t size);
@@ -160,8 +160,8 @@ static void* p_allocate_memory(size_t size);
 
 ```c
 // 公开API
-uint32_t EK_UGetSystemClock(void);
-uint16_t EK_UReadADC(uint8_t channel);
+uint32_t EK_uGetSystemClock(void);
+uint16_t EK_uReadADC(uint8_t channel);
 // 内部函数
 static uint32_t u_calculate_frequency(void);
 static uint8_t u_get_status_register(void);
@@ -171,8 +171,8 @@ static uint8_t u_get_status_register(void);
 
 ```c
 // 公开API
-bool EK_BIsSystemReady(void);
-bool EK_BCheckSensorStatus(void);
+bool EK_bIsSystemReady(void);
+bool EK_bCheckSensorStatus(void);
 // 内部函数
 static bool b_validate_config(void);
 static bool b_is_timeout(uint32_t start_time);
