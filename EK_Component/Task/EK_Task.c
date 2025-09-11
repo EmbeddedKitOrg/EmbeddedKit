@@ -511,6 +511,8 @@ EK_Result_t EK_rTaskDelete(EK_pTaskHandler_t task_handler)
     // 传入的是由静态创建的任务
     if (TASK_IS_STATIC(target_handler->Task_Info) == true)
     {
+        // 静态任务只能挂起 不能删除
+        TASK_SET_SUSPENDED(target_handler->Task_Info);
         return EK_INVALID_PARAM;
     }
 

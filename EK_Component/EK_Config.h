@@ -11,18 +11,19 @@
 #define __EK_CONFIG_H
 
 #include "EK_Common.h"
+#include "MemPool/EK_MemPool.h"
 
 /**
  * @brief 内存分配宏定义
  * @details 函数签名要求是 void* xxx(size_t)
  */
-#define _MALLOC(x) malloc(x)
+#define _MALLOC(X) EK_pMemPool_Malloc(X)
 
 /**
  * @brief 内存释放宏定义
  * @details 函数入参要求是 void*
  */
-#define _FREE(X) free(X)
+#define _FREE(X) EK_bMemPool_Free(X)
 
 /**
  * @brief 内存池总大小 (字节)

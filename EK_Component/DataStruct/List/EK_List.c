@@ -66,14 +66,31 @@ static EK_Node_t *p_find_mid(EK_List_t *list)
 
     EK_Node_t *p_fast, *p_slow; //快慢指针
     p_fast = p_slow = GET_FIRST_NODE(list);
+    uint32_t step_count = 0; // 添加步数计数器防止无限循环
 
-    while (p_fast != list->List_Dummy && p_fast->Node_Next != list->List_Dummy)
+    while (p_fast != list->List_Dummy && p_fast->Node_Next != list->List_Dummy && step_count < list->List_Count)
     {
+        // 额外的安全检查
+        if (p_slow == NULL || p_fast == NULL || p_slow->Node_Owner != list || p_fast->Node_Owner != list)
+        {
+            break; // 链表结构可能已损坏
+        }
+
         // 慢指针移动一个节点
         p_slow = p_slow->Node_Next;
+
+        // 检查快指针的下一个节点是否有效
+        if (p_fast->Node_Next == NULL || p_fast->Node_Next->Node_Next == NULL)
+        {
+            break;
+        }
+
         // 快指针移动两个节点
         p_fast = p_fast->Node_Next->Node_Next;
+
+        step_count++; // 增加步数计数器
     }
+
     return p_slow;
 }
 
@@ -104,12 +121,20 @@ static EK_Result_t r_split_list(EK_List_t *list, EK_Node_t *node, EK_List_t *lis
     // 计算左半部分的节点数量
     uint16_t left_count = 0;
     EK_Node_t *current = GET_FIRST_NODE(list);
+    uint32_t traverse_count = 0; // 添加遍历计数器防止无限循环
 
     // 遍历到分割点，计算左半部分节点数
-    while (current != node && current != list->List_Dummy)
+    while (current != node && current != list->List_Dummy && traverse_count < list->List_Count)
     {
+        // 额外的安全检查
+        if (current == NULL || current->Node_Owner != list)
+        {
+            return EK_ERROR; // 链表结构可能已损坏
+        }
+
         left_count++;
         current = current->Node_Next;
+        traverse_count++; // 增加遍历计数器
     }
 
     if (current != node) return EK_NOT_FOUND; // 节点不在链表中
@@ -229,13 +254,17 @@ static EK_Result_t r_merge_list(EK_List_t *list1, EK_List_t *list2, EK_List_t *l
     if (list1->List_Count == 0)
     {
         // 将list2的所有节点移动到merged链表
-        while (list2->List_Count > 0)
+        uint32_t transfer_count = 0;
+        while (list2->List_Count > 0 && transfer_count < 1000) // 添加安全计数器
         {
             EK_Result_t temp = EK_OK;
             EK_Node_t *node = GET_FIRST_NODE(list2);
+            if (node == NULL || node == list2->List_Dummy) break; // 安全检查
+
             temp = EK_rListRemoveNode(list2, node);
             temp = EK_rListInsertEnd(list_merged, node);
             if (temp != EK_OK) return temp;
+            transfer_count++;
         }
         return EK_OK;
     }
@@ -243,13 +272,17 @@ static EK_Result_t r_merge_list(EK_List_t *list1, EK_List_t *list2, EK_List_t *l
     if (list2->List_Count == 0)
     {
         // 将list1的所有节点移动到merged链表
-        while (list1->List_Count > 0)
+        uint32_t transfer_count = 0;
+        while (list1->List_Count > 0 && transfer_count < 1000) // 添加安全计数器
         {
             EK_Result_t temp = EK_OK;
             EK_Node_t *node = GET_FIRST_NODE(list1);
+            if (node == NULL || node == list1->List_Dummy) break; // 安全检查
+
             temp = EK_rListRemoveNode(list1, node);
             temp = EK_rListInsertEnd(list_merged, node);
             if (temp != EK_OK) return temp;
+            transfer_count++;
         }
         return EK_OK;
     }
@@ -258,10 +291,13 @@ static EK_Result_t r_merge_list(EK_List_t *list1, EK_List_t *list2, EK_List_t *l
     EK_Node_t *p1 = GET_FIRST_NODE(list1); // list1当前节点
     EK_Node_t *p2 = GET_FIRST_NODE(list2); // list2当前节点
 
+    // 直接将两个链表的节点连接到 list_merged
+    EK_Node_t *merged_tail = list_merged->List_Dummy;
+
     while (p1 != list1->List_Dummy && p2 != list2->List_Dummy)
     {
-        EK_Node_t *selected_node = NULL;
-        bool choose_p1 = false;
+        EK_Node_t *selected_node;
+        bool choose_p1;
 
         if (is_descend)
         {
@@ -277,44 +313,55 @@ static EK_Result_t r_merge_list(EK_List_t *list1, EK_List_t *list2, EK_List_t *l
         if (choose_p1)
         {
             selected_node = p1;
-            p1 = p1->Node_Next; // 移动到下一个节点
-            EK_rListRemoveNode(list1, selected_node);
-            // 检查p1是否仍然有效
-            if (list1->List_Count == 0) p1 = list1->List_Dummy;
+            p1 = p1->Node_Next;
         }
         else
         {
             selected_node = p2;
-            p2 = p2->Node_Next; // 移动到下一个节点
-            EK_rListRemoveNode(list2, selected_node);
-            // 检查p2是否仍然有效
-            if (list2->List_Count == 0) p2 = list2->List_Dummy;
+            p2 = p2->Node_Next;
         }
 
-        // 将选中的节点插入到合并链表的尾部
-        EK_rListInsertEnd(list_merged, selected_node);
+        // 将选中的节点链接到合并链表的尾部
+        merged_tail->Node_Next = selected_node;
+        selected_node->Node_Prev = merged_tail;
+        selected_node->Node_Owner = list_merged;
+        merged_tail = selected_node;
     }
 
-    // 处理剩余节点
-    // 如果list1还有剩余节点
-    while (list1->List_Count > 0)
+    // 处理剩余的节点
+    EK_Node_t *remaining_list_head = (p1 != list1->List_Dummy) ? p1 : p2;
+    EK_List_t *remaining_list = (p1 != list1->List_Dummy) ? list1 : list2;
+
+    if (remaining_list_head != remaining_list->List_Dummy)
     {
-        EK_Result_t temp = EK_OK;
-        EK_Node_t *node = GET_FIRST_NODE(list1);
-        temp = EK_rListRemoveNode(list1, node);
-        temp = EK_rListInsertEnd(list_merged, node);
-        if (temp != EK_OK) return temp;
+        merged_tail->Node_Next = remaining_list_head;
+        remaining_list_head->Node_Prev = merged_tail;
+
+        EK_Node_t *remaining_list_tail = GET_LAST_NODE(remaining_list);
+        list_merged->List_Dummy->Node_Prev = remaining_list_tail;
+        remaining_list_tail->Node_Next = list_merged->List_Dummy;
+
+        // 更新剩余所有节点的 owner
+        EK_Node_t *current = remaining_list_head;
+        while (current != list_merged->List_Dummy)
+        {
+            current->Node_Owner = list_merged;
+            current = current->Node_Next;
+        }
+    }
+    else
+    {
+        // 如果没有剩余节点，正确闭合链表
+        merged_tail->Node_Next = list_merged->List_Dummy;
+        list_merged->List_Dummy->Node_Prev = merged_tail;
     }
 
-    // 如果list2还有剩余节点
-    while (list2->List_Count > 0)
-    {
-        EK_Result_t temp = EK_OK;
-        EK_Node_t *node = GET_FIRST_NODE(list2);
-        temp = EK_rListRemoveNode(list2, node);
-        temp = EK_rListInsertEnd(list_merged, node);
-        if (temp != EK_OK) return temp;
-    }
+    // 更新合并后链表的节点总数
+    list_merged->List_Count = list1->List_Count + list2->List_Count;
+
+    // 清空原始链表（因为节点已经全部移动）
+    r_list_init(list1);
+    r_list_init(list2);
 
     return EK_OK;
 }
@@ -677,6 +724,62 @@ EK_Result_t EK_rListMoveNode(EK_List_t *list_src, EK_List_t *list_dst, EK_Node_t
 }
 
 /**
+ * @brief 删除整个链表并释放所有节点内存
+ * @details 遍历链表删除所有节点，并尝试删除链表为空状态
+ * @param list 要删除的链表指针
+ * @return EK_Result_t 操作结果
+ * @note 此函数会释放所有动态分配的节点内存，但不释放链表本身的内存
+ *       节点的Node_Data指向的内存需要用户自行管理
+ *       静态分配的节点不会被释放，只会从链表中移除
+ */
+EK_Result_t EK_rListDelete(EK_List_t *list)
+{
+    if (list == NULL) return EK_NULL_POINTER;
+    if (list->List_Dummy == NULL) return EK_NULL_POINTER;
+    if (list->List_Count == 0) return EK_OK; // 空链表无需删除
+
+    EK_Node_t *current = GET_FIRST_NODE(list);
+    EK_Node_t *next_node = NULL;
+    uint32_t delete_count = 0; // 安全计数器
+    uint32_t original_count = list->List_Count; // 保存原始节点数量
+
+    // 遍历删除所有节点
+    while (current != list->List_Dummy && delete_count < original_count)
+    {
+        // 安全检查
+        if (current == NULL || current->Node_Owner != list)
+        {
+            break; // 链表结构可能已损坏
+        }
+
+        // 保存下一个节点
+        next_node = current->Node_Next;
+
+        // 清除当前节点的连接
+        current->Node_Next = NULL;
+        current->Node_Prev = NULL;
+        current->Node_Owner = NULL;
+
+        // 释放动态分配的节点内存
+        // 注意：这里假设节点是通过EK_pNodeCreate_Dynamic创建的
+        // 静态分配的节点不会被释放
+        _FREE(current);
+
+        current = next_node;
+        delete_count++;
+    }
+
+    // 重置链表为空状态
+    list->List_Count = 0;
+    list->List_Dummy->Node_Next = list->List_Dummy;
+    list->List_Dummy->Node_Prev = list->List_Dummy;
+    // 尝试释放链表
+    _FREE(list);
+
+    return EK_OK;
+}
+
+/**
  * @brief 将指定链表按照顺序排列（使用递归归并排序）
  * 
  * @param list 想要排序的链表指针
@@ -696,15 +799,23 @@ EK_Result_t EK_rListSort(EK_List_t *list, bool is_descend)
     {
 #endif
         EK_Node_t *current = GET_FIRST_NODE(list);
+        uint32_t processed_count = 0; // 添加计数器防止无限循环
 
-        while (current != list->List_Dummy && current->Node_Next != list->List_Dummy)
+        while (current != list->List_Dummy && processed_count < list->List_Count)
         {
             EK_Node_t *min_max_node = current;
             EK_Node_t *search_node = current->Node_Next;
+            uint32_t search_count = 0; // 内层循环计数器
 
             // 在剩余节点中找到最小值（升序）或最大值（降序）
-            while (search_node != list->List_Dummy)
+            while (search_node != list->List_Dummy && search_count < (list->List_Count - processed_count))
             {
+                // 额外的安全检查
+                if (search_node == NULL || search_node->Node_Owner != list)
+                {
+                    return EK_ERROR; // 链表结构可能已损坏，退出
+                }
+
                 bool should_select = is_descend ? (search_node->Node_Order > min_max_node->Node_Order)
                                                 : (search_node->Node_Order < min_max_node->Node_Order);
 
@@ -712,7 +823,15 @@ EK_Result_t EK_rListSort(EK_List_t *list, bool is_descend)
                 {
                     min_max_node = search_node;
                 }
+
                 search_node = search_node->Node_Next;
+                search_count++; // 增加内层计数器
+
+                // 防止内层无限循环
+                if (search_count >= (list->List_Count - processed_count))
+                {
+                    break; // 已经搜索完所有剩余节点
+                }
             }
 
             // 如果找到了更合适的节点，交换数据
@@ -729,6 +848,7 @@ EK_Result_t EK_rListSort(EK_List_t *list, bool is_descend)
             }
 
             current = current->Node_Next;
+            processed_count++; // 增加外层计数器
         }
 
         return EK_OK;

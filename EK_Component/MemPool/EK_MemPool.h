@@ -17,23 +17,6 @@ extern "C"
 {
 #endif
 
-/* ========================= 宏定义区 ========================= */
-/**
- * @brief 内存池总大小 (字节)
- * @note 可根据系统资源调整，建议至少1KB
- */
-#ifndef MEMPOOL_SIZE
-#define MEMPOOL_SIZE (4096)
-#endif
-
-/**
- * @brief 内存对齐大小 (字节)
- * @note 必须是2的幂次，通常为4或8字节
- */
-#ifndef MEMPOOL_ALIGNMENT
-#define MEMPOOL_ALIGNMENT (8)
-#endif
-
 /* ========================= 类型定义区 ========================= */
 /**
  * @brief 内存块节点结构体 (仿照heap4设计)
