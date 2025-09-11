@@ -1,33 +1,35 @@
 /**
- * @file EK_MemPool.h
- * @brief 内存池管理头文件
- * @details 定义了内存池的数据结构和操作接口
- * @author N1ntyNine99
- * @date 2025-09-22
- * @version 1.1
+ * @file MemPool.h
+ * @brief 内存池管理模块 (仿照FreeRTOS heap4设计思路)
+ * @details 实现动态内存分配功能，支持内存合并，减少碎片化
+ *          采用单向链表管理空闲块，支持块分割与合并
+ * @author N1netyNine99
+ * @date 2025-09-04
+ * @version v1.0
  */
 
-#ifndef __EK_MEMPOOL_H
-#define __EK_MEMPOOL_H
+#ifndef __MEMPOOL_h
+#define __MEMPOOL_h
 
-#include "../EK_Config.h"
+#include <stdint.h>
+#include <stddef.h>
+#include <stdbool.h>
+#include <string.h>
 
 #ifdef __cplusplus
 extern "C"
 {
-#endif /* __cplusplus */
+#endif
 
 /* ========================= 类型定义区 ========================= */
 /**
- * @brief 内存块节点结构体 (仿照heap4设计，优化版本)
- * @note 用于管理空闲内存块的双向链表，每个块包含大小、链表指针和前驱块信息
+ * @brief 内存块节点结构体 (仿照heap4设计)
+ * @note 用于管理空闲内存块的单向链表，每个块包含大小和链表指针
  */
 typedef struct MemBlock
 {
-    struct MemBlock *MemPool_NextFree; /**< 指向下一个空闲块 */
-    struct MemBlock *MemPool_PrevFree; /**< 指向上一个空闲块 */
-    EK_Size_t MemPool_BlockSize; /**< 块大小，最高位用作分配标记 */
-    EK_Size_t PrevBlockOffset; /**< 前驱块的字节偏移量，0表示没有前驱块 */
+    struct MemBlock *next_free; /**< 指向下一个空闲块 */
+    size_t block_size; /**< 块大小，最高位用作分配标记 */
 } MemBlock_t;
 
 /**
@@ -35,24 +37,24 @@ typedef struct MemBlock
  */
 typedef struct
 {
-    EK_Size_t Pool_TotalSize; /**< 内存池总大小 */
-    EK_Size_t Pool_FreeBytes; /**< 当前可用字节数 */
-    EK_Size_t Pool_MinFreeBytes; /**< 历史最小可用字节数 */
-    EK_Size_t Pool_AllocCount; /**< 分配次数统计 */
-    EK_Size_t Pool_FreeCount; /**< 释放次数统计 */
+    size_t total_size; /**< 内存池总大小 */
+    size_t free_bytes; /**< 当前可用字节数 */
+    size_t min_free_bytes; /**< 历史最小可用字节数 */
+    size_t alloc_count; /**< 分配次数统计 */
+    size_t free_count; /**< 释放次数统计 */
 } PoolStats_t;
 
 /* ========================= 函数声明区 ========================= */
-bool EK_bMemPool_Init(void);
-void EK_vMemPool_Deinit(void);
-void *EK_pMemPool_Malloc(EK_Size_t size);
-bool EK_bMemPool_Free(void *ptr);
-void EK_vMemPool_GetStats(PoolStats_t *stats);
-EK_Size_t EK_uMemPool_GetFreeSize(void);
-bool EK_bMemPool_CheckIntegrity(void);
+bool MemPool_Init(void);
+void MemPool_Deinit(void);
+void *MemPool_Malloc(size_t size);
+bool MemPool_Free(void *ptr);
+void MemPool_GetStats(PoolStats_t *stats);
+size_t MemPool_GetFreeSize(void);
+bool MemPool_CheckIntegrity(void);
 
 #ifdef __cplusplus
 }
-#endif /* __cplusplus */
+#endif
 
-#endif /* __EK_MEMPOOL_H */
+#endif
