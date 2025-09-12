@@ -18,7 +18,7 @@
 /* ========================= 宏定义区 ========================= */
 
 #define USER_UART              &huart1 //用户自选的串口号
-#define RX_TX_BUFFERS          512 //发送\接收数据缓存的最大值
+#define RX_TX_BUFFERS          100 //发送\接收数据缓存的最大值
 
 #define CIRCULAR_BUFFER_ENABLE 0 //使用环形缓冲区
 

@@ -51,7 +51,83 @@ static EK_Result_t r_list_init(EK_List_t *list)
 
     return EK_OK;
 }
+
+/**
+ * @brief 交换链表中两个节点的位置
+ * 
+ * @param list 链表指针
+ * @param node1 第一个节点
+ * @param node2 第二个节点
+ * @return EK_Result_t 操作结果
+ */
+static EK_Result_t r_swap_nodes(EK_List_t *list, EK_Node_t *node1, EK_Node_t *node2)
+{
+    if (list == NULL || node1 == NULL || node2 == NULL) return EK_NULL_POINTER;
+    if (node1 == node2) return EK_OK; // 同一个节点，无需交换
+    if (node1->Node_Owner != list || node2->Node_Owner != list) return EK_NOT_FOUND;
+
+    // 保存节点1的相邻节点
+    EK_Node_t *node1_prev = node1->Node_Prev;
+    EK_Node_t *node1_next = node1->Node_Next;
+
+    // 保存节点2的相邻节点
+    EK_Node_t *node2_prev = node2->Node_Prev;
+    EK_Node_t *node2_next = node2->Node_Next;
+
+    // 特殊情况：两个节点相邻
+    if (node1->Node_Next == node2) // node1 -> node2
+    {
+        // 调整node1的连接
+        node1->Node_Prev = node2;
+        node1->Node_Next = node2_next;
+
+        // 调整node2的连接
+        node2->Node_Prev = node1_prev;
+        node2->Node_Next = node1;
+
+        // 调整相邻节点的连接
+        if (node1_prev != NULL) node1_prev->Node_Next = node2;
+        if (node2_next != NULL) node2_next->Node_Prev = node1;
+    }
+    else if (node2->Node_Next == node1) // node2 -> node1
+    {
+        // 调整node2的连接
+        node2->Node_Prev = node1;
+        node2->Node_Next = node1_next;
+
+        // 调整node1的连接
+        node1->Node_Prev = node2_prev;
+        node1->Node_Next = node2;
+
+        // 调整相邻节点的连接
+        if (node2_prev != NULL) node2_prev->Node_Next = node1;
+        if (node1_next != NULL) node1_next->Node_Prev = node2;
+    }
+    else // 两个节点不相邻
+    {
+        // 调整node1的连接
+        node1->Node_Prev = node2_prev;
+        node1->Node_Next = node2_next;
+
+        // 调整node2的连接
+        node2->Node_Prev = node1_prev;
+        node2->Node_Next = node1_next;
+
+        // 调整node1原来相邻节点的连接
+        if (node1_prev != NULL) node1_prev->Node_Next = node2;
+        if (node1_next != NULL) node1_next->Node_Prev = node2;
+
+        // 调整node2原来相邻节点的连接
+        if (node2_prev != NULL) node2_prev->Node_Next = node1;
+        if (node2_next != NULL) node2_next->Node_Prev = node1;
+    }
+
+    return EK_OK;
+}
+
+// 开启递归归并排序
 #if (LIST_RECURSION_SORT != 0)
+
 /**
  * @brief 找到链表的一个中点
  * 
@@ -365,6 +441,7 @@ static EK_Result_t r_merge_list(EK_List_t *list1, EK_List_t *list2, EK_List_t *l
 
     return EK_OK;
 }
+
 #endif
 /* ========================= 公用API函数定义区 ========================= */
 /**
@@ -795,7 +872,7 @@ EK_Result_t EK_rListSort(EK_List_t *list, bool is_descend)
 
 #if (LIST_RECURSION_SORT != 0)
     // 小型链表采用选择排序法
-    if (list->List_Count < 20)
+    if (list->List_Count < 5)
     {
 #endif
         EK_Node_t *current = GET_FIRST_NODE(list);
@@ -834,20 +911,29 @@ EK_Result_t EK_rListSort(EK_List_t *list, bool is_descend)
                 }
             }
 
-            // 如果找到了更合适的节点，交换数据
+            // 如果找到了更合适的节点，交换节点位置
             if (min_max_node != current)
             {
-                void *temp_data = current->Node_Data;
-                uint32_t temp_order = current->Node_Order;
+                // 保存当前节点的下一个节点，因为交换后current的位置会改变
+                EK_Node_t *next_current = current->Node_Next;
 
-                current->Node_Data = min_max_node->Node_Data;
-                current->Node_Order = min_max_node->Node_Order;
+                // 交换两个节点的位置
+                EK_Result_t swap_result = r_swap_nodes(list, current, min_max_node);
+                if (swap_result != EK_OK)
+                {
+                    return swap_result; // 交换失败，返回错误
+                }
 
-                min_max_node->Node_Data = temp_data;
-                min_max_node->Node_Order = temp_order;
+                // 交换后，原来的current现在在min_max_node的位置
+                // 原来的min_max_node现在在current的位置
+                // 所以下一轮应该继续处理原来min_max_node的位置（现在是current）
+                current = next_current;
+            }
+            else
+            {
+                current = current->Node_Next;
             }
 
-            current = current->Node_Next;
             processed_count++; // 增加外层计数器
         }
 
