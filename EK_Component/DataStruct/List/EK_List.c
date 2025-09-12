@@ -49,6 +49,9 @@ static EK_Result_t r_list_init(EK_List_t *list)
     list->List_Dummy->Node_Owner = list;
     list->List_Dummy->Node_Data = (void *)&__DUMMY__;
 
+    // 根据链表类型设置哨兵节点的动态标识
+    list->List_Dummy->Node_isDynamic = list->List_isDynamic;
+
     return EK_OK;
 }
 #if (LIST_RECURSION_SORT != 0)
@@ -384,6 +387,7 @@ EK_Result_t EK_rNodeCreate_Static(EK_Node_t *node, void *content, uint32_t order
     node->Node_Next = NULL;
     node->Node_Prev = NULL;
     node->Node_Owner = NULL;
+    node->Node_isDynamic = false;
 
     return EK_OK;
 }
@@ -413,6 +417,7 @@ EK_Node_t *EK_pNodeCreate_Dynamic(void *content, uint32_t order)
     node->Node_Next = NULL;
     node->Node_Prev = NULL;
     node->Node_Owner = NULL;
+    node->Node_isDynamic = true;
 
     return node;
 }
@@ -426,10 +431,14 @@ EK_Node_t *EK_pNodeCreate_Dynamic(void *content, uint32_t order)
  */
 EK_Result_t EK_rListCreate_Static(EK_List_t *list, EK_Node_t *dummy_node)
 {
-    if (list == NULL) return EK_NULL_POINTER;
+    if (list == NULL || dummy_node == NULL) return EK_NULL_POINTER;
 
     // 初始化哨兵节点
     list->List_Dummy = dummy_node;
+    list->List_isDynamic = false;
+
+    // 确保哨兵节点被标记为静态
+    dummy_node->Node_isDynamic = false;
 
     return r_list_init(list);
 }
@@ -457,6 +466,10 @@ EK_List_t *EK_pListCreate_Dynamic(void)
         _FREE(list);
         return NULL;
     }
+    list->List_isDynamic = true;
+
+    // 标记哨兵节点为动态分配
+    list->List_Dummy->Node_isDynamic = true;
 
     // 初始化链表
     if (r_list_init(list) != EK_OK) return NULL;
@@ -725,12 +738,16 @@ EK_Result_t EK_rListMoveNode(EK_List_t *list_src, EK_List_t *list_dst, EK_Node_t
 
 /**
  * @brief 删除整个链表并释放所有节点内存
- * @details 遍历链表删除所有节点，并尝试删除链表为空状态
+ * @details 遍历链表删除所有节点，并释放动态分配的链表结构和哨兵节点
  * @param list 要删除的链表指针
  * @return EK_Result_t 操作结果
- * @note 此函数会释放所有动态分配的节点内存，但不释放链表本身的内存
+ * @note 此函数会释放所有动态分配的内存，包括：
+ *       - 动态分配的节点内存
+ *       - 动态分配的哨兵节点内存  
+ *       - 动态分配的链表结构内存
  *       节点的Node_Data指向的内存需要用户自行管理
- *       静态分配的节点不会被释放，只会从链表中移除
+ *       静态分配的节点和链表结构不会被释放，只会被重置为空状态
+ *       调用此函数后，动态分配的链表指针将变为无效，不应再使用
  */
 EK_Result_t EK_rListDelete(EK_List_t *list)
 {
@@ -761,9 +778,10 @@ EK_Result_t EK_rListDelete(EK_List_t *list)
         current->Node_Owner = NULL;
 
         // 释放动态分配的节点内存
-        // 注意：这里假设节点是通过EK_pNodeCreate_Dynamic创建的
-        // 静态分配的节点不会被释放
-        _FREE(current);
+        if (current->Node_isDynamic == true)
+        {
+            _FREE(current);
+        }
 
         current = next_node;
         delete_count++;
@@ -773,8 +791,19 @@ EK_Result_t EK_rListDelete(EK_List_t *list)
     list->List_Count = 0;
     list->List_Dummy->Node_Next = list->List_Dummy;
     list->List_Dummy->Node_Prev = list->List_Dummy;
-    // 尝试释放链表
-    _FREE(list);
+
+    // 释放哨兵节点（如果是动态分配的）
+    if (list->List_Dummy->Node_isDynamic == true)
+    {
+        _FREE(list->List_Dummy);
+        list->List_Dummy = NULL; // 避免悬挂指针
+    }
+
+    // 释放链表结构（如果是动态分配的）
+    if (list->List_isDynamic == true)
+    {
+        _FREE(list);
+    }
 
     return EK_OK;
 }
