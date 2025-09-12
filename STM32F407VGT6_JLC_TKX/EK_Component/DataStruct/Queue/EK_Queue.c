@@ -27,7 +27,7 @@ EK_Queue_t *EK_pQueueCreate_Dynamic(size_t capacity)
     void *buffer = _MALLOC(capacity);
     if (buffer == NULL) return NULL;
 
-    // 使用复合字面量创建队列
+    // 分配队列结构体内存
     EK_Queue_t *queue = (EK_Queue_t *)_MALLOC(sizeof(EK_Queue_t));
     if (queue == NULL)
     {
@@ -35,15 +35,14 @@ EK_Queue_t *EK_pQueueCreate_Dynamic(size_t capacity)
         return NULL;
     }
 
-    // 使用memcpy来初始化整个结构体
-    EK_Queue_t temp_queue = {.Queue_Buf = buffer,
-                             .Queue_Front = 0,
-                             .Queue_Rear = 0,
-                             .Queue_Size = 0,
-                             .Queue_Capacity = capacity,
-                             .Queue_isDynamic = true};
+    // 直接赋值初始化结构体
+    queue->Queue_Buf = buffer;
+    queue->Queue_Front = 0;
+    queue->Queue_Rear = 0;
+    queue->Queue_Size = 0;
+    queue->Queue_Capacity = capacity;
+    queue->Queue_isDynamic = true;
 
-    memcpy(queue, &temp_queue, sizeof(EK_Queue_t));
     return queue;
 }
 
@@ -60,15 +59,14 @@ EK_Result_t EK_rQueueCreate_Static(EK_Queue_t *queue_handler, void *buffer, cons
     // 判断入参是否无效
     if (queue_handler == NULL || capacity == 0) return EK_INVALID_PARAM;
 
-    // 使用临时结构体和memcpy来初始化
-    EK_Queue_t temp_queue = {.Queue_Buf = buffer,
-                             .Queue_Front = 0,
-                             .Queue_Rear = 0,
-                             .Queue_Size = 0,
-                             .Queue_Capacity = capacity,
-                             .Queue_isDynamic = false};
+    // 直接赋值初始化结构体
+    queue_handler->Queue_Buf = buffer;
+    queue_handler->Queue_Front = 0;
+    queue_handler->Queue_Rear = 0;
+    queue_handler->Queue_Size = 0;
+    queue_handler->Queue_Capacity = capacity;
+    queue_handler->Queue_isDynamic = false;
 
-    memcpy(queue_handler, &temp_queue, sizeof(EK_Queue_t));
     return EK_OK;
 }
 
@@ -86,8 +84,12 @@ EK_Result_t EK_rQueueDelete(EK_Queue_t *queue)
     // 处理动态队列
     if (queue->Queue_isDynamic == true)
     {
-        // 直接释放对应内存
-        _FREE(queue->Queue_Buf);
+        // 先释放缓冲区内存
+        if (queue->Queue_Buf != NULL)
+        {
+            _FREE(queue->Queue_Buf);
+        }
+        // 再释放队列结构体内存
         _FREE(queue);
         return EK_OK;
     }
@@ -95,11 +97,16 @@ EK_Result_t EK_rQueueDelete(EK_Queue_t *queue)
     // 处理静态队列
     else
     {
-        // 清空缓存区
-        memset(&queue->Queue_Buf, 0, queue->Queue_Size);
-        // 指针指向NULL
+        // 清空缓冲区（如果缓冲区存在）
+        if (queue->Queue_Buf != NULL && queue->Queue_Size > 0)
+        {
+            memset(queue->Queue_Buf, 0, queue->Queue_Size);
+        }
+        // 重置队列状态
         queue->Queue_Buf = NULL;
-        queue->Queue_Front = queue->Queue_Rear = queue->Queue_Size = 0;
+        queue->Queue_Front = 0;
+        queue->Queue_Rear = 0;
+        queue->Queue_Size = 0;
         return EK_OK;
     }
 }

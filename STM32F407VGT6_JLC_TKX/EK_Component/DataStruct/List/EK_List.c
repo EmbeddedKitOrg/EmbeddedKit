@@ -49,85 +49,12 @@ static EK_Result_t r_list_init(EK_List_t *list)
     list->List_Dummy->Node_Owner = list;
     list->List_Dummy->Node_Data = (void *)&__DUMMY__;
 
-    return EK_OK;
-}
-
-/**
- * @brief 交换链表中两个节点的位置
- * 
- * @param list 链表指针
- * @param node1 第一个节点
- * @param node2 第二个节点
- * @return EK_Result_t 操作结果
- */
-static EK_Result_t r_swap_nodes(EK_List_t *list, EK_Node_t *node1, EK_Node_t *node2)
-{
-    if (list == NULL || node1 == NULL || node2 == NULL) return EK_NULL_POINTER;
-    if (node1 == node2) return EK_OK; // 同一个节点，无需交换
-    if (node1->Node_Owner != list || node2->Node_Owner != list) return EK_NOT_FOUND;
-
-    // 保存节点1的相邻节点
-    EK_Node_t *node1_prev = node1->Node_Prev;
-    EK_Node_t *node1_next = node1->Node_Next;
-
-    // 保存节点2的相邻节点
-    EK_Node_t *node2_prev = node2->Node_Prev;
-    EK_Node_t *node2_next = node2->Node_Next;
-
-    // 特殊情况：两个节点相邻
-    if (node1->Node_Next == node2) // node1 -> node2
-    {
-        // 调整node1的连接
-        node1->Node_Prev = node2;
-        node1->Node_Next = node2_next;
-
-        // 调整node2的连接
-        node2->Node_Prev = node1_prev;
-        node2->Node_Next = node1;
-
-        // 调整相邻节点的连接
-        if (node1_prev != NULL) node1_prev->Node_Next = node2;
-        if (node2_next != NULL) node2_next->Node_Prev = node1;
-    }
-    else if (node2->Node_Next == node1) // node2 -> node1
-    {
-        // 调整node2的连接
-        node2->Node_Prev = node1;
-        node2->Node_Next = node1_next;
-
-        // 调整node1的连接
-        node1->Node_Prev = node2_prev;
-        node1->Node_Next = node2;
-
-        // 调整相邻节点的连接
-        if (node2_prev != NULL) node2_prev->Node_Next = node1;
-        if (node1_next != NULL) node1_next->Node_Prev = node2;
-    }
-    else // 两个节点不相邻
-    {
-        // 调整node1的连接
-        node1->Node_Prev = node2_prev;
-        node1->Node_Next = node2_next;
-
-        // 调整node2的连接
-        node2->Node_Prev = node1_prev;
-        node2->Node_Next = node1_next;
-
-        // 调整node1原来相邻节点的连接
-        if (node1_prev != NULL) node1_prev->Node_Next = node2;
-        if (node1_next != NULL) node1_next->Node_Prev = node2;
-
-        // 调整node2原来相邻节点的连接
-        if (node2_prev != NULL) node2_prev->Node_Next = node1;
-        if (node2_next != NULL) node2_next->Node_Prev = node1;
-    }
+    // 根据链表类型设置哨兵节点的动态标识
+    list->List_Dummy->Node_isDynamic = list->List_isDynamic;
 
     return EK_OK;
 }
-
-// 开启递归归并排序
 #if (LIST_RECURSION_SORT != 0)
-
 /**
  * @brief 找到链表的一个中点
  * 
@@ -441,7 +368,6 @@ static EK_Result_t r_merge_list(EK_List_t *list1, EK_List_t *list2, EK_List_t *l
 
     return EK_OK;
 }
-
 #endif
 /* ========================= 公用API函数定义区 ========================= */
 /**
@@ -461,6 +387,7 @@ EK_Result_t EK_rNodeCreate_Static(EK_Node_t *node, void *content, uint32_t order
     node->Node_Next = NULL;
     node->Node_Prev = NULL;
     node->Node_Owner = NULL;
+    node->Node_isDynamic = false;
 
     return EK_OK;
 }
@@ -490,6 +417,7 @@ EK_Node_t *EK_pNodeCreate_Dynamic(void *content, uint32_t order)
     node->Node_Next = NULL;
     node->Node_Prev = NULL;
     node->Node_Owner = NULL;
+    node->Node_isDynamic = true;
 
     return node;
 }
@@ -503,10 +431,14 @@ EK_Node_t *EK_pNodeCreate_Dynamic(void *content, uint32_t order)
  */
 EK_Result_t EK_rListCreate_Static(EK_List_t *list, EK_Node_t *dummy_node)
 {
-    if (list == NULL) return EK_NULL_POINTER;
+    if (list == NULL || dummy_node == NULL) return EK_NULL_POINTER;
 
     // 初始化哨兵节点
     list->List_Dummy = dummy_node;
+    list->List_isDynamic = false;
+
+    // 确保哨兵节点被标记为静态
+    dummy_node->Node_isDynamic = false;
 
     return r_list_init(list);
 }
@@ -534,6 +466,10 @@ EK_List_t *EK_pListCreate_Dynamic(void)
         _FREE(list);
         return NULL;
     }
+    list->List_isDynamic = true;
+
+    // 标记哨兵节点为动态分配
+    list->List_Dummy->Node_isDynamic = true;
 
     // 初始化链表
     if (r_list_init(list) != EK_OK) return NULL;
@@ -802,12 +738,16 @@ EK_Result_t EK_rListMoveNode(EK_List_t *list_src, EK_List_t *list_dst, EK_Node_t
 
 /**
  * @brief 删除整个链表并释放所有节点内存
- * @details 遍历链表删除所有节点，并尝试删除链表为空状态
+ * @details 遍历链表删除所有节点，并释放动态分配的链表结构和哨兵节点
  * @param list 要删除的链表指针
  * @return EK_Result_t 操作结果
- * @note 此函数会释放所有动态分配的节点内存，但不释放链表本身的内存
+ * @note 此函数会释放所有动态分配的内存，包括：
+ *       - 动态分配的节点内存
+ *       - 动态分配的哨兵节点内存  
+ *       - 动态分配的链表结构内存
  *       节点的Node_Data指向的内存需要用户自行管理
- *       静态分配的节点不会被释放，只会从链表中移除
+ *       静态分配的节点和链表结构不会被释放，只会被重置为空状态
+ *       调用此函数后，动态分配的链表指针将变为无效，不应再使用
  */
 EK_Result_t EK_rListDelete(EK_List_t *list)
 {
@@ -838,9 +778,10 @@ EK_Result_t EK_rListDelete(EK_List_t *list)
         current->Node_Owner = NULL;
 
         // 释放动态分配的节点内存
-        // 注意：这里假设节点是通过EK_pNodeCreate_Dynamic创建的
-        // 静态分配的节点不会被释放
-        _FREE(current);
+        if (current->Node_isDynamic == true)
+        {
+            _FREE(current);
+        }
 
         current = next_node;
         delete_count++;
@@ -850,8 +791,19 @@ EK_Result_t EK_rListDelete(EK_List_t *list)
     list->List_Count = 0;
     list->List_Dummy->Node_Next = list->List_Dummy;
     list->List_Dummy->Node_Prev = list->List_Dummy;
-    // 尝试释放链表
-    _FREE(list);
+
+    // 释放哨兵节点（如果是动态分配的）
+    if (list->List_Dummy->Node_isDynamic == true)
+    {
+        _FREE(list->List_Dummy);
+        list->List_Dummy = NULL; // 避免悬挂指针
+    }
+
+    // 释放链表结构（如果是动态分配的）
+    if (list->List_isDynamic == true)
+    {
+        _FREE(list);
+    }
 
     return EK_OK;
 }
@@ -911,29 +863,20 @@ EK_Result_t EK_rListSort(EK_List_t *list, bool is_descend)
                 }
             }
 
-            // 如果找到了更合适的节点，交换节点位置
+            // 如果找到了更合适的节点，交换数据
             if (min_max_node != current)
             {
-                // 保存当前节点的下一个节点，因为交换后current的位置会改变
-                EK_Node_t *next_current = current->Node_Next;
+                void *temp_data = current->Node_Data;
+                uint32_t temp_order = current->Node_Order;
 
-                // 交换两个节点的位置
-                EK_Result_t swap_result = r_swap_nodes(list, current, min_max_node);
-                if (swap_result != EK_OK)
-                {
-                    return swap_result; // 交换失败，返回错误
-                }
+                current->Node_Data = min_max_node->Node_Data;
+                current->Node_Order = min_max_node->Node_Order;
 
-                // 交换后，原来的current现在在min_max_node的位置
-                // 原来的min_max_node现在在current的位置
-                // 所以下一轮应该继续处理原来min_max_node的位置（现在是current）
-                current = next_current;
-            }
-            else
-            {
-                current = current->Node_Next;
+                min_max_node->Node_Data = temp_data;
+                min_max_node->Node_Order = temp_order;
             }
 
+            current = current->Node_Next;
             processed_count++; // 增加外层计数器
         }
 
