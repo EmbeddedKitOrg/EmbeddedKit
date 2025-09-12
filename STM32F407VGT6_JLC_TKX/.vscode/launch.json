@@ -1,0 +1,47 @@
+{
+    "configurations": [
+        {
+            "name": "Debug (STM32F407VG)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "openocd",
+            "cwd": "${workspaceFolder}",
+            "executable": "${command:st-stm32-ide-debug-launch.get-projects-binary-from-context1}",
+            "device": "STM32F407VG",
+            "svdFile": "",
+            "runToEntryPoint": "main",
+            "armToolchainPath": "C:/STM32CubeCLT/STM32CubeCLT_1.18.0/GNU-tools-for-STM32/bin",
+            "configFiles": [
+                "interface/cmsis-dap.cfg",
+                "target/stm32f4x.cfg"
+            ],
+            "openOCDLaunchCommands": [
+                "adapter speed 10000"
+            ]
+        },
+        {
+            "type": "probe-rs-debug",
+            "request": "launch",
+            "name": "probe-rs Test",
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "dap-server"
+            ],
+            "connectUnderReset": false,
+            "chip": "STM32F407VG",
+            "flashingConfig": {
+                "flashingEnabled": true,
+                "haltAfterReset": true,
+                "formatOptions": {
+                    "binaryFormat": "elf"
+                }
+            },
+            "coreConfigs": [
+                {
+                    "coreIndex": 0,
+                    "programBinary": "./build/Debug/STM32F407VGT6_JLC_TKX.elf"
+                }
+            ]
+        }
+    ]
+}

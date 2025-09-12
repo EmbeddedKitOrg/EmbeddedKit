@@ -1,0 +1,16 @@
+{
+    "cmake.cmakePath": "cube-cmake",
+    "cmake.configureArgs": [
+        "-DCMAKE_COMMAND=cube-cmake"
+    ],
+    "cmake.preferredGenerators": [
+        "Ninja"
+    ],
+    "files.associations": {
+        "ek_task.h": "c",
+        "key_led.h": "c",
+        "sysconfig.h": "c",
+        "ek_common.h": "c",
+        "ek_config.h": "c"
+    }
+}
