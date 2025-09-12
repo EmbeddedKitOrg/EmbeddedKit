@@ -24,8 +24,8 @@ typedef struct EK_Queue_t
     index_t Queue_Front; /**< 第一个元素的索引 待出队的元素索引 */
     index_t Queue_Rear; /**< 最后一个元素的下一个位置的索引 */
     size_t Queue_Size; /**< 当前的元素个数 */
-    const size_t Queue_Capacity; /**< 队列容量 */
-    const bool Queue_isDynamic; /**< 判断是否是动态创建的队列 */
+    size_t Queue_Capacity; /**< 队列容量 */
+    bool Queue_isDynamic; /**< 判断是否是动态创建的队列 */
 } EK_Queue_t;
 
 /* ========================= 函数声明区 ========================= */

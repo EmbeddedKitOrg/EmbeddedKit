@@ -23,8 +23,8 @@ typedef struct EK_Queue_t
     index_t Queue_Front;          // 队头索引（待出队元素）
     index_t Queue_Rear;           // 队尾索引（下一个入队位置）
     size_t Queue_Size;            // 当前元素个数（字节数）
-    const size_t Queue_Capacity;  // 队列容量（字节数）
-    const bool Queue_isDynamic;   // 动态创建标志
+    size_t Queue_Capacity;  // 队列容量（字节数）
+    bool Queue_isDynamic;   // 动态创建标志
 } EK_Queue_t;
 ```
 
