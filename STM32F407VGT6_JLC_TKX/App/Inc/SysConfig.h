@@ -18,6 +18,7 @@
 #include "EK_MemPool.h"
 #include "EK_List.h"
 #include "EK_Queue.h"
+#include "EK_Stack.h"
 
 /*Hardware*/
 #include "main.h"
@@ -30,6 +31,7 @@
 #include "Key_LED.h"
 
 /*APP*/
+#include "Test.h"
 #include "Task_App.h"
 
 #endif

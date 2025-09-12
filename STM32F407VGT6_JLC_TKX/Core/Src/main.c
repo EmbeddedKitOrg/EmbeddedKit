@@ -95,8 +95,6 @@ int main(void)
     // 初始化EK组件
     while (EK_rTaskInit() != EK_OK);
 
-    MyPrintf(USER_UART, "\r\n=== EK组件测试系统已启动 ===\r\n");
-    MyPrintf(USER_UART, "按下按键触发测试\r\n");
     /* USER CODE END 2 */
 
     /* Infinite loop */

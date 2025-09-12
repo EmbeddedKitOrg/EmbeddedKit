@@ -11,6 +11,10 @@
         "key_led.h": "c",
         "sysconfig.h": "c",
         "ek_common.h": "c",
-        "ek_config.h": "c"
-    }
+        "ek_config.h": "c",
+        "test.h": "c",
+        "task_app.h": "c",
+        "stdio.h": "c"
+    },
+    "C_Cpp.default.compilerPath": "C:/Users/15202/AppData/Local/stm32cube/bundles/gnu-tools-for-stm32/13.3.1+st.9/bin/arm-none-eabi-gcc.exe"
 }
