@@ -795,7 +795,7 @@ EK_Result_t EK_rListSort(EK_List_t *list, bool is_descend)
 
 #if (LIST_RECURSION_SORT != 0)
     // 小型链表采用选择排序法
-    if (list->List_Count < 20)
+    if (list->List_Count < 5)
     {
 #endif
         EK_Node_t *current = GET_FIRST_NODE(list);
