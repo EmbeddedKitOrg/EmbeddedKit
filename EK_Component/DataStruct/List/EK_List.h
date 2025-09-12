@@ -31,12 +31,14 @@ typedef struct EK_Node_t
     struct EK_Node_t *Node_Next; /**< 后一个节点 */
     EK_List_t *Node_Owner; /**< 节点所有者 */
     uint32_t Node_Order; /**< 节点序号 */
+    bool Node_isDynamic; /**< 是否来自动态分配 */
 } EK_Node_t;
 
 typedef struct EK_List_t
 {
     EK_Node_t *List_Dummy; /**< 哨兵节点 Prev 指向尾 Next指向头 */
     uint16_t List_Count; /**< 链表存储的节点数目 */
+    bool List_isDynamic; /**< 是否来自动态分配 */
 } EK_List_t;
 
 /* ========================= 函数声明区 ========================= */
