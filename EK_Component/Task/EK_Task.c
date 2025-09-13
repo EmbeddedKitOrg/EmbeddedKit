@@ -89,7 +89,7 @@ typedef EK_TaskSchedule_t *EK_pTaskSchedule_t; // 调度链表指针(aka EK_Task
 /* ========================= 内部全局变量区 ========================= */
 static EK_TaskSchedule_t RunSchedule; // 任务执行链表
 static EK_TaskSchedule_t WaitSchedule; // 任务等待链表
-static EK_TaskHandler_t *_CurTask_Handler; //当前正在占用CPU的任务的句柄
+static EK_TaskHandler_t *CurTaskHandler; //当前正在占用CPU的任务的句柄
 
 /* ========================= 弱定义函数区 ========================= */
 /**
@@ -504,8 +504,8 @@ EK_Result_t EK_rTaskDelete(EK_pTaskHandler_t task_handler)
     // 如果传入NULL，则操作当前任务
     if (target_handler == NULL)
     {
-        if (_CurTask_Handler == NULL) return EK_NULL_POINTER;
-        target_handler = _CurTask_Handler;
+        if (CurTaskHandler == NULL) return EK_NULL_POINTER;
+        target_handler = CurTaskHandler;
     }
 
     // 传入的是由静态创建的任务
@@ -536,9 +536,9 @@ EK_Result_t EK_rTaskDelete(EK_pTaskHandler_t task_handler)
 
         EK_bMemPool_Free(node);
         // 如果移除的是当前任务，清空当前任务句柄
-        if (target_handler == _CurTask_Handler)
+        if (target_handler == CurTaskHandler)
         {
-            _CurTask_Handler = NULL;
+            CurTaskHandler = NULL;
         }
     }
 
@@ -558,8 +558,8 @@ EK_Result_t EK_rTaskSuspend(EK_pTaskHandler_t task_handler)
     // 如果传入NULL，则操作当前任务
     if (target_handler == NULL)
     {
-        if (_CurTask_Handler == NULL) return EK_NULL_POINTER;
-        target_handler = _CurTask_Handler;
+        if (CurTaskHandler == NULL) return EK_NULL_POINTER;
+        target_handler = CurTaskHandler;
     }
 
     target_handler->Task_Info = TASK_SET_SUSPENDED(target_handler->Task_Info);
@@ -579,8 +579,8 @@ EK_Result_t EK_rTaskResume(EK_pTaskHandler_t task_handler)
     // 如果传入NULL，则操作当前任务
     if (target_handler == NULL)
     {
-        if (_CurTask_Handler == NULL) return EK_NULL_POINTER;
-        target_handler = _CurTask_Handler;
+        if (CurTaskHandler == NULL) return EK_NULL_POINTER;
+        target_handler = CurTaskHandler;
     }
 
     target_handler->Task_Info = TASK_SET_ACTIVE(target_handler->Task_Info);
@@ -601,8 +601,8 @@ EK_Result_t EK_rTaskSetPriority(EK_pTaskHandler_t task_handler, uint8_t Priority
     // 如果传入NULL，则操作当前任务
     if (target_handler == NULL)
     {
-        if (_CurTask_Handler == NULL) return EK_NULL_POINTER;
-        target_handler = _CurTask_Handler;
+        if (CurTaskHandler == NULL) return EK_NULL_POINTER;
+        target_handler = CurTaskHandler;
     }
 
     // 如果优先级没有改变，直接返回
@@ -660,11 +660,11 @@ EK_Result_t EK_rTaskGetInfo(EK_pTaskHandler_t task_handler, EK_TaskInfo_t *task_
     // 如果传入NULL，则获取当前任务信息
     if (target_handler == NULL)
     {
-        if (_CurTask_Handler == NULL)
+        if (CurTaskHandler == NULL)
         {
             return EK_NULL_POINTER; // 当前没有运行的任务
         }
-        target_handler = _CurTask_Handler;
+        target_handler = CurTaskHandler;
     }
 
     // 利用双向关联特性获取任务状态
@@ -706,9 +706,9 @@ EK_Result_t EK_rTaskGetInfo(EK_pTaskHandler_t task_handler, EK_TaskInfo_t *task_
  */
 EK_Result_t EK_rTaskDelay(uint16_t delay_ms)
 {
-    if (_CurTask_Handler == NULL) return EK_NULL_POINTER;
+    if (CurTaskHandler == NULL) return EK_NULL_POINTER;
 
-    _CurTask_Handler->Task_TrigTime = TASK_SET_TRIG_TIME(delay_ms, delay_ms);
+    CurTaskHandler->Task_TrigTime = TASK_SET_TRIG_TIME(delay_ms, delay_ms);
     return EK_OK;
 }
 
@@ -812,7 +812,7 @@ void EK_vTaskStart(uint32_t (*tick_get)(void))
                 continue;
             }
 
-            _CurTask_Handler = &ptr->TaskHandler; // 获得当前占用CPU的任务的句柄
+            CurTaskHandler = &ptr->TaskHandler; // 获得当前占用CPU的任务的句柄
             start_tick = tick_get(); // 任务回调执行开始的tick
 
             // 根据任务类型调用不同的函数指针
@@ -837,7 +837,7 @@ void EK_vTaskStart(uint32_t (*tick_get)(void))
             diff_tick = tick_get() - start_tick; // 任务回调消耗时间 ms
 
             // 检查任务是否在执行过程中删除了自己
-            if (_CurTask_Handler == NULL)
+            if (CurTaskHandler == NULL)
             {
                 // 当前任务已被删除，直接跳转到下一个任务
                 ptr = p_next;
