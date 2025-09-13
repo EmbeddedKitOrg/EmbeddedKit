@@ -50,7 +50,7 @@ EmbeddedKit/
 - **目标平台**: STM32F407VGT6
 - **构建系统**: CMake
 - **编译器**: GCC ARM
-- **调试**: ST-Link
+- **调试**: DAP-Link
 
 ## 运行测试
 
