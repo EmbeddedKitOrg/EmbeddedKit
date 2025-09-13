@@ -6,7 +6,6 @@
  *  - 它使用一个队列来缓冲待发送的数据，并通过轮询方式发送。
  *  - 支持动态和静态方式创建和初始化。
  *  - 数据通过 `EK_rSerialPrintf` 格式化后进入队列。
- *  - `EK_rSerialPoll` 函数需要被周期性调用，以处理数据发送。
  *  - 每个串口队列可以绑定一个发送回调函数 `Serial_SendCallBack`，用于实际的硬件发送操作。
  * @author N1netyNine99
  * @date 2025-09-13
@@ -23,27 +22,6 @@
 #ifndef SERIAL_POLL_TIMER
 #define SERIAL_POLL_TIMER (10)
 #endif
-
-/**
- * @brief 串口倒计时器宏定义
- * @note Serial_Timer 的高8位存储设定的计数值，低8位存储当前计数值。
- */
-
-/** @brief 设置倒计时器的设定值（高8位） */
-#define SERIAL_SET_TRIG_TIME(serial_timer, set_time) ((uint16_t)((serial_timer) & 0x00FF) | (uint16_t)(set_time << 8))
-
-/** @brief 获取倒计时器的设定值（高8位） */
-#define SERIAL_GET_TRIG_TIME(serial_timer) ((uint16_t)((serial_timer) & 0x00FF) >> 8)
-
-/** @brief 设置倒计时器的当前值（低8位） */
-#define SERIAL_SET_CURR_TIME(serial_timer, set_time)                                                                   \
-    ((uint16_t)((serial_timer) & 0xFF00) | (uint16_t)(set_time & 0x00FF))
-
-/** @brief 获取倒计时器的当前值（低8位） */
-#define SERIAL_GET_CURR_TIME(serial_timer) ((uint16_t)((serial_timer) & 0x00FF))
-
-/** @brief 重置倒计时（将当前计数值恢复为设定值） */
-#define SERIAL_RESET_TIME(serial_timer) (SERIAL_SET_CURR_TIME(serial_timer, SERIAL_GET_TRIG_TIME(serial_timer)))
 
 /* ========================= 内部变量区 ========================= */
 
@@ -104,14 +82,14 @@ EK_Result_t EK_rSerialInit_Static(void)
  *  - 动态分配 `EK_SeiralQueue_t` 结构体、内部队列和链表节点的内存。
  *  - 将创建的实例（通过其所属节点）添加至管理链表中。
  *  - 节点的 `Node_Data` 指向 `EK_SeiralQueue_t` 实例。
- * @param serial_fifo 指向串口队列句柄的指针，函数将为它分配内存。
+ * @param serial_fifo 指向串口队列句柄指针的指针，函数将为它分配内存。
  * @param send_func 用于发送数据的回调
  * @param priority 队列的优先级，用于在管理链表中排序。
  * @param capacity 队列的容量（可以存储的字节数）。
  * @return EK_Result_t 操作结果
  */
-EK_Result_t EK_rSerialCreateQueue_Dyanmic(EK_SeiralQueue_t *serial_fifo,
-                                          void *(*send_func)(void *),
+EK_Result_t EK_rSerialCreateQueue_Dyanmic(EK_pSeiralQueue_t *serial_fifo,
+                                          void (*send_func)(void *, size_t),
                                           uint16_t priority,
                                           size_t capacity)
 {
@@ -119,34 +97,44 @@ EK_Result_t EK_rSerialCreateQueue_Dyanmic(EK_SeiralQueue_t *serial_fifo,
     if (SerialIsInit == false) return EK_NOT_INITIALIZED;
 
     // 参数检查
-    if (serial_fifo == NULL || send_func) return EK_NULL_POINTER;
+    if (serial_fifo == NULL || send_func == NULL) return EK_NULL_POINTER;
 
     // 分配结构体空间
-    serial_fifo = (EK_SeiralQueue_t *)_MALLOC(sizeof(EK_SeiralQueue_t));
-    if (serial_fifo == NULL)
+    *serial_fifo = (EK_SeiralQueue_t *)_MALLOC(sizeof(EK_SeiralQueue_t));
+    if (*serial_fifo == NULL)
     {
-        _FREE(serial_fifo);
         return EK_NO_MEMORY;
     }
 
     // 分配队列空间
-    serial_fifo->Serial_Queue = EK_pQueueCreate_Dynamic(capacity);
-    if (serial_fifo->Serial_Queue == NULL) return EK_NO_MEMORY;
+    (*serial_fifo)->Serial_Queue = EK_pQueueCreate_Dynamic(capacity);
+    if ((*serial_fifo)->Serial_Queue == NULL)
+    {
+        _FREE(*serial_fifo);
+        *serial_fifo = NULL;
+        return EK_NO_MEMORY;
+    }
 
     // 分配链表节点空间
     // 让节点的Data指向当前的EK_SeiralQueue_t结构体
-    serial_fifo->Serial_Owner = EK_pNodeCreate_Dynamic(serial_fifo, priority);
-    if (serial_fifo->Serial_Owner) return EK_NO_MEMORY;
+    (*serial_fifo)->Serial_Owner = EK_pNodeCreate_Dynamic(*serial_fifo, priority);
+    if ((*serial_fifo)->Serial_Owner == NULL)
+    {
+        // 需要释放之前分配的队列内存
+        EK_rQueueDelete((*serial_fifo)->Serial_Queue);
+        _FREE(*serial_fifo);
+        *serial_fifo = NULL;
+        return EK_NO_MEMORY;
+    }
 
     // 设置回调
-    serial_fifo->Serial_SendCallBack = send_func;
+    (*serial_fifo)->Serial_SendCallBack = send_func;
 
     // 设置倒计时
-    serial_fifo->Serial_Timer = SERIAL_SET_TRIG_TIME(serial_fifo->Serial_Timer, SERIAL_POLL_TIMER);
-    serial_fifo->Serial_Timer = SERIAL_RESET_TIME(serial_fifo->Serial_Timer);
+    (*serial_fifo)->Serial_Timer = SERIAL_POLL_TIMER;
 
     // 将节点插入管理链表
-    return EK_rListInsertOrder(SerialManageList, serial_fifo->Serial_Owner);
+    return EK_rListInsertOrder(SerialManageList, (*serial_fifo)->Serial_Owner);
 }
 
 /**
@@ -163,7 +151,7 @@ EK_Result_t EK_rSerialCreateQueue_Dyanmic(EK_SeiralQueue_t *serial_fifo,
  * @return EK_Result_t 操作结果
  */
 EK_Result_t EK_rSerialCreateQueue_Static(
-    EK_SeiralQueue_t *serial_fifo, void *buffer, void *(*send_func)(void *), uint16_t priority, size_t capacity)
+    EK_pSeiralQueue_t serial_fifo, void *buffer, void (*send_func)(void *, size_t), uint16_t priority, size_t capacity)
 {
     // 判断有无初始化
     if (SerialIsInit == false) return EK_NOT_INITIALIZED;
@@ -184,8 +172,7 @@ EK_Result_t EK_rSerialCreateQueue_Static(
     serial_fifo->Serial_SendCallBack = send_func;
 
     // 设置倒计时
-    serial_fifo->Serial_Timer = SERIAL_SET_TRIG_TIME(serial_fifo->Serial_Timer, SERIAL_POLL_TIMER);
-    serial_fifo->Serial_Timer = SERIAL_RESET_TIME(serial_fifo->Serial_Timer);
+    serial_fifo->Serial_Timer = SERIAL_POLL_TIMER;
 
     // 将节点插入管理链表
     return EK_rListInsertOrder(SerialManageList, serial_fifo->Serial_Owner);
@@ -204,21 +191,44 @@ EK_Result_t EK_rSerialCreateQueue_Static(
  * @retval 其他 入队失败
  * @warning 传入的数据大小不能大于 `buffer_size`，如果过大会导致内存池滥用。
  */
-EK_Result_t EK_rSerialPrintf(EK_SeiralQueue_t *serial_fifo, size_t buffer_size, const char *format, ...)
+EK_Result_t EK_rSerialPrintf(EK_pSeiralQueue_t serial_fifo, size_t buffer_size, const char *format, ...)
 {
     // 判断有无初始化
     if (SerialIsInit == false) return EK_NOT_INITIALIZED;
 
-    // 将数据写入buffer
+    // 检查队列是否满了
+    if (EK_bQueueIsFull(serial_fifo->Serial_Queue)) return EK_FULL;
+
+    // 检测剩余空间是否足够
+    if (EK_sQueueGetRemain(serial_fifo->Serial_Queue) < buffer_size) return EK_INSUFFICIENT_SPACE;
+
+    // 动态分配缓冲区
     char *buffer = (char *)_MALLOC(buffer_size);
+    if (buffer == NULL) return EK_NO_MEMORY;
+
     uint16_t len = 0;
     va_list args;
     va_start(args, format);
     len = vsnprintf(buffer, buffer_size, format, args);
     va_end(args);
 
+    // 如果vsnprintf的返回值大于或等于缓冲区大小，这意味着输出被截断。
+    // 在这种情况下，我们应该只将缓冲区大小的字节数入队。
+    size_t enqueue_len = (len >= buffer_size) ? (buffer_size - 1) : len;
+
     // 将数据写入队列
-    EK_Result_t res = EK_rQueueEnqueue(serial_fifo->Serial_Queue, buffer, len);
+    bool was_empty = EK_bQueueIsEmpty(serial_fifo->Serial_Queue);
+    EK_Result_t res = EK_rQueueEnqueue(serial_fifo->Serial_Queue, buffer, enqueue_len);
+
+    // 如果队列之前是空的，现在成功加入了数据，则启动超时定时器
+    if (was_empty && res == EK_OK)
+    {
+        serial_fifo->Serial_Timer = SERIAL_POLL_TIMER;
+    }
+
+    // 立即释放缓冲区
+    _FREE(buffer);
+
     return res;
 }
 
@@ -246,26 +256,30 @@ EK_Result_t EK_rSerialPoll(uint32_t (*get_tick)(void))
     if (SerialManageList->List_Count == 0) return EK_EMPTY;
 
     // 1ms遍历一次
-    if (last_tick < get_tick())
+    if (get_tick() - last_tick > 0)
     {
-        last_tick = get_tick();
-
         // 获取链表头
         EK_Node_t *curr = SerialManageList->List_Dummy->Node_Next;
 
         uint16_t loop_counter = 0; // 循环计数器
 
-        while (curr->Node_Next != SerialManageList->List_Dummy && loop_counter <= SerialManageList->List_Count)
+        while (curr != SerialManageList->List_Dummy && loop_counter < SerialManageList->List_Count)
         {
             // 当前节点的内容 即这个节点包含的EK_SeiralQueue_t结构体
             EK_SeiralQueue_t *curr_data = (EK_SeiralQueue_t *)curr->Node_Data;
 
-            // 如果当前的队列为空，重置倒计时，直接跳过
+            // 添加数据有效性检查
+            if (curr_data == NULL || curr_data->Serial_Queue == NULL)
+            {
+                // 跳过无效节点
+                loop_counter++;
+                curr = curr->Node_Next;
+                continue;
+            }
+
+            // 如果当前的队列为空，直接跳过
             if (EK_bQueueIsEmpty(curr_data->Serial_Queue) == true)
             {
-                // 重置倒计时
-                curr_data->Serial_Timer = SERIAL_RESET_TIME(curr_data->Serial_Timer);
-
                 // 计数值增加
                 loop_counter++;
 
@@ -274,39 +288,60 @@ EK_Result_t EK_rSerialPoll(uint32_t (*get_tick)(void))
                 continue;
             }
 
-            // 获取当前句柄的倒计时值
-            uint8_t curr_time = SERIAL_GET_CURR_TIME(curr_data->Serial_Timer);
             // 倒计时没清空
-            if (curr_time != 0)
+            if (curr_data->Serial_Timer > 0)
             {
-                curr_time--;
-                // 将值设置回去
-                curr_data->Serial_Timer = SERIAL_SET_CURR_TIME(curr_data->Serial_Timer, curr_time);
+                curr_data->Serial_Timer--;
             }
             else //倒计时被清空
             {
-                void *buffer;
-                // 取出队列中的数据
-                EK_Result_t res =
-                    EK_rQueueDequeue(curr_data->Serial_Queue, buffer, curr_data->Serial_Queue->Queue_Size);
-
-                if (res != EK_OK)
+                // 获取队列中实际存储的数据大小
+                size_t queue_used_size = EK_sQueueGetSize(curr_data->Serial_Queue);
+                if (queue_used_size == 0)
                 {
-                    // 将当前的队列清空
-                    EK_rQueueClean(curr_data->Serial_Queue);
-
+                    // 重置倒计时
+                    curr_data->Serial_Timer = SERIAL_POLL_TIMER;
                     // 计数值增加
                     loop_counter++;
-
                     // 移动到下一个节点
                     curr = curr->Node_Next;
                     continue;
                 }
-                // 发送数据
-                curr_data->Serial_SendCallBack(buffer);
+
+                // 分配缓冲区来存储出队的数据
+                char *buffer = (char *)_MALLOC(queue_used_size);
+                if (buffer == NULL)
+                {
+                    // 内存分配失败，清空队列
+                    EK_rQueueClean(curr_data->Serial_Queue);
+                    // 重置倒计时
+                    curr_data->Serial_Timer = SERIAL_POLL_TIMER;
+                    // 计数值增加
+                    loop_counter++;
+                    // 移动到下一个节点
+                    curr = curr->Node_Next;
+                    continue;
+                }
+
+                // 取出队列中的所有数据
+                EK_Result_t res = EK_rQueueDequeue(curr_data->Serial_Queue, buffer, queue_used_size);
+
+                if (res != EK_OK)
+                {
+                    // 出队失败，释放缓冲区并清空队列
+                    _FREE(buffer);
+                    EK_rQueueClean(curr_data->Serial_Queue);
+                }
+                else
+                {
+                    // 发送数据
+                    curr_data->Serial_SendCallBack(buffer, queue_used_size);
+                    // 释放缓冲区
+                    _FREE(buffer);
+                }
 
                 // 重置倒计时
-                curr_data->Serial_Timer = SERIAL_RESET_TIME(curr_data->Serial_Timer);
+                curr_data->Serial_Timer = SERIAL_POLL_TIMER;
             }
 
             // 计数值增加
@@ -314,6 +349,7 @@ EK_Result_t EK_rSerialPoll(uint32_t (*get_tick)(void))
             // 移动到下一个节点
             curr = curr->Node_Next;
         }
+        last_tick = get_tick();
     }
     return EK_OK;
 }

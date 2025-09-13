@@ -4,6 +4,7 @@ EK_pTaskHandler_t TskHandler1;
 EK_pTaskHandler_t TskHandler2;
 EK_pTaskHandler_t TskHandler3;
 EK_pTaskHandler_t TskHandler_LargeListSort;
+EK_pSeiralQueue_t TestQueue;
 
 // 测试数据结构
 EK_List_t *test_list = NULL;
@@ -29,18 +30,34 @@ void Test_Queue(void);
 void Test_TaskSystem(void);
 void Test_AllTaskInfo(void);
 
+void Send(void *data, size_t size)
+{
+    HAL_UART_Transmit(USER_UART, data, size, HAL_MAX_DELAY);
+}
+
 bool TaskCreation(void)
 {
     bool res = true;
+    res &= EK_rSerialInit_Dynamic() == EK_OK;
+    res &= EK_rSerialCreateQueue_Dyanmic(&TestQueue, Send, 0, 200) == EK_OK;
     res &= EK_rTaskCreate_Dynamic(Task_LED, 1, &TskHandler1) == EK_OK;
     res &= EK_rTaskCreate_Dynamic(Task_Key, 0, &TskHandler2) == EK_OK;
-    res &= EK_rTaskCreate_Dynamic(Task_ComponentTest, 2, &TskHandler3) == EK_OK;
+    // res &= EK_rTaskCreate_Dynamic(Task_ComponentTest, 2, &TskHandler3) == EK_OK;
     return res;
+}
+
+void TaskIdle(void)
+{
+    EK_rSerialPoll(HAL_GetTick);
 }
 
 void Task_LED(void)
 {
     LED_TOGGLE();
+
+    // 添加调试信息：检查EK_rSerialPrintf的返回值
+    EK_rSerialPrintf(TestQueue, 50, "uwTick:%lu\r\n", uwTick);
+
     EK_rTaskDelay(100);
 }
 
@@ -56,7 +73,7 @@ void Task_Key(void)
         MyPrintf(USER_UART, "按键按下 剩余内存:%u字节\r\n", EK_sTaskGetFreeMemory());
         test_counter++; // 按键计数
     }
-    EK_rTaskDelay(50);
+    EK_rTaskDelay(20);
 }
 
 void Task_ComponentTest(void)

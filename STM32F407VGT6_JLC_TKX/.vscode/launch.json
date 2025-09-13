@@ -15,8 +15,12 @@
                 "interface/cmsis-dap.cfg",
                 "target/stm32f4x.cfg"
             ],
+            "liveWatch": {
+                "enabled": true,
+                "samplesPerSecond": 4
+            },
             "openOCDLaunchCommands": [
-                "adapter speed 10000"
+                "adapter speed 4000"
             ]
         },
         {

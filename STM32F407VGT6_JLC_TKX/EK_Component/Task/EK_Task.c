@@ -336,7 +336,7 @@ static EK_Result_t r_task_move_node(EK_TaskSchedule_t *list_src, EK_TaskSchedule
  * @param node 获取节点的指针的指针
  * @return EK_Result_t 执行情况
  */
-static EK_Result_t _task_search_node(EK_TaskSchedule_t *list, EK_TaskHandler_t *task_handler, EK_pTaskEK_Node_t *node)
+static EK_Result_t r_task_search_node(EK_TaskSchedule_t *list, EK_TaskHandler_t *task_handler, EK_pTaskEK_Node_t *node)
 {
     *node = NULL; // 节点默认为NULL
 
@@ -846,7 +846,7 @@ void EK_vTaskStart(uint32_t (*tick_get)(void))
 
             // 利用高效的搜索函数验证 ptr 是否仍然有效（可能在任务执行过程中被删除）
             EK_TaskEK_Node_t *found_node = NULL;
-            EK_Result_t search_result = _task_search_node(&RunSchedule, &ptr->TaskHandler, &found_node);
+            EK_Result_t search_result = r_task_search_node(&RunSchedule, &ptr->TaskHandler, &found_node);
 
             if (search_result != EK_OK || found_node != ptr)
             {
