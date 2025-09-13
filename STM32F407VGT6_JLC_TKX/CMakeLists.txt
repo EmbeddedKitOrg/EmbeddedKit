@@ -64,6 +64,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     EK_Component/DataStruct/List
     EK_Component/DataStruct/Queue
     EK_Component/DataStruct/Stack
+    EK_Component/Bsp/Serial
     EK_Component/MemPool
     EK_Component/Task
 

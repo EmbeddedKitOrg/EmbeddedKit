@@ -19,6 +19,7 @@
 #include "EK_List.h"
 #include "EK_Queue.h"
 #include "EK_Stack.h"
+#include "EK_Serial.h"
 
 /*Hardware*/
 #include "main.h"
