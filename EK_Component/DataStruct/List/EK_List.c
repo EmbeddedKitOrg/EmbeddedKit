@@ -378,7 +378,7 @@ static EK_Result_t r_merge_list(EK_List_t *list1, EK_List_t *list2, EK_List_t *l
  * @param order 节点序号
  * @return EK_Result_t 操作结果
  */
-EK_Result_t EK_rNodeCreate_Static(EK_Node_t *node, void *content, uint32_t order)
+EK_Result_t EK_rNodeCreate_Static(EK_Node_t *node, void *content, uint16_t order)
 {
     if (node == NULL || content == NULL) return EK_NULL_POINTER;
 
@@ -401,7 +401,7 @@ EK_Result_t EK_rNodeCreate_Static(EK_Node_t *node, void *content, uint32_t order
  * @retval 非NULL 创建成功，返回节点指针
  * @retval NULL 创建失败（参数为空或内存分配失败）
  */
-EK_Node_t *EK_pNodeCreate_Dynamic(void *content, uint32_t order)
+EK_Node_t *EK_pNodeCreate_Dynamic(void *content, uint16_t order)
 {
     if (content == NULL) return NULL;
     EK_Node_t *node = (EK_Node_t *)_MALLOC(sizeof(EK_Node_t));

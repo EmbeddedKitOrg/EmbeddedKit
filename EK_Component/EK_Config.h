@@ -44,4 +44,9 @@
  */
 #define LIST_RECURSION_SORT (1)
 
+/**
+ * @brief 通讯相关 遍历超时时间(ms)
+ */
+#define SERIAL_POLL_TIMER (10)
+
 #endif

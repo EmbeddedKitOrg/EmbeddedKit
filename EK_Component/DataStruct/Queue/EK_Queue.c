@@ -14,6 +14,55 @@
 #include "EK_Queue.h"
 
 /**
+ * @brief 检查队列是否为空
+ * @param queue 要检查的队列指针
+ * @return bool 队列为空返回true，非空或队列指针无效返回false
+ * @note 当队列指针为NULL时返回false，表示检查失败
+ */
+bool EK_bQueueIsEmpty(EK_Queue_t *queue)
+{
+    if (queue == NULL) return false;
+    return (queue->Queue_Size == 0);
+}
+
+/**
+ * @brief 检查队列是否已满
+ * @param queue 要检查的队列指针
+ * @return bool 队列已满返回true，未满或队列指针无效返回false
+ * @note 当队列指针为NULL时返回false，表示检查失败
+ */
+bool EK_bQueueIsFull(EK_Queue_t *queue)
+{
+    if (queue == NULL) return false;
+    return (queue->Queue_Size >= queue->Queue_Capacity);
+}
+
+/**
+ * @brief 获取队列当前存储的数据大小
+ * @param queue 队列指针
+ * @return size_t 返回队列中数据的字节数，队列指针无效时返回0
+ * @note 返回值表示队列中实际存储的数据量，不是队列容量
+ */
+size_t EK_sQueueGetSize(EK_Queue_t *queue)
+{
+    if (queue == NULL) return 0;
+    return queue->Queue_Size;
+}
+
+/**
+ * @brief 获取队列剩余可用空间大小
+ * @param queue 队列指针
+ * @return size_t 返回队列剩余可用的字节数，队列指针无效时返回0
+ * @note 返回值表示还可以向队列中写入多少字节的数据
+ */
+size_t EK_sQueueGetRemain(EK_Queue_t *queue)
+{
+    if (queue == NULL) return 0;
+    int64_t temp = queue->Queue_Capacity - queue->Queue_Size;
+    return temp > 0 ? (size_t)temp : 0;
+}
+
+/**
  * @brief 动态创建一个队列（使用动态内存分配）
  * @param capacity 队列容量（字节数）
  * @return EK_Queue_t* 返回创建的队列指针，失败返回NULL
@@ -71,6 +120,28 @@ EK_Result_t EK_rQueueCreate_Static(EK_Queue_t *queue_handler, void *buffer, cons
 }
 
 /**
+ * @brief 清空队列中的所有数据
+ * @details 重置队列的前后指针和大小计数器，使队列变为空状态
+ * @param queue 队列指针
+ * @return EK_Result_t 操作结果
+ * @retval EK_OK 清空成功
+ * @retval EK_NULL_POINTER 队列指针为空
+ * @note 只重置队列状态，不清零缓冲区内容以提高性能
+ */
+EK_Result_t EK_rQueueClean(EK_Queue_t *queue)
+{
+    // 参数有效性检查
+    if (queue == NULL) return EK_NULL_POINTER;
+
+    // 重置队列状态为空
+    queue->Queue_Front = 0;
+    queue->Queue_Rear = 0;
+    queue->Queue_Size = 0;
+
+    return EK_OK;
+}
+
+/**
  * @brief 删除队列并释放相关资源
  * @param queue 要删除的队列指针
  * @return EK_Result_t 删除成功返回EK_OK，失败返回对应错误码
@@ -109,55 +180,6 @@ EK_Result_t EK_rQueueDelete(EK_Queue_t *queue)
         queue->Queue_Size = 0;
         return EK_OK;
     }
-}
-
-/**
- * @brief 检查队列是否为空
- * @param queue 要检查的队列指针
- * @return bool 队列为空返回true，非空或队列指针无效返回false
- * @note 当队列指针为NULL时返回false，表示检查失败
- */
-bool EK_bQueueIsEmpty(EK_Queue_t *queue)
-{
-    if (queue == NULL) return false;
-    return (queue->Queue_Size == 0);
-}
-
-/**
- * @brief 检查队列是否已满
- * @param queue 要检查的队列指针
- * @return bool 队列已满返回true，未满或队列指针无效返回false
- * @note 当队列指针为NULL时返回false，表示检查失败
- */
-bool EK_bQueueIsFull(EK_Queue_t *queue)
-{
-    if (queue == NULL) return false;
-    return (queue->Queue_Size >= queue->Queue_Capacity);
-}
-
-/**
- * @brief 获取队列当前存储的数据大小
- * @param queue 队列指针
- * @return size_t 返回队列中数据的字节数，队列指针无效时返回0
- * @note 返回值表示队列中实际存储的数据量，不是队列容量
- */
-size_t EK_sQueueGetSize(EK_Queue_t *queue)
-{
-    if (queue == NULL) return 0;
-    return queue->Queue_Size;
-}
-
-/**
- * @brief 获取队列剩余可用空间大小
- * @param queue 队列指针
- * @return size_t 返回队列剩余可用的字节数，队列指针无效时返回0
- * @note 返回值表示还可以向队列中写入多少字节的数据
- */
-size_t EK_sQueueGetRemain(EK_Queue_t *queue)
-{
-    if (queue == NULL) return 0;
-    int64_t temp = queue->Queue_Capacity - queue->Queue_Size;
-    return temp > 0 ? (size_t)temp : 0;
 }
 
 /**

@@ -20,9 +20,16 @@
 #include "EK_Task.h"
 #include "../MemPool/EK_MemPool.h"
 
-#if (EK_NORMAL_SCHEDULER == 1)
-
 /* ========================= 宏定义区 ========================= */
+/**
+ * @brief 任务倒计时操作宏定义
+ * @note Task_TrigTime的高16位存储设定值，低16位存储当前值
+ */
+#define TASK_SET_TRIG_TIME(set_val, cur_val)  (((uint32_t)(set_val) << 16) | ((uint32_t)(cur_val) & 0xFFFF))
+#define TASK_GET_SET_TIME(trig_time)          ((uint16_t)((trig_time) >> 16))
+#define TASK_GET_CUR_TIME(trig_time)          ((uint16_t)((trig_time) & 0xFFFF))
+#define TASK_SET_CUR_TIME(trig_time, cur_val) (((trig_time) & 0xFFFF0000) | ((uint32_t)(cur_val) & 0xFFFF))
+#define TASK_RESET_TIME(trig_time)            (((trig_time) & 0xFFFF0000) | (((trig_time) >> 16) & 0xFFFF))
 
 /**
  * @brief 任务状态操作宏定义
@@ -31,19 +38,28 @@
  *       - bit6-bit1:   保留位
  *       - 最低位(bit0): 是否激活 (1=激活, 0=挂起)
  */
+#define TASK_STATE_STATIC_MASK   (0x80) /**< 静态创建标志位掩码 */
+#define TASK_STATE_ACTIVE_MASK   (0x01) /**< 激活状态掩码 */
+#define TASK_STATE_RESERVED_MASK (0x7E) /**< 保留位掩码 */
 
 /* 静态创建标志操作 */
-#define TASK_SET_STATIC(state)  ((state) | 0x80) /**< 设置为静态创建 */
-#define TASK_SET_DYNAMIC(state) ((state) & ~0x80) /**< 设置为动态创建 */
-#define TASK_IS_STATIC(state)   (((state) & 0x80) != 0) /**< 检查是否静态创建 */
+#define TASK_SET_STATIC(state)  ((state) | TASK_STATE_STATIC_MASK) /**< 设置为静态创建 */
+#define TASK_SET_DYNAMIC(state) ((state) & ~TASK_STATE_STATIC_MASK) /**< 设置为动态创建 */
+#define TASK_IS_STATIC(state)   (((state) & TASK_STATE_STATIC_MASK) != 0) /**< 检查是否静态创建 */
 
 /* 激活状态操作 */
-#define TASK_SET_ACTIVE(state)    ((state) | 0x01) /**< 设置为激活状态 */
-#define TASK_SET_SUSPENDED(state) ((state) & ~0x01) /**< 设置为挂起状态 */
-#define TASK_IS_ACTIVE(state)     (((state) & 0x01) != 0) /**< 检查是否激活 */
+#define TASK_SET_ACTIVE(state)    ((state) | TASK_STATE_ACTIVE_MASK) /**< 设置为激活状态 */
+#define TASK_SET_SUSPENDED(state) ((state) & ~TASK_STATE_ACTIVE_MASK) /**< 设置为挂起状态 */
+#define TASK_IS_ACTIVE(state)     (((state) & TASK_STATE_ACTIVE_MASK) != 0) /**< 检查是否激活 */
 
 /* 综合操作 */
-#define TASK_INIT_STATE(is_static, is_active) ((is_static) ? 0x80 : 0) | ((is_active) ? 0x01 : 0)
+#define TASK_INIT_STATE(is_static, is_active)                                                                          \
+    ((is_static) ? TASK_STATE_STATIC_MASK : 0) | ((is_active) ? TASK_STATE_ACTIVE_MASK : 0)
+
+/* 兼容性宏定义 - 用于替换原有的bool操作 */
+#define TASK_GET_ACTIVE_STATE(handler) TASK_IS_ACTIVE((handler)->Task_Info)
+#define TASK_ACTIVATE(handler)         ((handler)->Task_Info = TASK_SET_ACTIVE((handler)->Task_Info))
+#define TASK_SUSPEND(handler)          ((handler)->Task_Info = TASK_SET_SUSPENDED((handler)->Task_Info))
 
 /**
  * @brief 任务调度器错误代码枚举
@@ -320,7 +336,7 @@ static EK_Result_t r_task_move_node(EK_TaskSchedule_t *list_src, EK_TaskSchedule
  * @param node 获取节点的指针的指针
  * @return EK_Result_t 执行情况
  */
-static EK_Result_t r_task_search_node(EK_TaskSchedule_t *list, EK_TaskHandler_t *task_handler, EK_pTaskEK_Node_t *node)
+static EK_Result_t _task_search_node(EK_TaskSchedule_t *list, EK_TaskHandler_t *task_handler, EK_pTaskEK_Node_t *node)
 {
     *node = NULL; // 节点默认为NULL
 
@@ -391,68 +407,13 @@ EK_Result_t EK_rTaskInit(void)
 }
 
 /**
- * @brief 动态添加一个任务（使用内存池分配节点）
- * @param pfunc 任务回调函数
- * @param Priority 任务优先级
- * @param task_handler 用于接收任务句柄指针的指针
- * @return EK_Result_t 添加结果
- * @note 适用于动态分配场景，节点内存由内存池管理，需要使用rTaskDelay设置延时
- */
-EK_Result_t EK_rTaskCreate(void (*pfunc)(void), uint8_t Priority, EK_pTaskHandler_t *task_handler)
-{
-    if (pfunc == NULL) return EK_NULL_POINTER;
-
-    EK_TaskEK_Node_t *node = (EK_TaskEK_Node_t *)EK_MALLOC(sizeof(EK_TaskEK_Node_t));
-    if (node == NULL)
-    {
-        return EK_NO_MEMORY;
-    }
-
-    // 从内存池分配函数指针空间
-    void (**func_ptr)(void) = (void (**)(void))EK_MALLOC(sizeof(void (*)(void)));
-    if (func_ptr == NULL)
-    {
-        EK_FREE(node); // 释放已分配的节点内存
-        return EK_NO_MEMORY;
-    }
-
-    node->Next = NULL;
-    node->Owner = &WaitSchedule;
-    // 强制覆盖用户可能设置的Task_Info值 - 动态创建，激活状态
-    node->TaskHandler.Task_Info = TASK_INIT_STATE(false, true);
-    node->TaskHandler.Task_MaxUsed = 0;
-    node->TaskHandler.Task_OwnerNode = node; //任务自值段
-
-    /*用户段*/
-    *func_ptr = pfunc; // 将函数指针存储到内存池分配的空间中
-    node->TaskHandler.TaskCallBack.DynamicCallBack = func_ptr; // 指向内存池中的函数指针
-    node->TaskHandler.Task_TrigTime = 0; // 初始化为0，需要通过EK_rTaskDelay设置
-    node->TaskHandler.Task_Priority = Priority;
-
-    EK_Result_t result = r_task_insert_node(&WaitSchedule, node);
-    if (result != EK_OK)
-    {
-        EK_FREE(func_ptr); // 释放函数指针内存
-        EK_FREE(node); // 插入失败时释放内存
-        return result;
-    }
-
-    if (task_handler != NULL)
-    {
-        *task_handler = &(node->TaskHandler); // 返回指向节点中TaskHandler的指针
-    }
-
-    return EK_OK;
-}
-
-/**
  * @brief 静态添加一个任务（节点内存由用户提供）
  * @param node 用户提供的节点内存
  * @param static_handler 用户的静态任务句柄
  * @return EK_pTaskHandler_t 返回节点中的任务句柄指针，失败返回NULL
  * @note 适用于静态分配场景，节点内存和函数指针都由用户管理，不使用内存池
  */
-EK_pTaskHandler_t EK_pTaskCreateStatic(EK_TaskEK_Node_t *node, EK_TaskHandler_t *static_handler)
+EK_pTaskHandler_t EK_pTaskCreate_Static(EK_TaskEK_Node_t *node, EK_TaskHandler_t *static_handler)
 {
     if (node == NULL || static_handler == NULL) return NULL;
 
@@ -473,6 +434,61 @@ EK_pTaskHandler_t EK_pTaskCreateStatic(EK_TaskEK_Node_t *node, EK_TaskHandler_t 
 
     // 返回节点中的句柄指针
     return &(node->TaskHandler);
+}
+
+/**
+ * @brief 动态添加一个任务（使用内存池分配节点）
+ * @param pfunc 任务回调函数
+ * @param Priority 任务优先级
+ * @param task_handler 用于接收任务句柄指针的指针
+ * @return EK_Result_t 添加结果
+ * @note 适用于动态分配场景，节点内存由内存池管理，需要使用rTaskDelay设置延时
+ */
+EK_Result_t EK_rTaskCreate_Dynamic(void (*pfunc)(void), uint8_t Priority, EK_pTaskHandler_t *task_handler)
+{
+    if (pfunc == NULL) return EK_NULL_POINTER;
+
+    EK_TaskEK_Node_t *node = (EK_TaskEK_Node_t *)EK_pMemPool_Malloc(sizeof(EK_TaskEK_Node_t));
+    if (node == NULL)
+    {
+        return EK_NO_MEMORY;
+    }
+
+    // 从内存池分配函数指针空间
+    void (**func_ptr)(void) = (void (**)(void))EK_pMemPool_Malloc(sizeof(void (*)(void)));
+    if (func_ptr == NULL)
+    {
+        EK_bMemPool_Free(node); // 释放已分配的节点内存
+        return EK_NO_MEMORY;
+    }
+
+    node->Next = NULL;
+    node->Owner = &WaitSchedule;
+    // 强制覆盖用户可能设置的Task_Info值 - 动态创建，激活状态
+    node->TaskHandler.Task_Info = TASK_INIT_STATE(false, true);
+    node->TaskHandler.Task_MaxUsed = 0;
+    node->TaskHandler.Task_OwnerNode = node; //任务自值段
+
+    /*用户段*/
+    *func_ptr = pfunc; // 将函数指针存储到内存池分配的空间中
+    node->TaskHandler.TaskCallBack.DynamicCallBack = func_ptr; // 指向内存池中的函数指针
+    node->TaskHandler.Task_TrigTime = 0; // 初始化为0，需要通过rTaskDelay设置
+    node->TaskHandler.Task_Priority = Priority;
+
+    EK_Result_t result = r_task_insert_node(&WaitSchedule, node);
+    if (result != EK_OK)
+    {
+        EK_bMemPool_Free(func_ptr); // 释放函数指针内存
+        EK_bMemPool_Free(node); // 插入失败时释放内存
+        return result;
+    }
+
+    if (task_handler != NULL)
+    {
+        *task_handler = &(node->TaskHandler); // 返回指向节点中TaskHandler的指针
+    }
+
+    return EK_OK;
 }
 
 /**
@@ -515,10 +531,10 @@ EK_Result_t EK_rTaskDelete(EK_pTaskHandler_t task_handler)
         // 只有动态分配的任务才释放函数指针占用的内存池空间
         if (!TASK_IS_STATIC(target_handler->Task_Info) && target_handler->TaskCallBack.DynamicCallBack != NULL)
         {
-            EK_FREE(target_handler->TaskCallBack.DynamicCallBack);
+            EK_bMemPool_Free(target_handler->TaskCallBack.DynamicCallBack);
         }
 
-        EK_FREE(node);
+        EK_bMemPool_Free(node);
         // 如果移除的是当前任务，清空当前任务句柄
         if (target_handler == CurTaskHandler)
         {
@@ -686,26 +702,24 @@ EK_Result_t EK_rTaskGetInfo(EK_pTaskHandler_t task_handler, EK_TaskInfo_t *task_
  * @brief 设置任务延时
  * @param delay_ms 延时时间(毫秒)
  * @return EK_Result_t 设置结果
- * @note 设置任务的倒计时值，任务将在倒计时结束后执行
+ * @note 设置任务的触发间隔时间，高16位存储设定值，低16位存储当前值
  */
 EK_Result_t EK_rTaskDelay(uint16_t delay_ms)
 {
     if (CurTaskHandler == NULL) return EK_NULL_POINTER;
 
-    if (delay_ms > UINT16_MAX) delay_ms = UINT16_MAX;
-
-    CurTaskHandler->Task_TrigTime = delay_ms;
+    CurTaskHandler->Task_TrigTime = TASK_SET_TRIG_TIME(delay_ms, delay_ms);
     return EK_OK;
 }
 
 /**
  * @brief 获取内存池剩余字节数
  * 
- * @return EK_Size_t 剩余的可用字节数
+ * @return size_t 剩余的可用字节数
  */
-EK_Size_t EK_sTaskGetFreeMemory(void)
+size_t EK_sTaskGetFreeMemory(void)
 {
-    return EK_uMemPool_GetFreeSize();
+    return EK_sMemPool_GetFreeSize();
 }
 
 /**
@@ -747,13 +761,17 @@ void EK_vTaskStart(uint32_t (*tick_get)(void))
                 }
 
                 // 获取当前倒计时值
-                if (p->TaskHandler.Task_TrigTime > 0)
+                uint16_t cur_time = TASK_GET_CUR_TIME(p->TaskHandler.Task_TrigTime);
+
+                if (cur_time > 0)
                 {
-                    p->TaskHandler.Task_TrigTime--;
+                    cur_time--;
+                    // 更新当前倒计时值
+                    p->TaskHandler.Task_TrigTime = TASK_SET_CUR_TIME(p->TaskHandler.Task_TrigTime, cur_time);
                 }
 
                 // 检查是否需要移动到运行链表（包括初始值为0和倒计时到0的情况）
-                if (p->TaskHandler.Task_TrigTime == 0)
+                if (cur_time == 0)
                 {
                     if (r_task_move_node(&WaitSchedule, &RunSchedule, p) != EK_OK)
                     {
@@ -785,7 +803,7 @@ void EK_vTaskStart(uint32_t (*tick_get)(void))
             if (TASK_IS_ACTIVE(ptr->TaskHandler.Task_Info) == false)
             {
                 // 任务已被挂起，直接将其移回等待链表，不执行
-                // 挂起的任务不重置倒计时，保持当前值
+                ptr->TaskHandler.Task_TrigTime = TASK_RESET_TIME(ptr->TaskHandler.Task_TrigTime);
                 if (r_task_move_node(&RunSchedule, &WaitSchedule, ptr) != EK_OK)
                 {
                     Task_Error(TASK_ERR_RUN_TO_WAIT);
@@ -828,7 +846,7 @@ void EK_vTaskStart(uint32_t (*tick_get)(void))
 
             // 利用高效的搜索函数验证 ptr 是否仍然有效（可能在任务执行过程中被删除）
             EK_TaskEK_Node_t *found_node = NULL;
-            EK_Result_t search_result = r_task_search_node(&RunSchedule, &ptr->TaskHandler, &found_node);
+            EK_Result_t search_result = _task_search_node(&RunSchedule, &ptr->TaskHandler, &found_node);
 
             if (search_result != EK_OK || found_node != ptr)
             {
@@ -842,8 +860,8 @@ void EK_vTaskStart(uint32_t (*tick_get)(void))
                 ptr->TaskHandler.Task_MaxUsed = diff_tick;
             }
 
-            // 任务执行完成后，倒计时保持为0，等待下次调用EK_rTaskDelay重新设置
-            // 不自动重置倒计时值
+            // 重置倒计时为设定值
+            ptr->TaskHandler.Task_TrigTime = TASK_RESET_TIME(ptr->TaskHandler.Task_TrigTime);
 
             // 尝试移动节点，如果失败说明节点已经不在运行链表中
             if (r_task_move_node(&RunSchedule, &WaitSchedule, ptr) != EK_OK)
@@ -856,5 +874,3 @@ void EK_vTaskStart(uint32_t (*tick_get)(void))
         }
     }
 }
-
-#endif /*EK_NORMAL_SCHEDULER == 1*/

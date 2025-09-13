@@ -29,13 +29,14 @@ typedef struct EK_Queue_t
 } EK_Queue_t;
 
 /* ========================= 函数声明区 ========================= */
-EK_Queue_t *EK_pQueueCreate_Dynamic(size_t capacity);
-EK_Result_t EK_rQueueCreate_Static(EK_Queue_t *queue_handler, void *buffer, const size_t capacity);
-EK_Result_t EK_rQueueDelete(EK_Queue_t *queue);
 bool EK_bQueueIsEmpty(EK_Queue_t *queue);
 bool EK_bQueueIsFull(EK_Queue_t *queue);
 size_t EK_sQueueGetSize(EK_Queue_t *queue);
 size_t EK_sQueueGetRemain(EK_Queue_t *queue);
+EK_Queue_t *EK_pQueueCreate_Dynamic(size_t capacity);
+EK_Result_t EK_rQueueCreate_Static(EK_Queue_t *queue_handler, void *buffer, const size_t capacity);
+EK_Result_t EK_rQueueClean(EK_Queue_t *queue);
+EK_Result_t EK_rQueueDelete(EK_Queue_t *queue);
 EK_Result_t EK_rQueueEnqueue(EK_Queue_t *queue, void *data, size_t data_size);
 EK_Result_t EK_rQueueDequeue(EK_Queue_t *queue, void *data_buffer, size_t data_size);
 EK_Result_t EK_rQueuePeekFront(EK_Queue_t *queue, void *data_buffer, size_t data_size);
