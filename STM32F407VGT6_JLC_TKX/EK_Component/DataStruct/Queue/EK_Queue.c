@@ -73,14 +73,14 @@ EK_Queue_t *EK_pQueueCreate_Dynamic(size_t capacity)
     if (capacity == 0) return NULL;
 
     // 分配缓冲区内存
-    void *buffer = _MALLOC(capacity);
+    void *buffer = EK_MALLOC(capacity);
     if (buffer == NULL) return NULL;
 
     // 分配队列结构体内存
-    EK_Queue_t *queue = (EK_Queue_t *)_MALLOC(sizeof(EK_Queue_t));
+    EK_Queue_t *queue = (EK_Queue_t *)EK_MALLOC(sizeof(EK_Queue_t));
     if (queue == NULL)
     {
-        _FREE(buffer);
+        EK_FREE(buffer);
         return NULL;
     }
 
@@ -158,10 +158,10 @@ EK_Result_t EK_rQueueDelete(EK_Queue_t *queue)
         // 先释放缓冲区内存
         if (queue->Queue_Buf != NULL)
         {
-            _FREE(queue->Queue_Buf);
+            EK_FREE(queue->Queue_Buf);
         }
         // 再释放队列结构体内存
-        _FREE(queue);
+        EK_FREE(queue);
         return EK_OK;
     }
 

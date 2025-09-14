@@ -17,13 +17,13 @@
  * @brief 内存分配宏定义
  * @details 函数签名要求是 void* xxx(size_t)
  */
-#define _MALLOC(X) EK_pMemPool_Malloc(X)
+#define EK_MALLOC(X) EK_pMemPool_Malloc(X)
 
 /**
  * @brief 内存释放宏定义
  * @details 函数入参要求是 void*
  */
-#define _FREE(X) EK_bMemPool_Free(X)
+#define EK_FREE(X) EK_MEMPOOL_SAFE_FREE(X)
 
 /**
  * @brief 内存池总大小 (字节)

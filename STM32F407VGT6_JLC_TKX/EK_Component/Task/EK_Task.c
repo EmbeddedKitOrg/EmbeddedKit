@@ -53,7 +53,7 @@
 #define TASK_IS_ACTIVE(state)     (((state) & TASK_STATE_ACTIVE_MASK) != 0) /**< 检查是否激活 */
 
 /* 综合操作 */
-#define TASK_INIT_STATE(is_static, is_active)                                                                          \
+#define TASK_INIT_STATE(is_static, is_active) \
     ((is_static) ? TASK_STATE_STATIC_MASK : 0) | ((is_active) ? TASK_STATE_ACTIVE_MASK : 0)
 
 /* 兼容性宏定义 - 用于替换原有的bool操作 */
