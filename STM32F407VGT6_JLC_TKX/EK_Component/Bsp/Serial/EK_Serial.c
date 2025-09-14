@@ -246,6 +246,7 @@ EK_Result_t EK_rSerialPrintf(EK_pSeiralQueue_t serial_fifo, size_t buffer_size, 
 EK_Result_t EK_rSerialPoll(uint32_t (*get_tick)(void))
 {
     static uint32_t last_tick = 0;
+    static void *buffer;
 
     if (get_tick == NULL) return EK_NULL_POINTER;
 
@@ -266,6 +267,11 @@ EK_Result_t EK_rSerialPoll(uint32_t (*get_tick)(void))
 
         while (curr != SerialManageList->List_Dummy && loop_counter < SerialManageList->List_Count)
         {
+            if (buffer != NULL)
+            {
+                EK_FREE(buffer);
+            }
+
             // 当前节点的内容 即这个节点包含的EK_SeiralQueue_t结构体
             EK_SeiralQueue_t *curr_data = (EK_SeiralQueue_t *)(curr->Node_Data);
 
@@ -298,7 +304,7 @@ EK_Result_t EK_rSerialPoll(uint32_t (*get_tick)(void))
                 size_t queue_used_size = EK_sQueueGetSize(curr_data->Serial_Queue);
 
                 // 分配缓冲区来存储出队的数据
-                void *buffer = EK_MALLOC(queue_used_size);
+                buffer = EK_MALLOC(queue_used_size);
                 if (buffer == NULL)
                 {
                     // 内存分配失败，清空队列
@@ -326,7 +332,7 @@ EK_Result_t EK_rSerialPoll(uint32_t (*get_tick)(void))
                     // 发送数据
                     curr_data->Serial_SendCallBack(buffer, queue_used_size);
                     // 释放数据
-                    EK_FREE(buffer);
+                    // EK_FREE(buffer);
                 }
 
                 // 重置倒计时

@@ -32,7 +32,7 @@ void Test_AllTaskInfo(void);
 
 void Send(void *data, size_t size)
 {
-    HAL_UART_Transmit(USER_UART, data, size, HAL_MAX_DELAY);
+    HAL_UART_Transmit_DMA(USER_UART, data, size);
 }
 
 bool TaskCreation(void)

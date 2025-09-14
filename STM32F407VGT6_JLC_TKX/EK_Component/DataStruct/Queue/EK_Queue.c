@@ -205,8 +205,21 @@ EK_Result_t EK_rQueueEnqueue(EK_Queue_t *queue, void *data, size_t data_size)
     // 计算写入缓冲区的起始位置
     uint8_t *start_addr = (uint8_t *)queue->Queue_Buf + queue->Queue_Rear;
 
-    // 将数据复制到缓冲区
-    EK_vMemCpy(start_addr, data, data_size);
+    // 检查是否需要分段复制（跨越缓冲区边界）
+    if (queue->Queue_Rear + data_size <= queue->Queue_Capacity)
+    {
+        // 数据不跨界，直接复制
+        EK_vMemCpy(start_addr, data, data_size);
+    }
+    else
+    {
+        // 数据跨界，分两段复制
+        size_t first_part = queue->Queue_Capacity - queue->Queue_Rear;
+        size_t second_part = data_size - first_part;
+
+        EK_vMemCpy(start_addr, data, first_part);
+        EK_vMemCpy(queue->Queue_Buf, (uint8_t *)data + first_part, second_part);
+    }
 
     // 更新队列指针
     queue->Queue_Rear = (queue->Queue_Rear + data_size) % queue->Queue_Capacity;
@@ -239,8 +252,21 @@ EK_Result_t EK_rQueueDequeue(EK_Queue_t *queue, void *data_buffer, size_t data_s
     // 计算读取位置
     uint8_t *read_addr = (uint8_t *)queue->Queue_Buf + queue->Queue_Front;
 
-    // 将数据复制到用户提供的缓冲区
-    EK_vMemCpy(data_buffer, read_addr, data_size);
+    // 检查是否需要分段读取（跨越缓冲区边界）
+    if (queue->Queue_Front + data_size <= queue->Queue_Capacity)
+    {
+        // 数据不跨界，直接复制
+        EK_vMemCpy(data_buffer, read_addr, data_size);
+    }
+    else
+    {
+        // 数据跨界，分两段读取
+        size_t first_part = queue->Queue_Capacity - queue->Queue_Front;
+        size_t second_part = data_size - first_part;
+
+        EK_vMemCpy(data_buffer, read_addr, first_part);
+        EK_vMemCpy((uint8_t *)data_buffer + first_part, queue->Queue_Buf, second_part);
+    }
 
     // 更新队列指针
     queue->Queue_Front = (queue->Queue_Front + data_size) % queue->Queue_Capacity;
@@ -273,8 +299,21 @@ EK_Result_t EK_rQueuePeekFront(EK_Queue_t *queue, void *data_buffer, size_t data
     // 计算读取位置
     uint8_t *read_addr = (uint8_t *)queue->Queue_Buf + queue->Queue_Front;
 
-    // 将数据复制到用户提供的缓冲区
-    EK_vMemCpy(data_buffer, read_addr, data_size);
+    // 检查是否需要分段读取（跨越缓冲区边界）
+    if (queue->Queue_Front + data_size <= queue->Queue_Capacity)
+    {
+        // 数据不跨界，直接复制
+        EK_vMemCpy(data_buffer, read_addr, data_size);
+    }
+    else
+    {
+        // 数据跨界，分两段读取
+        size_t first_part = queue->Queue_Capacity - queue->Queue_Front;
+        size_t second_part = data_size - first_part;
+
+        EK_vMemCpy(data_buffer, read_addr, first_part);
+        EK_vMemCpy((uint8_t *)data_buffer + first_part, queue->Queue_Buf, second_part);
+    }
 
     return EK_OK;
 }
