@@ -58,8 +58,7 @@ size_t EK_sQueueGetSize(EK_Queue_t *queue)
 size_t EK_sQueueGetRemain(EK_Queue_t *queue)
 {
     if (queue == NULL) return 0;
-    int64_t temp = queue->Queue_Capacity - queue->Queue_Size;
-    return temp > 0 ? (size_t)temp : 0;
+    return queue->Queue_Capacity - queue->Queue_Size;
 }
 
 /**

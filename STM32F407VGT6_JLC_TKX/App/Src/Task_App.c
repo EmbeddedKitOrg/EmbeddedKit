@@ -39,7 +39,7 @@ bool TaskCreation(void)
 {
     bool res = true;
     res &= EK_rSerialInit_Dynamic() == EK_OK;
-    res &= EK_rSerialCreateQueue_Dyanmic(&TestQueue, Send, 0, 2500) == EK_OK;
+    res &= EK_rSerialCreateQueue_Dyanmic(&TestQueue, Send, 0, 1500) == EK_OK;
     res &= EK_rTaskCreate_Dynamic(Task_LED, 1, &TskHandler1) == EK_OK;
     res &= EK_rTaskCreate_Dynamic(Task_Key, 0, &TskHandler2) == EK_OK;
     res &= EK_rTaskCreate_Dynamic(Task_ComponentTest, 2, &TskHandler3) == EK_OK;
@@ -54,7 +54,6 @@ void TaskIdle(void)
 void Task_LED(void)
 {
     LED_TOGGLE();
-
     EK_rTaskDelay(100);
 }
 
@@ -67,7 +66,10 @@ void Task_Key(void)
 
     if (KeyVal)
     {
-        EK_rSerialPrintf(TestQueue, "按键按下 剩余内存:%u字节\r\n", EK_sTaskGetFreeMemory());
+        EK_rSerialPrintf(TestQueue,
+                         "按键按下 剩余内存:%u字节 剩余fifo内存:%u\r\n",
+                         EK_sTaskGetFreeMemory(),
+                         EK_sQueueGetRemain(TestQueue->Serial_Queue));
         test_counter++; // 按键计数
     }
     EK_rTaskDelay(20);
