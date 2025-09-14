@@ -47,6 +47,6 @@
 /**
  * @brief 通讯相关 遍历超时时间(ms)
  */
-#define SERIAL_POLL_TIMER (10)
+#define SERIAL_POLL_TIMER (100)
 
 #endif

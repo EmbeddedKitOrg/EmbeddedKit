@@ -246,8 +246,6 @@ EK_Result_t EK_rSerialPrintf(EK_pSeiralQueue_t serial_fifo, size_t buffer_size, 
 EK_Result_t EK_rSerialPoll(uint32_t (*get_tick)(void))
 {
     static uint32_t last_tick = 0;
-    static bool should_free = false; // 判断是否需要释放当前的缓冲区
-    static char *buffer; // 数据缓冲区的指针
 
     if (get_tick == NULL) return EK_NULL_POINTER;
 
@@ -257,12 +255,13 @@ EK_Result_t EK_rSerialPoll(uint32_t (*get_tick)(void))
     // 检测是否为空
     if (SerialManageList->List_Count == 0) return EK_EMPTY;
 
-    // 1ms遍历一次
-    if (get_tick() - last_tick > 0)
-    {
-        // 获取链表头
-        EK_Node_t *curr = SerialManageList->List_Dummy->Node_Next;
+    // 获取链表头
+    EK_Node_t *curr = EK_pListGetHead(SerialManageList);
+    if (curr == NULL) return EK_NULL_POINTER;
 
+    // 10ms遍历一次
+    if (get_tick() - last_tick > 10)
+    {
         uint16_t loop_counter = 0; // 循环计数器
 
         while (curr != SerialManageList->List_Dummy && loop_counter < SerialManageList->List_Count)
@@ -291,25 +290,17 @@ EK_Result_t EK_rSerialPoll(uint32_t (*get_tick)(void))
             // 倒计时没清空
             if (curr_data->Serial_Timer > 0)
             {
-                curr_data->Serial_Timer--;
+                curr_data->Serial_Timer -= 10;
             }
             else //倒计时被清空
             {
-                // 在这里释放上一次分配的内存
-                if (should_free == true)
-                {
-                    should_free = false;
-                    EK_FREE(buffer);
-                }
-
                 // 获取队列中实际存储的数据大小
                 size_t queue_used_size = EK_sQueueGetSize(curr_data->Serial_Queue);
 
                 // 分配缓冲区来存储出队的数据
-                buffer = (char *)EK_MALLOC(queue_used_size);
+                void *buffer = EK_MALLOC(queue_used_size);
                 if (buffer == NULL)
                 {
-                    should_free = false;
                     // 内存分配失败，清空队列
                     EK_rQueueClean(curr_data->Serial_Queue);
                     // 重置倒计时
@@ -328,15 +319,14 @@ EK_Result_t EK_rSerialPoll(uint32_t (*get_tick)(void))
                 {
                     // 出队失败，释放缓冲区并清空队列
                     EK_FREE(buffer);
-                    should_free = false;
                     EK_rQueueClean(curr_data->Serial_Queue);
                 }
                 else
                 {
                     // 发送数据
                     curr_data->Serial_SendCallBack(buffer, queue_used_size);
-                    // 不在本次释放缓冲区，而是使用标志位，让下一次使用之前再释放
-                    should_free = true;
+                    // 释放数据
+                    EK_FREE(buffer);
                 }
 
                 // 重置倒计时

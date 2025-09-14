@@ -42,6 +42,9 @@ file(GLOB_RECURSE APP_SOURCES "App/Src/*.c")
 file(GLOB_RECURSE BSP_SOURCES "Bsp/Src/*.c")
 file(GLOB_RECURSE EK_COMPONENT_SOURCES "EK_Component/**/*.c")
 
+# 确保包含 EK_Common.c（显式添加以防万一）
+list(APPEND EK_COMPONENT_SOURCES "EK_Component/EK_Common.c")
+
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined library search paths

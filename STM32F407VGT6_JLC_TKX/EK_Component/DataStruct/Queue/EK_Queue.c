@@ -171,7 +171,7 @@ EK_Result_t EK_rQueueDelete(EK_Queue_t *queue)
         // 清空缓冲区（如果缓冲区存在）
         if (queue->Queue_Buf != NULL && queue->Queue_Size > 0)
         {
-            memset(queue->Queue_Buf, 0, queue->Queue_Size);
+            EK_vMemSet(queue->Queue_Buf, 0, queue->Queue_Size);
         }
         // 重置队列状态
         queue->Queue_Buf = NULL;
@@ -206,7 +206,7 @@ EK_Result_t EK_rQueueEnqueue(EK_Queue_t *queue, void *data, size_t data_size)
     uint8_t *start_addr = (uint8_t *)queue->Queue_Buf + queue->Queue_Rear;
 
     // 将数据复制到缓冲区
-    memcpy(start_addr, data, data_size);
+    EK_vMemCpy(start_addr, data, data_size);
 
     // 更新队列指针
     queue->Queue_Rear = (queue->Queue_Rear + data_size) % queue->Queue_Capacity;
@@ -240,7 +240,7 @@ EK_Result_t EK_rQueueDequeue(EK_Queue_t *queue, void *data_buffer, size_t data_s
     uint8_t *read_addr = (uint8_t *)queue->Queue_Buf + queue->Queue_Front;
 
     // 将数据复制到用户提供的缓冲区
-    memcpy(data_buffer, read_addr, data_size);
+    EK_vMemCpy(data_buffer, read_addr, data_size);
 
     // 更新队列指针
     queue->Queue_Front = (queue->Queue_Front + data_size) % queue->Queue_Capacity;
@@ -274,7 +274,7 @@ EK_Result_t EK_rQueuePeekFront(EK_Queue_t *queue, void *data_buffer, size_t data
     uint8_t *read_addr = (uint8_t *)queue->Queue_Buf + queue->Queue_Front;
 
     // 将数据复制到用户提供的缓冲区
-    memcpy(data_buffer, read_addr, data_size);
+    EK_vMemCpy(data_buffer, read_addr, data_size);
 
     return EK_OK;
 }

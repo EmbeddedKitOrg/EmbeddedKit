@@ -87,6 +87,43 @@ typedef enum
  */
 typedef uint32_t index_t;
 
+/* ========================= 函数声明区 ========================= */
+
+// 内存操作函数
+void EK_vMemCpy(void *p_dst, const void *p_src, size_t bytes);
+void EK_vMemSet(void *p_dst, uint8_t value, size_t bytes);
+int EK_iMemCmp(const void *p_buf1, const void *p_buf2, size_t bytes);
+
+// 字符串操作函数
+size_t EK_sStrLen(const char *p_str);
+size_t EK_sStrNLen(const char *p_str, size_t max_len);
+char *EK_pStrCpy(char *p_dst, const char *p_src);
+char *EK_pStrNCpy(char *p_dst, const char *p_src, size_t max_len);
+int EK_iStrCmp(const char *p_str1, const char *p_str2);
+int EK_iStrNCmp(const char *p_str1, const char *p_str2, size_t max_len);
+char *EK_pStrCat(char *p_dst, const char *p_src);
+char *EK_pStrChr(const char *p_str, int ch);
+
+// 数值转换函数
+char *EK_pItoA(int value, char *p_str, int base);
+int EK_iAtoI(const char *p_str);
+
+// 位操作函数
+void EK_vSetBit(uint32_t *p_data, uint8_t bit_pos);
+void EK_vClearBit(uint32_t *p_data, uint8_t bit_pos);
+void EK_vToggleBit(uint32_t *p_data, uint8_t bit_pos);
+bool EK_bTestBit(uint32_t data, uint8_t bit_pos);
+
+// 校验函数
+uint8_t EK_u8CheckSum(const uint8_t *p_data, size_t length);
+uint8_t EK_u8XorCheck(const uint8_t *p_data, size_t length);
+
+// 数学函数
+int EK_iAbs(int value);
+int EK_iMax(int a, int b);
+int EK_iMin(int a, int b);
+int EK_iClamp(int value, int min_val, int max_val);
+
 #ifdef __cpluscplus
 }
 #endif

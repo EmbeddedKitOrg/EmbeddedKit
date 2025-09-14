@@ -172,7 +172,7 @@ void process_data(uint8_t *input, size_t len) {
     }
     
     // 数据处理逻辑
-    memcpy(work_buffer, input, len);
+    EK_vMemCpy(work_buffer, input, len);
     // ... 处理数据 ...
     
     // 释放临时缓冲区
@@ -193,7 +193,7 @@ Message_t *create_message(uint32_t id, void *data, size_t len) {
     if (msg) {
         msg->msg_id = id;
         msg->data_len = len;
-        memcpy(msg->data, data, len);
+        EK_vMemCpy(msg->data, data, len);
     }
     return msg;
 }

@@ -130,7 +130,7 @@ bool EK_bMemPool_Init(void)
     }
 
     // 清零堆内存
-    memset(heap_memory, 0, MEMPOOL_SIZE);
+    EK_vMemSet(heap_memory, 0, MEMPOOL_SIZE);
 
     // 初始化堆结构
     v_init_heap();
@@ -147,8 +147,8 @@ bool EK_bMemPool_Init(void)
 void EK_vMemPool_Deinit(void)
 {
     pool_initialized = false;
-    memset(&pool_statistics, 0, sizeof(pool_statistics));
-    memset(heap_memory, 0, MEMPOOL_SIZE);
+    EK_vMemSet(&pool_statistics, 0, sizeof(pool_statistics));
+    EK_vMemSet(heap_memory, 0, MEMPOOL_SIZE);
 }
 
 /* ========================= 内部辅助函数区 ========================= */

@@ -193,15 +193,15 @@ uint8_t Buffer_Write(uint8_t *Data, uint8_t Length)
 
     if (Buffer_WriteIndex + Length < CIRCLBUFFERS_SIZE)
     {
-        memcpy(Circle_Buffer + Buffer_WriteIndex, Data, Length);
+        EK_vMemCpy(Circle_Buffer + Buffer_WriteIndex, Data, Length);
         Buffer_AddWriteIndex(Length);
     }
     else
     {
         BufferType_t first_part = CIRCLBUFFERS_SIZE - Buffer_WriteIndex;
         BufferType_t second_part = Length - first_part;
-        memcpy(Circle_Buffer + Buffer_WriteIndex, Data, first_part);
-        memcpy(Circle_Buffer, Data + first_part, second_part);
+        EK_vMemCpy(Circle_Buffer + Buffer_WriteIndex, Data, first_part);
+        EK_vMemCpy(Circle_Buffer, Data + first_part, second_part);
         Buffer_AddWriteIndex(Length);
     }
     return Length;

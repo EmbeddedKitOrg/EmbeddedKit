@@ -116,7 +116,7 @@ EK_Result_t EK_rStackDelete(EK_Stack_t *stack)
     {
         if (stack->Stack_Mem != NULL)
         {
-            memset(stack->Stack_Mem, 0, stack->Stack_Capacity);
+            EK_vMemSet(stack->Stack_Mem, 0, stack->Stack_Capacity);
         }
         stack->Stack_TopPtr = stack->Stack_Mem; // 重置为栈底
         return EK_OK;
@@ -191,7 +191,7 @@ EK_Result_t EK_rStackPush(EK_Stack_t *stack, void *data, size_t data_size)
     if (EK_sStackGetRemain(stack) < data_size) return EK_INSUFFICIENT_SPACE;
 
     // 写入数据
-    memcpy(stack->Stack_TopPtr, data, data_size);
+    EK_vMemCpy(stack->Stack_TopPtr, data, data_size);
 
     // 移动栈顶指针
     stack->Stack_TopPtr = (uint8_t *)stack->Stack_TopPtr + data_size;
@@ -225,7 +225,7 @@ EK_Result_t EK_rStackPop(EK_Stack_t *stack, void *data_buffer, size_t data_size)
     stack->Stack_TopPtr = (uint8_t *)stack->Stack_TopPtr - data_size;
 
     // 读取数据
-    memcpy(data_buffer, stack->Stack_TopPtr, data_size);
+    EK_vMemCpy(data_buffer, stack->Stack_TopPtr, data_size);
 
     return EK_OK;
 }
