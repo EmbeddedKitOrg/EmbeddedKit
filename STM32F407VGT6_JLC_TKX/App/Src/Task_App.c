@@ -32,17 +32,17 @@ void Test_AllTaskInfo(void);
 
 void Send(void *data, size_t size)
 {
-    HAL_UART_Transmit_DMA(USER_UART, data, size);
+    HAL_UART_Transmit_DMA(&huart1, data, size);
 }
 
 bool TaskCreation(void)
 {
     bool res = true;
     res &= EK_rSerialInit_Dynamic() == EK_OK;
-    res &= EK_rSerialCreateQueue_Dyanmic(&TestQueue, Send, 0, 200) == EK_OK;
+    res &= EK_rSerialCreateQueue_Dyanmic(&TestQueue, Send, 0, 2500) == EK_OK;
     res &= EK_rTaskCreate_Dynamic(Task_LED, 1, &TskHandler1) == EK_OK;
     res &= EK_rTaskCreate_Dynamic(Task_Key, 0, &TskHandler2) == EK_OK;
-    // res &= EK_rTaskCreate_Dynamic(Task_ComponentTest, 2, &TskHandler3) == EK_OK;
+    res &= EK_rTaskCreate_Dynamic(Task_ComponentTest, 2, &TskHandler3) == EK_OK;
     return res;
 }
 
@@ -54,9 +54,6 @@ void TaskIdle(void)
 void Task_LED(void)
 {
     LED_TOGGLE();
-
-    // 添加调试信息：检查EK_rSerialPrintf的返回值
-    EK_rSerialPrintf(TestQueue, 50, "uwTick:%lu\r\n", uwTick);
 
     EK_rTaskDelay(100);
 }
@@ -70,7 +67,7 @@ void Task_Key(void)
 
     if (KeyVal)
     {
-        MyPrintf(USER_UART, "按键按下 剩余内存:%u字节\r\n", EK_sTaskGetFreeMemory());
+        EK_rSerialPrintf(TestQueue, "按键按下 剩余内存:%u字节\r\n", EK_sTaskGetFreeMemory());
         test_counter++; // 按键计数
     }
     EK_rTaskDelay(20);
@@ -80,7 +77,7 @@ void Task_ComponentTest(void)
 {
     static uint8_t test_phase = 0;
 
-    MyPrintf(USER_UART, "\r\n=== EK组件测试 第%d阶段 ===\r\n", test_phase + 1);
+    EK_rSerialPrintf(TestQueue, "\r\n=== EK组件测试 第%d阶段 ===\r\n", test_phase + 1);
 
     switch (test_phase)
     {
@@ -106,15 +103,15 @@ void Task_ComponentTest(void)
 
     if (test_phase == 5)
     {
-        MyPrintf(USER_UART, "*****测试结束*****\r\n");
-        MyPrintf(USER_UART, "=== 测试结果统计 ===\r\n");
-        MyPrintf(USER_UART, "测试成功: %u 项 ✅\r\n", test_success_count);
-        MyPrintf(USER_UART, "测试失败: %u 项 ❌\r\n", test_failure_count);
-        MyPrintf(USER_UART, "总测试数: %u 项\r\n", test_success_count + test_failure_count);
-        MyPrintf(USER_UART,
-                 "成功率: %.1f%%\r\n",
-                 (float)test_success_count * 100.0f / (float)(test_success_count + test_failure_count));
-        MyPrintf(USER_UART, "==================\r\n");
+        EK_rSerialPrintf(TestQueue, "*****测试结束*****\r\n");
+        EK_rSerialPrintf(TestQueue, "=== 测试结果统计 ===\r\n");
+        EK_rSerialPrintf(TestQueue, "测试成功: %u 项 ✅\r\n", test_success_count);
+        EK_rSerialPrintf(TestQueue, "测试失败: %u 项 ❌\r\n", test_failure_count);
+        EK_rSerialPrintf(TestQueue, "总测试数: %u 项\r\n", test_success_count + test_failure_count);
+        EK_rSerialPrintf(TestQueue,
+                         "成功率: %.1f%%\r\n",
+                         (float)test_success_count * 100.0f / (float)(test_success_count + test_failure_count));
+        EK_rSerialPrintf(TestQueue, "==================\r\n");
         EK_rTaskDelete(NULL);
         EK_rTaskDelete(TskHandler1);
     }

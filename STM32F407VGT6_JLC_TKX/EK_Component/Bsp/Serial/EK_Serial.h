@@ -44,7 +44,7 @@ EK_Result_t EK_rSerialCreateQueue_Dyanmic(EK_pSeiralQueue_t *serial_fifo,
                                           size_t capacity);
 EK_Result_t EK_rSerialCreateQueue_Static(
     EK_pSeiralQueue_t serial_fifo, void *buffer, void (*send_func)(void *, size_t), uint16_t priority, size_t capacity);
-EK_Result_t EK_rSerialPrintf(EK_pSeiralQueue_t serial_fifo, size_t buffer_size, const char *format, ...);
+EK_Result_t EK_rSerialPrintf(EK_pSeiralQueue_t serial_fifo, const char *format, ...);
 EK_Result_t EK_rSerialPoll(uint32_t (*get_tick)(void));
 
 #ifdef __cplusplus

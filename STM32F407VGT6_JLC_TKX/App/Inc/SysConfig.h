@@ -28,7 +28,6 @@
 #include "gpio.h"
 
 /*BSP*/
-#include "Serial.h"
 #include "Key_LED.h"
 
 /*APP*/

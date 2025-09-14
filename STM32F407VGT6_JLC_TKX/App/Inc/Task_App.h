@@ -7,6 +7,7 @@ extern EK_pTaskHandler_t TskHandler1;
 extern EK_pTaskHandler_t TskHandler2;
 extern EK_pTaskHandler_t TskHandler3;
 extern EK_pTaskHandler_t TskHandler_LargeListSort;
+extern EK_pSeiralQueue_t TestQueue;
 
 // 测试数据结构
 extern EK_List_t *test_list;

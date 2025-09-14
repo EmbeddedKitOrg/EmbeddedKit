@@ -29,7 +29,7 @@
  * @brief 内存池总大小 (字节)
  * @note 可根据系统资源调整，建议至少1KB
  */
-#define MEMPOOL_SIZE (4096)
+#define MEMPOOL_SIZE (10240)
 
 /**
  * @brief 内存对齐大小 (字节)
@@ -45,8 +45,32 @@
 #define LIST_RECURSION_SORT (1)
 
 /**
- * @brief 通讯相关 遍历超时时间(ms)
+ * @brief 通讯相关 发送缓冲区大小
+ * 
  */
-#define SERIAL_POLL_TIMER (100)
+#define SERIAL_TX_BUFFER (256)
+
+/**
+ * @brief 每次轮询发送的最大字节数
+ * @details 限制单次发送数据量，确保消息顺序和实时性
+ */
+#define SERIAL_MAX_SEND_SIZE (128)
+
+/**
+ * @brief 队列满时的处理策略
+ * @details 0: 直接丢弃新数据; 1: 丢弃最老的数据腾出空间
+ */
+#define SERIAL_FULL_STRATEGY (1)
+
+/**
+ * @brief 串口轮询发送的默认间隔时间（单位：ms）
+ * @details 当串口队列中有数据时，每隔这么久发送一次数据。
+ */
+#define SERIAL_OVER_TIME (20)
+
+/**
+ * @brief 通讯相关 遍历间隔时间(ms)
+ */
+#define SERIAL_POLL_INTERVAL (5)
 
 #endif
