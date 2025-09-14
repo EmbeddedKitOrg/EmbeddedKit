@@ -29,20 +29,22 @@ typedef struct
 {
     EK_Node_t *Serial_Owner; /**< 拥有该结构的链表节点 */
     EK_Queue_t *Serial_Queue; /**< 数据缓冲队列 */
-    uint16_t Serial_Timer; /**< 定时器(高8位:设定值, 低8位:当前值) */
-    void *(*Serial_SendCallBack)(void *); /**< 数据发送回调函数 */
+    uint8_t Serial_Timer; /**< 定时器 */
+    void (*Serial_SendCallBack)(void *, size_t); /**< 数据发送回调函数 */
 } EK_SeiralQueue_t;
+
+typedef EK_SeiralQueue_t *EK_pSeiralQueue_t; // EK_SeiralQueue_t的句柄(aka *EK_SeiralQueue_t)
 
 /* ========================= 函数声明区 ========================= */
 EK_Result_t EK_rSerialInit_Dynamic(void);
 EK_Result_t EK_rSerialInit_Static(void);
-EK_Result_t EK_rSerialCreateQueue_Dyanmic(EK_SeiralQueue_t *serial_fifo,
-                                          void *(*send_func)(void *),
+EK_Result_t EK_rSerialCreateQueue_Dyanmic(EK_pSeiralQueue_t *serial_fifo,
+                                          void (*send_func)(void *, size_t),
                                           uint16_t priority,
                                           size_t capacity);
 EK_Result_t EK_rSerialCreateQueue_Static(
-    EK_SeiralQueue_t *serial_fifo, void *buffer, void *(*send_func)(void *), uint16_t priority, size_t capacity);
-EK_Result_t EK_rSerialPrintf(EK_SeiralQueue_t *serial_fifo, size_t buffer_size, const char *format, ...);
+    EK_pSeiralQueue_t serial_fifo, void *buffer, void (*send_func)(void *, size_t), uint16_t priority, size_t capacity);
+EK_Result_t EK_rSerialPrintf(EK_pSeiralQueue_t serial_fifo, const char *format, ...);
 EK_Result_t EK_rSerialPoll(uint32_t (*get_tick)(void));
 
 #ifdef __cplusplus

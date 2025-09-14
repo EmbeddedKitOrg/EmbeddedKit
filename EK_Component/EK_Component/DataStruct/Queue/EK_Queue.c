@@ -58,8 +58,7 @@ size_t EK_sQueueGetSize(EK_Queue_t *queue)
 size_t EK_sQueueGetRemain(EK_Queue_t *queue)
 {
     if (queue == NULL) return 0;
-    int64_t temp = queue->Queue_Capacity - queue->Queue_Size;
-    return temp > 0 ? (size_t)temp : 0;
+    return queue->Queue_Capacity - queue->Queue_Size;
 }
 
 /**
@@ -73,14 +72,14 @@ EK_Queue_t *EK_pQueueCreate_Dynamic(size_t capacity)
     if (capacity == 0) return NULL;
 
     // 分配缓冲区内存
-    void *buffer = _MALLOC(capacity);
+    void *buffer = EK_MALLOC(capacity);
     if (buffer == NULL) return NULL;
 
     // 分配队列结构体内存
-    EK_Queue_t *queue = (EK_Queue_t *)_MALLOC(sizeof(EK_Queue_t));
+    EK_Queue_t *queue = (EK_Queue_t *)EK_MALLOC(sizeof(EK_Queue_t));
     if (queue == NULL)
     {
-        _FREE(buffer);
+        EK_FREE(buffer);
         return NULL;
     }
 
@@ -158,10 +157,10 @@ EK_Result_t EK_rQueueDelete(EK_Queue_t *queue)
         // 先释放缓冲区内存
         if (queue->Queue_Buf != NULL)
         {
-            _FREE(queue->Queue_Buf);
+            EK_FREE(queue->Queue_Buf);
         }
         // 再释放队列结构体内存
-        _FREE(queue);
+        EK_FREE(queue);
         return EK_OK;
     }
 
@@ -171,7 +170,7 @@ EK_Result_t EK_rQueueDelete(EK_Queue_t *queue)
         // 清空缓冲区（如果缓冲区存在）
         if (queue->Queue_Buf != NULL && queue->Queue_Size > 0)
         {
-            memset(queue->Queue_Buf, 0, queue->Queue_Size);
+            EK_vMemSet(queue->Queue_Buf, 0, queue->Queue_Size);
         }
         // 重置队列状态
         queue->Queue_Buf = NULL;
@@ -205,8 +204,21 @@ EK_Result_t EK_rQueueEnqueue(EK_Queue_t *queue, void *data, size_t data_size)
     // 计算写入缓冲区的起始位置
     uint8_t *start_addr = (uint8_t *)queue->Queue_Buf + queue->Queue_Rear;
 
-    // 将数据复制到缓冲区
-    memcpy(start_addr, data, data_size);
+    // 检查是否需要分段复制（跨越缓冲区边界）
+    if (queue->Queue_Rear + data_size <= queue->Queue_Capacity)
+    {
+        // 数据不跨界，直接复制
+        EK_vMemCpy(start_addr, data, data_size);
+    }
+    else
+    {
+        // 数据跨界，分两段复制
+        size_t first_part = queue->Queue_Capacity - queue->Queue_Rear;
+        size_t second_part = data_size - first_part;
+
+        EK_vMemCpy(start_addr, data, first_part);
+        EK_vMemCpy(queue->Queue_Buf, (uint8_t *)data + first_part, second_part);
+    }
 
     // 更新队列指针
     queue->Queue_Rear = (queue->Queue_Rear + data_size) % queue->Queue_Capacity;
@@ -239,8 +251,21 @@ EK_Result_t EK_rQueueDequeue(EK_Queue_t *queue, void *data_buffer, size_t data_s
     // 计算读取位置
     uint8_t *read_addr = (uint8_t *)queue->Queue_Buf + queue->Queue_Front;
 
-    // 将数据复制到用户提供的缓冲区
-    memcpy(data_buffer, read_addr, data_size);
+    // 检查是否需要分段读取（跨越缓冲区边界）
+    if (queue->Queue_Front + data_size <= queue->Queue_Capacity)
+    {
+        // 数据不跨界，直接复制
+        EK_vMemCpy(data_buffer, read_addr, data_size);
+    }
+    else
+    {
+        // 数据跨界，分两段读取
+        size_t first_part = queue->Queue_Capacity - queue->Queue_Front;
+        size_t second_part = data_size - first_part;
+
+        EK_vMemCpy(data_buffer, read_addr, first_part);
+        EK_vMemCpy((uint8_t *)data_buffer + first_part, queue->Queue_Buf, second_part);
+    }
 
     // 更新队列指针
     queue->Queue_Front = (queue->Queue_Front + data_size) % queue->Queue_Capacity;
@@ -273,8 +298,21 @@ EK_Result_t EK_rQueuePeekFront(EK_Queue_t *queue, void *data_buffer, size_t data
     // 计算读取位置
     uint8_t *read_addr = (uint8_t *)queue->Queue_Buf + queue->Queue_Front;
 
-    // 将数据复制到用户提供的缓冲区
-    memcpy(data_buffer, read_addr, data_size);
+    // 检查是否需要分段读取（跨越缓冲区边界）
+    if (queue->Queue_Front + data_size <= queue->Queue_Capacity)
+    {
+        // 数据不跨界，直接复制
+        EK_vMemCpy(data_buffer, read_addr, data_size);
+    }
+    else
+    {
+        // 数据跨界，分两段读取
+        size_t first_part = queue->Queue_Capacity - queue->Queue_Front;
+        size_t second_part = data_size - first_part;
+
+        EK_vMemCpy(data_buffer, read_addr, first_part);
+        EK_vMemCpy((uint8_t *)data_buffer + first_part, queue->Queue_Buf, second_part);
+    }
 
     return EK_OK;
 }

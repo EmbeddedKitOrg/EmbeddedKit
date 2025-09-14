@@ -12,10 +12,6 @@
 
 #include "../../EK_Common.h"
 
-#ifndef LIST_RECURSION_SORT
-#define LIST_RECURSION_SORT = 1
-#endif
-
 #ifdef __cplusplus
 extern "C"
 {
@@ -42,6 +38,8 @@ typedef struct EK_List_t
 } EK_List_t;
 
 /* ========================= 函数声明区 ========================= */
+EK_Node_t *EK_pListGetHead(EK_List_t *list);
+EK_Node_t *EK_pListGetEnd(EK_List_t *list);
 EK_Result_t EK_rNodeCreate_Static(EK_Node_t *node, void *content, uint16_t order);
 EK_Node_t *EK_pNodeCreate_Dynamic(void *content, uint16_t order);
 EK_Result_t EK_rListCreate_Static(EK_List_t *list, EK_Node_t *dummy_node);

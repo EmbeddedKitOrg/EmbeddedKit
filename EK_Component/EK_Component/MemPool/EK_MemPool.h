@@ -49,6 +49,25 @@ void EK_vMemPool_GetStats(PoolStats_t *stats);
 size_t EK_sMemPool_GetFreeSize(void);
 bool EK_bMemPool_CheckIntegrity(void);
 
+/* ========================= 宏定义区 ========================= */
+/**
+ * @brief 安全释放内存宏
+ * @param ptr 要释放的指针变量（不是指针的值）
+ * @note 该宏会在释放内存后自动将指针设置为NULL，防止悬空指针
+ * @example 
+ *   void *buffer = EK_pMemPool_Malloc(100);
+ *   EK_MEMPOOL_SAFE_FREE(buffer);  // buffer会被自动设置为NULL
+ */
+#define EK_MEMPOOL_SAFE_FREE(ptr)    \
+    do                               \
+    {                                \
+        if ((ptr) != NULL)           \
+        {                            \
+            EK_bMemPool_Free((ptr)); \
+            (ptr) = NULL;            \
+        }                            \
+    } while (0)
+
 #ifdef __cplusplus
 }
 #endif

@@ -130,7 +130,7 @@ bool EK_bMemPool_Init(void)
     }
 
     // 清零堆内存
-    memset(heap_memory, 0, MEMPOOL_SIZE);
+    EK_vMemSet(heap_memory, 0, MEMPOOL_SIZE);
 
     // 初始化堆结构
     v_init_heap();
@@ -147,8 +147,8 @@ bool EK_bMemPool_Init(void)
 void EK_vMemPool_Deinit(void)
 {
     pool_initialized = false;
-    memset(&pool_statistics, 0, sizeof(pool_statistics));
-    memset(heap_memory, 0, MEMPOOL_SIZE);
+    EK_vMemSet(&pool_statistics, 0, sizeof(pool_statistics));
+    EK_vMemSet(heap_memory, 0, MEMPOOL_SIZE);
 }
 
 /* ========================= 内部辅助函数区 ========================= */
@@ -159,7 +159,7 @@ void EK_vMemPool_Deinit(void)
  * @retval 无
  * @note 简单插入到链表头部，避免指针比较
  */
-static void v_insert_free_block(MemBlock_t *block_to_insert)
+static inline void v_insert_free_block(MemBlock_t *block_to_insert)
 {
     // 插入到链表头部，避免地址比较
     block_to_insert->next_free = free_list_start.next_free;
@@ -172,7 +172,7 @@ static void v_insert_free_block(MemBlock_t *block_to_insert)
  * @retval 找到的块指针，NULL表示未找到
  * @note 使用首次适应算法
  */
-static MemBlock_t *p_find_suitable_block(size_t wanted_size)
+static inline MemBlock_t *p_find_suitable_block(size_t wanted_size)
 {
     MemBlock_t *current, *prev = &free_list_start;
 
@@ -200,7 +200,7 @@ static MemBlock_t *p_find_suitable_block(size_t wanted_size)
  * @retval 无
  * @note 如果剩余部分足够大，将其作为新的空闲块
  */
-static void v_split_block(MemBlock_t *block, size_t wanted_size)
+static inline void v_split_block(MemBlock_t *block, size_t wanted_size)
 {
     MemBlock_t *new_block;
     size_t block_size = GET_SIZE(block->block_size);
@@ -227,7 +227,7 @@ static void v_split_block(MemBlock_t *block, size_t wanted_size)
  * @retval 无
  * @note 检查前后相邻块并进行合并
  */
-static void v_merge_blocks(void *ptr)
+static inline void v_merge_blocks(void *ptr)
 {
     MemBlock_t *block = (MemBlock_t *)((uint8_t *)ptr - sizeof(MemBlock_t));
     MemBlock_t *next_block;
