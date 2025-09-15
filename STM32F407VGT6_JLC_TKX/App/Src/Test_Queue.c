@@ -1,5 +1,7 @@
 #include "Test.h"
 
+EK_Test_t Tst_Queue = {.Test_Fucntion = Test_Queue, .Test_Name = "Queue"};
+
 void Test_Queue(void)
 {
     EK_rSerialPrintf(TestQueue, "=== 队列测试 ===\r\n");

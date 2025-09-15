@@ -1,5 +1,7 @@
 #include "Test.h"
 
+EK_Test_t Tst_List = {.Test_Fucntion = Test_List, .Test_Name = "List"};
+
 void Test_List(void)
 {
     EK_rSerialPrintf(TestQueue, "=== 双向链表测试 ===\r\n");
@@ -324,10 +326,10 @@ void Test_List(void)
                 {
                     large_sort_correct = false;
                     EK_rSerialPrintf(TestQueue,
-                             "排序错误：位置%d，当前序号%u > 前序号%u\r\n",
-                             index,
-                             current->Node_Order,
-                             prev_order);
+                                     "排序错误：位置%d，当前序号%u > 前序号%u\r\n",
+                                     index,
+                                     current->Node_Order,
+                                     prev_order);
                     break;
                 }
                 prev_order = current->Node_Order;

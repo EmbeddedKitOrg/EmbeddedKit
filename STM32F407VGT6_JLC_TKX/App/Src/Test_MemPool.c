@@ -1,5 +1,7 @@
 #include "Test.h"
 
+EK_Test_t Tst_MemPool = {.Test_Fucntion = Test_MemPool, .Test_Name = "MemPool"};
+
 void Test_MemPool(void)
 {
     EK_rSerialPrintf(TestQueue, "=== 内存池测试 ===\r\n");

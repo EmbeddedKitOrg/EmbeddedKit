@@ -1,5 +1,8 @@
 #include "Test.h"
 
+EK_Test_t Tst_Task1 = {.Test_Fucntion = Test_TaskSystem, .Test_Name = "Task1"};
+EK_Test_t Tst_Task2 = {.Test_Fucntion = Test_AllTaskInfo, .Test_Name = "Task2"};
+
 void Test_TaskSystem(void)
 {
     EK_rSerialPrintf(TestQueue, "=== 任务系统测试 ===\r\n");

@@ -1,4 +1,9 @@
 #include "Task_App.h"
+#include "Test.h"
+
+#define TEST_AMOUNT 6
+
+EK_Test_t *Test_Scheduler[TEST_AMOUNT] = {&Tst_MemPool, &Tst_List, &Tst_Queue, &Tst_Stack, &Tst_Task1, &Tst_Task2};
 
 EK_pTaskHandler_t TskHandler1;
 EK_pTaskHandler_t TskHandler2;
@@ -24,11 +29,6 @@ uint32_t test_failure_count = 0;
 void Task_LED(void);
 void Task_Key(void);
 void Task_ComponentTest(void);
-void Test_MemPool(void);
-void Test_List(void);
-void Test_Queue(void);
-void Test_TaskSystem(void);
-void Test_AllTaskInfo(void);
 
 void Send(void *data, size_t size)
 {
@@ -81,29 +81,9 @@ void Task_ComponentTest(void)
 
     EK_rSerialPrintf(TestQueue, "\r\n=== EK组件测试 第%d阶段 ===\r\n", test_phase + 1);
 
-    switch (test_phase)
-    {
-        case 0:
-            Test_MemPool();
-            break;
-        case 1:
-            Test_List();
-            break;
-        case 2:
-            Test_Queue();
-            break;
-        case 3:
-            Test_Stack();
-            break;
-        case 4:
-            Test_TaskSystem();
-            break;
-        case 5:
-            Test_AllTaskInfo();
-            break;
-    }
+    Test_Scheduler[test_phase]->Test_Fucntion();
 
-    if (test_phase == 5)
+    if (test_phase == TEST_AMOUNT - 1)
     {
         EK_rSerialPrintf(TestQueue, "*****测试结束*****\r\n");
         EK_rSerialPrintf(TestQueue, "=== 测试结果统计 ===\r\n");
@@ -120,6 +100,6 @@ void Task_ComponentTest(void)
     else
     {
         test_phase++;
-        EK_rTaskDelay(2000); // 2s执行一个测试
+        EK_rTaskDelay(1500); // 执行一个测试
     }
 }

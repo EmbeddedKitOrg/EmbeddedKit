@@ -1,5 +1,7 @@
 #include "Test.h"
 
+EK_Test_t Tst_Stack = {.Test_Fucntion = Test_Stack, .Test_Name = "Stack"};
+
 void Test_Stack(void)
 {
     EK_rSerialPrintf(TestQueue, "=== 栈测试 ===\r\n");
