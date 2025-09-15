@@ -32,16 +32,16 @@
 #define ALLOCATED_MASK (0x80000000UL)
 
 /** @brief 获取块的实际大小(去除标记位) */
-#define GET_SIZE(block_size) ((block_size) & ~ALLOCATED_MASK)
+#define GET_SIZE(MemPool_BlockSize) ((MemPool_BlockSize) & ~ALLOCATED_MASK)
 
 /** @brief 检查块是否已分配 */
-#define IS_ALLOCATED(block_size) (((block_size) & ALLOCATED_MASK) != 0)
+#define IS_ALLOCATED(MemPool_BlockSize) (((MemPool_BlockSize) & ALLOCATED_MASK) != 0)
 
 /** @brief 设置块为已分配 */
-#define SET_ALLOCATED(block_size) ((block_size) | ALLOCATED_MASK)
+#define SET_ALLOCATED(MemPool_BlockSize) ((MemPool_BlockSize) | ALLOCATED_MASK)
 
 /** @brief 设置块为空闲 */
-#define SET_FREE(block_size) ((block_size) & ~ALLOCATED_MASK)
+#define SET_FREE(MemPool_BlockSize) ((MemPool_BlockSize) & ~ALLOCATED_MASK)
 
 /** @brief 字节对齐宏 */
 #define ALIGN_UP(size) (((size) + MEMPOOL_ALIGNMENT - 1) & ~(MEMPOOL_ALIGNMENT - 1))
@@ -90,29 +90,29 @@ static void v_init_heap(void)
     total_heap_size = heap_size - ((size_t)aligned_heap - (size_t)heap_memory);
 
     // 创建起始标记块
-    free_list_start.next_free = (MemBlock_t *)aligned_heap;
-    free_list_start.block_size = 0;
+    free_list_start.MemPool_NextFree = (MemBlock_t *)aligned_heap;
+    free_list_start.MemPool_BlockSize = 0;
 
     // 设置结束标记块的位置
     free_list_end = (MemBlock_t *)(aligned_heap + total_heap_size - sizeof(MemBlock_t));
-    free_list_end->next_free = NULL;
-    free_list_end->block_size = 0;
-    free_list_end->block_size = SET_ALLOCATED(free_list_end->block_size);
+    free_list_end->MemPool_NextFree = NULL;
+    free_list_end->MemPool_BlockSize = 0;
+    free_list_end->MemPool_BlockSize = SET_ALLOCATED(free_list_end->MemPool_BlockSize);
 
     // 创建第一个大的空闲块
     first_block = (MemBlock_t *)aligned_heap;
-    first_block->next_free = free_list_end;
-    first_block->block_size = total_heap_size - sizeof(MemBlock_t);
+    first_block->MemPool_NextFree = free_list_end;
+    first_block->MemPool_BlockSize = total_heap_size - sizeof(MemBlock_t);
 
     // 确保第一个块大小不会与结束标记冲突
-    first_block->block_size = SET_FREE(first_block->block_size);
+    first_block->MemPool_BlockSize = SET_FREE(first_block->MemPool_BlockSize);
 
     // 初始化统计信息
-    pool_statistics.total_size = total_heap_size;
-    pool_statistics.free_bytes = first_block->block_size;
-    pool_statistics.min_free_bytes = first_block->block_size;
-    pool_statistics.alloc_count = 0;
-    pool_statistics.free_count = 0;
+    pool_statistics.Pool_TotalSize = total_heap_size;
+    pool_statistics.Pool_FreeBytes = first_block->MemPool_BlockSize;
+    pool_statistics.Pool_MinFreeBytes = first_block->MemPool_BlockSize;
+    pool_statistics.Pool_AllocCount = 0;
+    pool_statistics.Pool_FreeCount = 0;
 }
 
 /**
@@ -162,8 +162,8 @@ void EK_vMemPool_Deinit(void)
 static inline void v_insert_free_block(MemBlock_t *block_to_insert)
 {
     // 插入到链表头部，避免地址比较
-    block_to_insert->next_free = free_list_start.next_free;
-    free_list_start.next_free = block_to_insert;
+    block_to_insert->MemPool_NextFree = free_list_start.MemPool_NextFree;
+    free_list_start.MemPool_NextFree = block_to_insert;
 }
 
 /**
@@ -177,17 +177,17 @@ static inline MemBlock_t *p_find_suitable_block(size_t wanted_size)
     MemBlock_t *current, *prev = &free_list_start;
 
     // 遍历空闲链表查找合适的块
-    current = free_list_start.next_free;
+    current = free_list_start.MemPool_NextFree;
     while (current != NULL && current != free_list_end)
     {
-        if (GET_SIZE(current->block_size) >= wanted_size)
+        if (GET_SIZE(current->MemPool_BlockSize) >= wanted_size)
         {
             // 找到合适的块，从空闲链表中移除
-            prev->next_free = current->next_free;
+            prev->MemPool_NextFree = current->MemPool_NextFree;
             return current;
         }
         prev = current;
-        current = current->next_free;
+        current = current->MemPool_NextFree;
     }
 
     return NULL; // 未找到合适的块
@@ -203,18 +203,18 @@ static inline MemBlock_t *p_find_suitable_block(size_t wanted_size)
 static inline void v_split_block(MemBlock_t *block, size_t wanted_size)
 {
     MemBlock_t *new_block;
-    size_t block_size = GET_SIZE(block->block_size);
+    size_t MemPool_BlockSize = GET_SIZE(block->MemPool_BlockSize);
 
     // 检查剩余部分是否足够大以形成新的空闲块
-    if ((block_size - wanted_size) > MIN_BLOCK_SIZE)
+    if ((MemPool_BlockSize - wanted_size) > MIN_BLOCK_SIZE)
     {
         // 创建新的空闲块
         new_block = (MemBlock_t *)((uint8_t *)block + wanted_size);
-        new_block->block_size = block_size - wanted_size;
-        new_block->block_size = SET_FREE(new_block->block_size);
+        new_block->MemPool_BlockSize = MemPool_BlockSize - wanted_size;
+        new_block->MemPool_BlockSize = SET_FREE(new_block->MemPool_BlockSize);
 
         // 更新原块大小
-        block->block_size = wanted_size;
+        block->MemPool_BlockSize = wanted_size;
 
         // 将新块插入空闲链表
         v_insert_free_block(new_block);
@@ -232,58 +232,58 @@ static inline void v_merge_blocks(void *ptr)
     MemBlock_t *block = (MemBlock_t *)((uint8_t *)ptr - sizeof(MemBlock_t));
     MemBlock_t *next_block;
     MemBlock_t *current, *prev;
-    size_t block_size;
+    size_t MemPool_BlockSize;
 
     // 设置为空闲状态
-    block->block_size = SET_FREE(block->block_size);
-    block_size = GET_SIZE(block->block_size);
+    block->MemPool_BlockSize = SET_FREE(block->MemPool_BlockSize);
+    MemPool_BlockSize = GET_SIZE(block->MemPool_BlockSize);
 
     // 计算下一个块的位置
-    next_block = (MemBlock_t *)((uint8_t *)block + block_size);
+    next_block = (MemBlock_t *)((uint8_t *)block + MemPool_BlockSize);
 
     // 检查是否可以与后面的块合并
-    if (next_block < free_list_end && !IS_ALLOCATED(next_block->block_size))
+    if (next_block < free_list_end && !IS_ALLOCATED(next_block->MemPool_BlockSize))
     {
         // 从空闲链表中移除下一个块
         prev = &free_list_start;
-        current = free_list_start.next_free;
+        current = free_list_start.MemPool_NextFree;
         while (current != NULL && current != next_block)
         {
             prev = current;
-            current = current->next_free;
+            current = current->MemPool_NextFree;
         }
         if (current == next_block)
         {
-            prev->next_free = current->next_free;
+            prev->MemPool_NextFree = current->MemPool_NextFree;
         }
 
         // 合并块
-        block->block_size += GET_SIZE(next_block->block_size);
-        block_size = GET_SIZE(block->block_size);
+        block->MemPool_BlockSize += GET_SIZE(next_block->MemPool_BlockSize);
+        MemPool_BlockSize = GET_SIZE(block->MemPool_BlockSize);
     }
 
     // 检查是否可以与前面的块合并
     // 遍历空闲链表寻找可能的前驱块
     prev = &free_list_start;
-    current = free_list_start.next_free;
+    current = free_list_start.MemPool_NextFree;
     while (current != NULL && current != free_list_end)
     {
-        size_t current_size = GET_SIZE(current->block_size);
+        size_t current_size = GET_SIZE(current->MemPool_BlockSize);
         MemBlock_t *current_next = (MemBlock_t *)((uint8_t *)current + current_size);
 
         // 如果找到了前驱块
         if (current_next == block)
         {
             // 从空闲链表中移除前驱块
-            prev->next_free = current->next_free;
+            prev->MemPool_NextFree = current->MemPool_NextFree;
 
             // 合并到前驱块
-            current->block_size += block_size;
+            current->MemPool_BlockSize += MemPool_BlockSize;
             block = current; // 更新块指针为合并后的块
             break;
         }
         prev = current;
-        current = current->next_free;
+        current = current->MemPool_NextFree;
     }
 
     // 将最终的合并块插入到空闲链表
@@ -326,7 +326,7 @@ void *EK_pMemPool_Malloc(size_t size)
     }
 
     // 检查是否有足够的空闲内存
-    if (wanted_size > pool_statistics.free_bytes)
+    if (wanted_size > pool_statistics.Pool_FreeBytes)
     {
         return NULL;
     }
@@ -339,15 +339,15 @@ void *EK_pMemPool_Malloc(size_t size)
         v_split_block(block, wanted_size);
 
         // 标记块为已分配
-        block->block_size = SET_ALLOCATED(wanted_size);
+        block->MemPool_BlockSize = SET_ALLOCATED(wanted_size);
 
         // 更新统计信息
-        pool_statistics.free_bytes -= wanted_size;
-        if (pool_statistics.free_bytes < pool_statistics.min_free_bytes)
+        pool_statistics.Pool_FreeBytes -= wanted_size;
+        if (pool_statistics.Pool_FreeBytes < pool_statistics.Pool_MinFreeBytes)
         {
-            pool_statistics.min_free_bytes = pool_statistics.free_bytes;
+            pool_statistics.Pool_MinFreeBytes = pool_statistics.Pool_FreeBytes;
         }
-        pool_statistics.alloc_count++;
+        pool_statistics.Pool_AllocCount++;
 
         // 返回用户可用的内存地址(跳过头部)
         return_ptr = (void *)((uint8_t *)block + sizeof(MemBlock_t));
@@ -367,7 +367,7 @@ void *EK_pMemPool_Malloc(size_t size)
 bool EK_bMemPool_Free(void *ptr)
 {
     MemBlock_t *block;
-    size_t block_size;
+    size_t MemPool_BlockSize;
 
     // 参数检查
     if (ptr == NULL || !pool_initialized)
@@ -379,17 +379,17 @@ bool EK_bMemPool_Free(void *ptr)
     block = (MemBlock_t *)((uint8_t *)ptr - sizeof(MemBlock_t));
 
     // 简化检查：只检查块是否已分配
-    if (!IS_ALLOCATED(block->block_size))
+    if (!IS_ALLOCATED(block->MemPool_BlockSize))
     {
         return false; // 重复释放或野指针
     }
 
     // 获取块大小
-    block_size = GET_SIZE(block->block_size);
+    MemPool_BlockSize = GET_SIZE(block->MemPool_BlockSize);
 
     // 更新统计信息
-    pool_statistics.free_bytes += block_size;
-    pool_statistics.free_count++;
+    pool_statistics.Pool_FreeBytes += MemPool_BlockSize;
+    pool_statistics.Pool_FreeCount++;
 
     // 合并相邻块并插入空闲链表
     v_merge_blocks(ptr);
@@ -419,7 +419,7 @@ void EK_vMemPool_GetStats(PoolStats_t *stats)
  */
 size_t EK_sMemPool_GetFreeSize(void)
 {
-    return pool_initialized ? pool_statistics.free_bytes : 0;
+    return pool_initialized ? pool_statistics.Pool_FreeBytes : 0;
 }
 
 /**
@@ -440,26 +440,26 @@ bool EK_bMemPool_CheckIntegrity(void)
     }
 
     // 遍历空闲链表
-    current = free_list_start.next_free;
+    current = free_list_start.MemPool_NextFree;
     while (current != free_list_end && block_count < 1000)
     { // 防止死循环
         // 简化检查：只检查块大小和状态
-        if (GET_SIZE(current->block_size) < MIN_BLOCK_SIZE)
+        if (GET_SIZE(current->MemPool_BlockSize) < MIN_BLOCK_SIZE)
         {
             return false;
         }
 
         // 检查块是否确实是空闲的
-        if (IS_ALLOCATED(current->block_size))
+        if (IS_ALLOCATED(current->MemPool_BlockSize))
         {
             return false;
         }
 
-        total_free += GET_SIZE(current->block_size);
-        current = current->next_free;
+        total_free += GET_SIZE(current->MemPool_BlockSize);
+        current = current->MemPool_NextFree;
         block_count++;
     }
 
     // 检查计算的空闲字节数是否与统计值一致
-    return (total_free == pool_statistics.free_bytes);
+    return (total_free == pool_statistics.Pool_FreeBytes);
 }

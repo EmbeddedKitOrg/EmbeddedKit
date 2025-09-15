@@ -158,8 +158,23 @@ EK_Result_t EK_rSerialCreateQueue_Dyanmic(EK_pSeiralQueue_t *serial_fifo,
         return EK_NO_MEMORY;
     }
 
-    // 设置回调
-    (*serial_fifo)->Serial_SendCallBack = send_func;
+    // 为函数指针分配空间
+    (*serial_fifo)->Serial_SendCallBack.DynamicCallBack =
+        (void (**)(void *, size_t))EK_MALLOC(sizeof(void (*)(void *, size_t)));
+    if ((*serial_fifo)->Serial_SendCallBack.DynamicCallBack == NULL)
+    {
+        EK_rQueueDelete((*serial_fifo)->Serial_Queue);
+        EK_rNodeDelete((*serial_fifo)->Serial_Owner);
+        EK_FREE(*serial_fifo);
+        *serial_fifo = NULL;
+        return EK_NO_MEMORY;
+    }
+
+    // 设置回调函数指针
+    *((*serial_fifo)->Serial_SendCallBack.DynamicCallBack) = send_func;
+
+    // 设置动态创建标志位
+    (*serial_fifo)->Serial_IsDynamic = true;
 
     // 设置倒计时
     (*serial_fifo)->Serial_Timer = SERIAL_OVER_TIME;
@@ -200,7 +215,10 @@ EK_Result_t EK_rSerialCreateQueue_Static(
     if (res != EK_OK) return res;
 
     // 设置回调
-    serial_fifo->Serial_SendCallBack = send_func;
+    serial_fifo->Serial_SendCallBack.StaticCallBack = send_func;
+
+    // 设置静态创建标志位
+    serial_fifo->Serial_IsDynamic = false;
 
     // 设置倒计时
     serial_fifo->Serial_Timer = SERIAL_OVER_TIME;
@@ -229,7 +247,7 @@ EK_Result_t EK_rSerialPrintf(EK_pSeiralQueue_t serial_fifo, const char *format, 
 {
     // 判断有无初始化
     if (SerialIsInit == false) return EK_NOT_INITIALIZED;
-    
+
     // 参数检查
     if (serial_fifo == NULL || format == NULL) return EK_NULL_POINTER;
 
@@ -245,21 +263,21 @@ EK_Result_t EK_rSerialPrintf(EK_pSeiralQueue_t serial_fifo, const char *format, 
 
     // 如果vsnprintf的返回值大于或等于缓冲区大小，这意味着输出被截断
     size_t enqueue_len = (len >= SERIAL_TX_BUFFER) ? (SERIAL_TX_BUFFER - 1) : len;
-    
+
     // 检测剩余空间是否足够
-    if (EK_sQueueGetRemain(serial_fifo->Serial_Queue) < enqueue_len) 
+    if (EK_sQueueGetRemain(serial_fifo->Serial_Queue) < enqueue_len)
     {
 #if SERIAL_FULL_STRATEGY == 1
         // 策略1: 丢弃最老的数据腾出空间
         size_t need_space = enqueue_len - EK_sQueueGetRemain(serial_fifo->Serial_Queue);
         char temp_buffer[64]; // 临时缓冲区用于丢弃数据
-        
+
         // 逐步丢弃老数据直到有足够空间
         while (need_space > 0 && !EK_bQueueIsEmpty(serial_fifo->Serial_Queue))
         {
             size_t discard_size = (need_space > sizeof(temp_buffer)) ? sizeof(temp_buffer) : need_space;
             size_t actual_discarded = 0;
-            
+
             if (EK_rQueueDequeue(serial_fifo->Serial_Queue, temp_buffer, discard_size) == EK_OK)
             {
                 actual_discarded = discard_size;
@@ -270,10 +288,10 @@ EK_Result_t EK_rSerialPrintf(EK_pSeiralQueue_t serial_fifo, const char *format, 
                 EK_rQueueClean(serial_fifo->Serial_Queue);
                 break;
             }
-            
+
             need_space = (need_space > actual_discarded) ? (need_space - actual_discarded) : 0;
         }
-        
+
         // 重新检查空间是否足够
         if (EK_sQueueGetRemain(serial_fifo->Serial_Queue) < enqueue_len)
         {
@@ -301,6 +319,59 @@ EK_Result_t EK_rSerialPrintf(EK_pSeiralQueue_t serial_fifo, const char *format, 
     EK_FREE(buffer);
 
     return res;
+}
+
+/**
+ * @brief 删除串口队列实例
+ * @details
+ *  - 从管理链表中移除节点
+ *  - 释放队列、节点和结构体的内存
+ *  - 对于动态创建的实例，还会释放函数指针的内存
+ * @param serial_fifo 要删除的串口队列句柄
+ * @return EK_Result_t 操作结果
+ * @retval EK_OK 删除成功
+ * @retval EK_NULL_POINTER 参数为空
+ * @retval EK_NOT_INITIALIZED 组件未初始化
+ */
+EK_Result_t EK_rSerialDeleteQueue(EK_pSeiralQueue_t serial_fifo)
+{
+    // 判断有无初始化
+    if (SerialIsInit == false) return EK_NOT_INITIALIZED;
+
+    // 参数检查
+    if (serial_fifo == NULL) return EK_NULL_POINTER;
+
+    // 从管理链表中移除节点
+    if (serial_fifo->Serial_Owner != NULL)
+    {
+        EK_rListRemoveNode(SerialManageList, serial_fifo->Serial_Owner);
+    }
+
+    // 释放队列内存
+    if (serial_fifo->Serial_Queue != NULL)
+    {
+        EK_rQueueDelete(serial_fifo->Serial_Queue);
+    }
+
+    // 如果是动态创建的，释放函数指针内存
+    if (serial_fifo->Serial_IsDynamic && serial_fifo->Serial_SendCallBack.DynamicCallBack != NULL)
+    {
+        EK_FREE(serial_fifo->Serial_SendCallBack.DynamicCallBack);
+    }
+
+    // 释放节点内存
+    if (serial_fifo->Serial_Owner != NULL)
+    {
+        EK_rNodeDelete(serial_fifo->Serial_Owner);
+    }
+
+    // 如果是动态创建的结构体，释放结构体内存
+    if (serial_fifo->Serial_IsDynamic)
+    {
+        EK_FREE(serial_fifo);
+    }
+
+    return EK_OK;
 }
 
 /**
@@ -367,7 +438,7 @@ EK_Result_t EK_rSerialPoll(uint32_t (*get_tick)(void))
             {
                 // 获取队列中实际存储的数据大小
                 size_t queue_used_size = EK_sQueueGetSize(curr_data->Serial_Queue);
-                
+
                 // 限制单次发送的最大数据量，确保消息顺序和实时性
                 size_t send_size = (queue_used_size > SERIAL_MAX_SEND_SIZE) ? SERIAL_MAX_SEND_SIZE : queue_used_size;
 
@@ -399,11 +470,20 @@ EK_Result_t EK_rSerialPoll(uint32_t (*get_tick)(void))
                 }
                 else
                 {
-                    // 发送数据
-                    curr_data->Serial_SendCallBack(buffer, send_size);
+                    // 发送数据 - 根据创建方式调用不同的回调函数
+                    if (curr_data->Serial_IsDynamic)
+                    {
+                        // 动态创建：调用函数指针的指针
+                        (*(curr_data->Serial_SendCallBack.DynamicCallBack))(buffer, send_size);
+                    }
+                    else
+                    {
+                        // 静态创建：直接调用函数指针
+                        curr_data->Serial_SendCallBack.StaticCallBack(buffer, send_size);
+                    }
                     // 释放数据
                     EK_FREE(buffer);
-                    
+
                     // 如果队列中还有数据，缩短倒计时以便快速处理剩余数据
                     if (!EK_bQueueIsEmpty(curr_data->Serial_Queue))
                     {

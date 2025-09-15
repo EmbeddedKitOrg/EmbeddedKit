@@ -24,8 +24,8 @@ extern "C"
  */
 typedef struct MemBlock
 {
-    struct MemBlock *next_free; /**< 指向下一个空闲块 */
-    size_t block_size; /**< 块大小，最高位用作分配标记 */
+    struct MemBlock *MemPool_NextFree; /**< 指向下一个空闲块 */
+    size_t MemPool_BlockSize; /**< 块大小，最高位用作分配标记 */
 } MemBlock_t;
 
 /**
@@ -33,11 +33,11 @@ typedef struct MemBlock
  */
 typedef struct
 {
-    size_t total_size; /**< 内存池总大小 */
-    size_t free_bytes; /**< 当前可用字节数 */
-    size_t min_free_bytes; /**< 历史最小可用字节数 */
-    size_t alloc_count; /**< 分配次数统计 */
-    size_t free_count; /**< 释放次数统计 */
+    size_t Pool_TotalSize; /**< 内存池总大小 */
+    size_t Pool_FreeBytes; /**< 当前可用字节数 */
+    size_t Pool_MinFreeBytes; /**< 历史最小可用字节数 */
+    size_t Pool_AllocCount; /**< 分配次数统计 */
+    size_t Pool_FreeCount; /**< 释放次数统计 */
 } PoolStats_t;
 
 /* ========================= 函数声明区 ========================= */
