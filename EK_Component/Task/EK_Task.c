@@ -448,17 +448,17 @@ EK_Result_t EK_rTaskCreate_Dynamic(void (*pfunc)(void), uint8_t Priority, EK_pTa
 {
     if (pfunc == NULL) return EK_NULL_POINTER;
 
-    EK_TaskEK_Node_t *node = (EK_TaskEK_Node_t *)EK_pMemPool_Malloc(sizeof(EK_TaskEK_Node_t));
+    EK_TaskEK_Node_t *node = (EK_TaskEK_Node_t *)EK_MALLOC(sizeof(EK_TaskEK_Node_t));
     if (node == NULL)
     {
         return EK_NO_MEMORY;
     }
 
     // 从内存池分配函数指针空间
-    void (**func_ptr)(void) = (void (**)(void))EK_pMemPool_Malloc(sizeof(void (*)(void)));
+    void (**func_ptr)(void) = (void (**)(void))EK_MALLOC(sizeof(void (*)(void)));
     if (func_ptr == NULL)
     {
-        EK_bMemPool_Free(node); // 释放已分配的节点内存
+        EK_FREE(node); // 释放已分配的节点内存
         return EK_NO_MEMORY;
     }
 
@@ -478,8 +478,8 @@ EK_Result_t EK_rTaskCreate_Dynamic(void (*pfunc)(void), uint8_t Priority, EK_pTa
     EK_Result_t result = r_task_insert_node(&WaitSchedule, node);
     if (result != EK_OK)
     {
-        EK_bMemPool_Free(func_ptr); // 释放函数指针内存
-        EK_bMemPool_Free(node); // 插入失败时释放内存
+        EK_FREE(func_ptr); // 释放函数指针内存
+        EK_FREE(node); // 插入失败时释放内存
         return result;
     }
 
@@ -531,10 +531,10 @@ EK_Result_t EK_rTaskDelete(EK_pTaskHandler_t task_handler)
         // 只有动态分配的任务才释放函数指针占用的内存池空间
         if (!TASK_IS_STATIC(target_handler->Task_Info) && target_handler->TaskCallBack.DynamicCallBack != NULL)
         {
-            EK_bMemPool_Free(target_handler->TaskCallBack.DynamicCallBack);
+            EK_FREE(target_handler->TaskCallBack.DynamicCallBack);
         }
 
-        EK_bMemPool_Free(node);
+        EK_FREE(node);
         // 如果移除的是当前任务，清空当前任务句柄
         if (target_handler == CurTaskHandler)
         {

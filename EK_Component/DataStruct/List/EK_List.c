@@ -786,6 +786,40 @@ EK_Result_t EK_rListMoveNode(EK_List_t *list_src, EK_List_t *list_dst, EK_Node_t
 }
 
 /**
+ * @brief 删除单个节点并释放其内存
+ * @details 删除指定节点并释放其动态分配的内存
+ * @param node 要删除的节点指针
+ * @return EK_Result_t 操作结果
+ * @note 此函数只释放节点本身的内存，不释放Node_Data指向的内容内存
+ *       如果节点仍在链表中，需要先调用EK_rListRemoveNode移除
+ *       静态分配的节点不会被释放，只会被重置
+ */
+EK_Result_t EK_rNodeDelete(EK_Node_t *node)
+{
+    if (node == NULL) return EK_NULL_POINTER;
+
+    // 检查节点是否仍在链表中
+    if (node->Node_Owner != NULL)
+    {
+        return EK_ERROR; // 节点仍在链表中，需要先移除
+    }
+
+    // 清除节点数据（安全起见）
+    node->Node_Data = NULL;
+    node->Node_Next = NULL;
+    node->Node_Prev = NULL;
+    node->Node_Order = 0;
+
+    // 只释放动态分配的节点
+    if (node->Node_isDynamic == true)
+    {
+        EK_FREE(node);
+    }
+
+    return EK_OK;
+}
+
+/**
  * @brief 删除整个链表并释放所有节点内存
  * @details 遍历链表删除所有节点，并释放动态分配的链表结构和哨兵节点
  * @param list 要删除的链表指针

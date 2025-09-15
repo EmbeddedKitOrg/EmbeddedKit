@@ -31,23 +31,23 @@ typedef enum
 
 typedef struct
 {
-    uint32_t Task_TrigTime; // 任务倒计时(高16位:设定值, 低16位:当前值)
-    uint8_t Task_Info; // 任务状态(bit7:静态创建标志, bit6-1:保留, bit0:激活状态)
+    uint32_t Task_TrigTime; /**< 任务倒计时(高16位:设定值, 低16位:当前值) */
+    uint8_t Task_Info; /**< 任务状态(bit7:静态创建标志, bit6-1:保留, bit0:激活状态) */
     union
     {
-        void (*StaticCallBack)(void); // 静态任务的函数指针
-        void (**DynamicCallBack)(void); // 动态任务的函数指针（指向内存池中的函数指针）
+        void (*StaticCallBack)(void); /**< 静态任务的函数指针 */
+        void (**DynamicCallBack)(void); /**< 动态任务的函数指针（指向内存池中的函数指针） */
     } TaskCallBack;
-    uint16_t Task_MaxUsed; //任务最高用时
-    uint8_t Task_Priority; // 任务优先级
-    void *Task_OwnerNode; // 拥有任务的节点
+    uint16_t Task_MaxUsed; /**< 任务最高用时 */
+    uint8_t Task_Priority; /**< 任务优先级 */
+    void *Task_OwnerNode; /**< 拥有任务的节点 */
 } EK_TaskHandler_t;
 
 typedef struct EK_TaskEK_Node_t
 {
-    struct EK_TaskEK_Node_t *Next; // 下一个节点
-    void *Owner; // 拥有节点的链表
-    EK_TaskHandler_t TaskHandler; // 任务句柄
+    struct EK_TaskEK_Node_t *Next; /**< 下一个节点 */
+    void *Owner; /**< 拥有节点的链表 */
+    EK_TaskHandler_t TaskHandler; /**< 任务句柄 */
 } EK_TaskEK_Node_t;
 
 /**
@@ -56,17 +56,17 @@ typedef struct EK_TaskEK_Node_t
  */
 typedef struct
 {
-    bool isValid; // 当前是否有有效的任务信息
-    bool isActive; // 任务是否激活
-    bool isStatic; // 任务是否静态创建
-    uint8_t Priority; // 任务优先级
-    uint16_t MaxUsedTime; // 任务最大消耗时间(ms)
-    size_t Memory; // 任务占用的内存字节数
-    EK_TaskState_t state; // 任务当前状态
+    bool isValid; /**< 当前是否有有效的任务信息 */
+    bool isActive; /**< 任务是否激活 */
+    bool isStatic; /**< 任务是否静态创建 */
+    uint8_t Priority; /**< 任务优先级 */
+    uint16_t MaxUsedTime; /**< 任务最大消耗时间(ms) */
+    size_t Memory; /**< 任务占用的内存字节数 */
+    EK_TaskState_t state; /**< 任务当前状态 */
 } EK_TaskInfo_t;
 
-typedef EK_TaskHandler_t *EK_pTaskHandler_t; // 任务句柄指针(aka EK_TaskHandler_t*)
-typedef EK_TaskEK_Node_t *EK_pTaskEK_Node_t; // 节点句柄指针(aka EK_TaskEK_Node_t*)
+typedef EK_TaskHandler_t *EK_pTaskHandler_t; /**< 任务句柄指针(aka EK_TaskHandler_t*) */
+typedef EK_TaskEK_Node_t *EK_pTaskEK_Node_t; /**< 节点句柄指针(aka EK_TaskEK_Node_t*) */
 
 /* ========================= 函数声明区 ========================= */
 EK_Result_t EK_rTaskInit(void);

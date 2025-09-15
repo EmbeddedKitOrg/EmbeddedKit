@@ -49,6 +49,7 @@ EK_Result_t EK_rListInsertHead(EK_List_t *list, EK_Node_t *node);
 EK_Result_t EK_rListInsertOrder(EK_List_t *list, EK_Node_t *node);
 EK_Result_t EK_rListRemoveNode(EK_List_t *list, EK_Node_t *node);
 EK_Result_t EK_rListMoveNode(EK_List_t *list_src, EK_List_t *list_dst, EK_Node_t *node, int order);
+EK_Result_t EK_rNodeDelete(EK_Node_t *node);
 EK_Result_t EK_rListDelete(EK_List_t *list);
 EK_Result_t EK_rListSort(EK_List_t *list, bool is_descend);
 
