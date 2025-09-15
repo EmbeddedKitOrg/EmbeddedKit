@@ -132,6 +132,19 @@ EK_Result_t EK_rListRemoveNode(EK_List_t *list, EK_Node_t *node);
 - **功能**：从链表中移除指定节点
 - **特性**：自动处理头尾节点特殊情况，节点移除后可重新使用
 
+#### 节点删除
+```c
+EK_Result_t EK_rNodeDelete(EK_Node_t *node);
+```
+- **功能**：删除单个节点并释放其内存
+- **参数**：`node` - 要删除的节点指针
+- **返回值**：操作结果状态码
+- **特性**：
+  - 只释放节点本身的内存，不释放Node_Data指向的内容
+  - 检查节点是否仍在链表中，如果是则返回错误
+  - 静态分配的节点不会被释放，只会被重置
+  - 动态分配的节点会被释放内存
+
 #### 节点移动
 ```c
 EK_Result_t EK_rListMoveNode(EK_List_t *list_src, EK_List_t *list_dst, EK_Node_t *node, int order);
@@ -184,6 +197,10 @@ EK_Node_t *node3 = EK_pNodeCreate_Dynamic(&data3, 5);
 EK_rListInsertEnd(my_list, node1);      // 尾部插入
 EK_rListInsertHead(my_list, node2);     // 头部插入
 EK_rListInsertOrder(my_list, node3);    // 按序插入
+
+// 移除并删除单个节点
+EK_rListRemoveNode(my_list, node2);     // 从链表中移除节点
+EK_rNodeDelete(node2);                  // 删除节点并释放内存
 
 // 删除整个链表
 EK_rListDelete(my_list);
@@ -279,7 +296,31 @@ for (int i = 0; i < 10; i++) {
 }
 ```
 
-### 8. 链表遍历操作
+### 8. 节点删除管理示例
+```c
+// 创建链表和节点
+EK_List_t *my_list = EK_pListCreate_Dynamic();
+EK_Node_t *node1 = EK_pNodeCreate_Dynamic(&data1, 10);
+EK_Node_t *node2 = EK_pNodeCreate_Dynamic(&data2, 20);
+
+// 插入节点
+EK_rListInsertEnd(my_list, node1);
+EK_rListInsertEnd(my_list, node2);
+
+// 方法1：移除后删除节点
+EK_rListRemoveNode(my_list, node1);     // 从链表中移除
+EK_rNodeDelete(node1);                  // 删除节点并释放内存
+
+// 方法2：直接删除整个链表（包括所有节点）
+EK_rListDelete(my_list);                // 自动移除并删除所有节点
+
+// 错误示例：不能删除仍在链表中的节点
+EK_Node_t *node3 = EK_pNodeCreate_Dynamic(&data3, 30);
+EK_rListInsertEnd(another_list, node3);
+EK_Result_t result = EK_rNodeDelete(node3);  // 返回 EK_ERROR，因为节点仍在链表中
+```
+
+### 9. 链表遍历操作
 ```c
 // 正向遍历链表
 EK_Node_t *current = EK_pListGetHead(my_list);
@@ -410,7 +451,8 @@ if (data_list->List_Count < 5) {
 ## 性能特点
 
 - **插入操作**：头尾插入 O(1)，按序插入 O(n)
-- **删除操作**：已知节点位置时 O(1)，删除整个链表 O(n)
+- **移除操作**：已知节点位置时 O(1)
+- **删除操作**：单个节点删除 O(1)，删除整个链表 O(n)
 - **移动操作**：跨链表移动 O(1)（不考虑目标位置查找）
 - **排序操作**：
   - 小链表（< 5节点）：选择排序 O(n²)，但常数因子小
@@ -431,7 +473,8 @@ if (data_list->List_Count < 5) {
 | 头部插入 | O(1) | O(1) | 直接操作 |
 | 尾部插入 | O(1) | O(1) | 通过哨兵节点优化 |
 | 按序插入 | O(n) | O(1) | 需要查找插入位置 |
-| 删除节点 | O(1) | O(1) | 已知节点位置 |
+| 移除节点 | O(1) | O(1) | 已知节点位置 |
+| 删除节点 | O(1) | O(1) | 释放单个节点内存 |
 | 删除链表 | O(n) | O(1) | 遍历释放所有节点 |
 | 节点移动 | O(1) | O(1) | 不考虑查找目标位置 |
 | 小链表排序 | O(n²) | O(1) | 选择排序，原地排序 |

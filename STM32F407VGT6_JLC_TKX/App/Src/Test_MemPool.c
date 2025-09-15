@@ -10,11 +10,11 @@ void Test_MemPool(void)
     PoolStats_t stats;
     EK_vMemPool_GetStats(&stats);
 
-    EK_rSerialPrintf(TestQueue, "总容量: %u字节\r\n", (uint32_t)stats.total_size);
-    EK_rSerialPrintf(TestQueue, "可用字节: %u字节\r\n", (uint32_t)stats.free_bytes);
-    EK_rSerialPrintf(TestQueue, "历史最少可用: %u字节\r\n", (uint32_t)stats.min_free_bytes);
-    EK_rSerialPrintf(TestQueue, "分配次数: %u\r\n", (uint32_t)stats.alloc_count);
-    EK_rSerialPrintf(TestQueue, "释放次数: %u\r\n", (uint32_t)stats.free_count);
+    EK_rSerialPrintf(TestQueue, "总容量: %u字节\r\n", (uint32_t)stats.Pool_TotalSize);
+    EK_rSerialPrintf(TestQueue, "可用字节: %u字节\r\n", (uint32_t)stats.Pool_FreeBytes);
+    EK_rSerialPrintf(TestQueue, "历史最少可用: %u字节\r\n", (uint32_t)stats.Pool_MinFreeBytes);
+    EK_rSerialPrintf(TestQueue, "分配次数: %u\r\n", (uint32_t)stats.Pool_AllocCount);
+    EK_rSerialPrintf(TestQueue, "释放次数: %u\r\n", (uint32_t)stats.Pool_FreeCount);
 
     // 测试内存分配和释放
     void *ptr1 = EK_pMemPool_Malloc(128);

@@ -30,7 +30,12 @@ typedef struct
     EK_Node_t *Serial_Owner; /**< 拥有该结构的链表节点 */
     EK_Queue_t *Serial_Queue; /**< 数据缓冲队列 */
     uint8_t Serial_Timer; /**< 定时器 */
-    void (*Serial_SendCallBack)(void *, size_t); /**< 数据发送回调函数 */
+    bool Serial_IsDynamic; /**< 动态创建标志位 */
+    union
+    {
+        void (*StaticCallBack)(void *, size_t); /**< 静态回调函数 */
+        void (**DynamicCallBack)(void *, size_t); /**< 动态回调函数 */
+    } Serial_SendCallBack; /**< 数据发送回调函数 */
 } EK_SeiralQueue_t;
 
 typedef EK_SeiralQueue_t *EK_pSeiralQueue_t; // EK_SeiralQueue_t的句柄(aka *EK_SeiralQueue_t)
@@ -46,6 +51,7 @@ EK_Result_t EK_rSerialCreateQueue_Static(
     EK_pSeiralQueue_t serial_fifo, void *buffer, void (*send_func)(void *, size_t), uint16_t priority, size_t capacity);
 EK_Result_t EK_rSerialPrintf(EK_pSeiralQueue_t serial_fifo, const char *format, ...);
 EK_Result_t EK_rSerialPoll(uint32_t (*get_tick)(void));
+EK_Result_t EK_rSerialDeleteQueue(EK_pSeiralQueue_t serial_fifo);
 
 #ifdef __cplusplus
 }
