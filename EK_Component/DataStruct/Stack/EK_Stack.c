@@ -42,7 +42,7 @@ static inline void *v_stack_get_top(EK_Stack_t *stack)
  * @note 适用于静态分配场景，栈结构体和栈空间内存都由用户管理
  */
 
-EK_Result_t EK_rStackCreate_Static(EK_Stack_t *stack, void *mem_ptr, size_t capacity)
+EK_Result_t EK_rStackCreate_Static(EK_Stack_t *stack, void *mem_ptr, EK_Size_t capacity)
 {
     if (mem_ptr == NULL || stack == NULL) return EK_NULL_POINTER;
     if (capacity == 0) return EK_INVALID_PARAM;
@@ -62,7 +62,7 @@ EK_Result_t EK_rStackCreate_Static(EK_Stack_t *stack, void *mem_ptr, size_t capa
  * @return EK_Stack_t* 创建的栈指针
  * @note 适用于动态分配场景，栈内存由malloc管理，需要使用EK_rStackDelete释放
  */
-EK_Stack_t *EK_pStackCreate_Dynamic(size_t capacity)
+EK_Stack_t *EK_pStackCreate_Dynamic(EK_Size_t capacity)
 {
     if (capacity == 0) return NULL;
 
@@ -158,18 +158,18 @@ bool EK_bStackIsEmpty(EK_Stack_t *stack)
  * @brief 获取栈剩余可用空间大小
  * @details 计算栈中还可以存储多少字节的数据
  * @param stack 栈指针
- * @return size_t 返回栈剩余可用的字节数，栈指针无效时返回0
+ * @return EK_Size_t 返回栈剩余可用的字节数，栈指针无效时返回0
  * @note 返回值表示还可以向栈中压入多少字节的数据
  */
-size_t EK_sStackGetRemain(EK_Stack_t *stack)
+EK_Size_t EK_sStackGetRemain(EK_Stack_t *stack)
 {
     if (stack == NULL) return 0;
 
     void *stack_top = v_stack_get_top(stack);
     if (stack_top == NULL) return 0;
 
-    ptrdiff_t remain = (uint8_t *)stack_top - (uint8_t *)stack->Stack_TopPtr;
-    return (remain > 0 ? (size_t)remain : 0);
+    int remain = (uint8_t *)stack_top - (uint8_t *)stack->Stack_TopPtr;
+    return (remain > 0 ? (EK_Size_t)remain : 0);
 }
 
 /**
@@ -182,7 +182,7 @@ size_t EK_sStackGetRemain(EK_Stack_t *stack)
  * @note 会检查栈剩余空间是否足够，数据会被复制到栈内部空间
  * @warning 确保data指向的内存区域至少有data_size字节有效数据
  */
-EK_Result_t EK_rStackPush(EK_Stack_t *stack, void *data, size_t data_size)
+EK_Result_t EK_rStackPush(EK_Stack_t *stack, void *data, EK_Size_t data_size)
 {
     if (data == NULL || stack == NULL) return EK_NULL_POINTER;
     if (data_size == 0) return EK_INVALID_PARAM;
@@ -209,7 +209,7 @@ EK_Result_t EK_rStackPush(EK_Stack_t *stack, void *data, size_t data_size)
  * @note 会检查栈中数据是否足够，数据会从栈中移除并复制到data_buffer中
  * @warning 确保data_buffer有足够空间存储data_size字节的数据
  */
-EK_Result_t EK_rStackPop(EK_Stack_t *stack, void *data_buffer, size_t data_size)
+EK_Result_t EK_rStackPop(EK_Stack_t *stack, void *data_buffer, EK_Size_t data_size)
 {
     if (data_buffer == NULL || stack == NULL) return EK_NULL_POINTER;
     if (data_size == 0) return EK_INVALID_PARAM;
@@ -218,7 +218,7 @@ EK_Result_t EK_rStackPop(EK_Stack_t *stack, void *data_buffer, size_t data_size)
     if (EK_bStackIsEmpty(stack)) return EK_EMPTY;
 
     // 检测栈中是否有足够的数据
-    size_t current_size = (uint8_t *)stack->Stack_TopPtr - (uint8_t *)stack->Stack_Mem;
+    EK_Size_t current_size = (uint8_t *)stack->Stack_TopPtr - (uint8_t *)stack->Stack_Mem;
     if (current_size < data_size) return EK_INSUFFICIENT_SPACE;
 
     // 移动栈顶指针

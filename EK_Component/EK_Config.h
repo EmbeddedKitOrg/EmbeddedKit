@@ -11,11 +11,13 @@
 #define __EK_CONFIG_H
 
 #include "EK_Common.h"
-#include "MemPool/EK_MemPool.h"
+
+extern void *EK_pMemPool_Malloc(EK_Size_t size);
+extern void EK_vMemPool_FreeSafely(void *ptr);
 
 /**
  * @brief 内存分配宏定义
- * @details 函数签名要求是 void* xxx(size_t)
+ * @details 函数签名要求是 void* xxx(EK_Size_t)
  */
 #define EK_MALLOC(X) EK_pMemPool_Malloc(X)
 
@@ -23,7 +25,7 @@
  * @brief 内存释放宏定义
  * @details 函数入参要求是 void*
  */
-#define EK_FREE(X) EK_MEMPOOL_SAFE_FREE(X)
+#define EK_FREE(X) EK_vMemPool_FreeSafely(X)
 
 /**
  * @brief 内存池总大小 (字节)

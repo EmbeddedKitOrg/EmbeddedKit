@@ -120,9 +120,9 @@ EK_Result_t EK_rSerialInit_Static(void)
  * @return EK_Result_t 操作结果
  */
 EK_Result_t EK_rSerialCreateQueue_Dyanmic(EK_pSeiralQueue_t *serial_fifo,
-                                          void (*send_func)(void *, size_t),
+                                          void (*send_func)(void *, EK_Size_t),
                                           uint16_t priority,
-                                          size_t capacity)
+                                          EK_Size_t capacity)
 {
     // 判断有无初始化
     if (SerialIsInit == false) return EK_NOT_INITIALIZED;
@@ -160,7 +160,7 @@ EK_Result_t EK_rSerialCreateQueue_Dyanmic(EK_pSeiralQueue_t *serial_fifo,
 
     // 为函数指针分配空间
     (*serial_fifo)->Serial_SendCallBack.DynamicCallBack =
-        (void (**)(void *, size_t))EK_MALLOC(sizeof(void (*)(void *, size_t)));
+        (void (**)(void *, EK_Size_t))EK_MALLOC(sizeof(void (*)(void *, EK_Size_t)));
     if ((*serial_fifo)->Serial_SendCallBack.DynamicCallBack == NULL)
     {
         EK_rQueueDelete((*serial_fifo)->Serial_Queue);
@@ -196,8 +196,11 @@ EK_Result_t EK_rSerialCreateQueue_Dyanmic(EK_pSeiralQueue_t *serial_fifo,
  * @param capacity 队列的容量（`buffer` 的大小）。
  * @return EK_Result_t 操作结果
  */
-EK_Result_t EK_rSerialCreateQueue_Static(
-    EK_pSeiralQueue_t serial_fifo, void *buffer, void (*send_func)(void *, size_t), uint16_t priority, size_t capacity)
+EK_Result_t EK_rSerialCreateQueue_Static(EK_pSeiralQueue_t serial_fifo,
+                                         void *buffer,
+                                         void (*send_func)(void *, EK_Size_t),
+                                         uint16_t priority,
+                                         EK_Size_t capacity)
 {
     // 判断有无初始化
     if (SerialIsInit == false) return EK_NOT_INITIALIZED;
@@ -262,21 +265,21 @@ EK_Result_t EK_rSerialPrintf(EK_pSeiralQueue_t serial_fifo, const char *format, 
     va_end(args);
 
     // 如果vsnprintf的返回值大于或等于缓冲区大小，这意味着输出被截断
-    size_t enqueue_len = (len >= SERIAL_TX_BUFFER) ? (SERIAL_TX_BUFFER - 1) : len;
+    EK_Size_t enqueue_len = (len >= SERIAL_TX_BUFFER) ? (SERIAL_TX_BUFFER - 1) : len;
 
     // 检测剩余空间是否足够
     if (EK_sQueueGetRemain(serial_fifo->Serial_Queue) < enqueue_len)
     {
 #if SERIAL_FULL_STRATEGY == 1
         // 策略1: 丢弃最老的数据腾出空间
-        size_t need_space = enqueue_len - EK_sQueueGetRemain(serial_fifo->Serial_Queue);
+        EK_Size_t need_space = enqueue_len - EK_sQueueGetRemain(serial_fifo->Serial_Queue);
         char temp_buffer[64]; // 临时缓冲区用于丢弃数据
 
         // 逐步丢弃老数据直到有足够空间
         while (need_space > 0 && !EK_bQueueIsEmpty(serial_fifo->Serial_Queue))
         {
-            size_t discard_size = (need_space > sizeof(temp_buffer)) ? sizeof(temp_buffer) : need_space;
-            size_t actual_discarded = 0;
+            EK_Size_t discard_size = (need_space > sizeof(temp_buffer)) ? sizeof(temp_buffer) : need_space;
+            EK_Size_t actual_discarded = 0;
 
             if (EK_rQueueDequeue(serial_fifo->Serial_Queue, temp_buffer, discard_size) == EK_OK)
             {
@@ -437,10 +440,10 @@ EK_Result_t EK_rSerialPoll(uint32_t (*get_tick)(void))
             else //倒计时被清空
             {
                 // 获取队列中实际存储的数据大小
-                size_t queue_used_size = EK_sQueueGetSize(curr_data->Serial_Queue);
+                EK_Size_t queue_used_size = EK_sQueueGetSize(curr_data->Serial_Queue);
 
                 // 限制单次发送的最大数据量，确保消息顺序和实时性
-                size_t send_size = (queue_used_size > SERIAL_MAX_SEND_SIZE) ? SERIAL_MAX_SEND_SIZE : queue_used_size;
+                EK_Size_t send_size = (queue_used_size > SERIAL_MAX_SEND_SIZE) ? SERIAL_MAX_SEND_SIZE : queue_used_size;
 
                 // 分配缓冲区来存储出队的数据
                 buffer = EK_MALLOC(send_size);

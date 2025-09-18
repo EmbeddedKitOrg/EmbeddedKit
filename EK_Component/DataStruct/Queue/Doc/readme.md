@@ -23,8 +23,8 @@ typedef struct EK_Queue_t
     void *Queue_Buf;              // 队列缓冲区指针
     index_t Queue_Front;          // 队头索引（待出队元素）
     index_t Queue_Rear;           // 队尾索引（下一个入队位置）
-    size_t Queue_Size;            // 当前元素个数（字节数）
-    size_t Queue_Capacity;        // 队列容量（字节数）
+    EK_Size_t Queue_Size;            // 当前元素个数（字节数）
+    EK_Size_t Queue_Capacity;        // 队列容量（字节数）
     bool Queue_isDynamic;         // 动态创建标志
 } EK_Queue_t;
 ```
@@ -42,7 +42,7 @@ typedef struct EK_Queue_t
 
 #### 动态队列创建
 ```c
-EK_Queue_t *EK_pQueueCreate_Dynamic(size_t capacity);
+EK_Queue_t *EK_pQueueCreate_Dynamic(EK_Size_t capacity);
 ```
 - **功能**：动态分配内存创建队列
 - **参数**：`capacity` - 队列容量（字节数）
@@ -51,7 +51,7 @@ EK_Queue_t *EK_pQueueCreate_Dynamic(size_t capacity);
 
 #### 静态队列创建
 ```c
-EK_Result_t EK_rQueueCreate_Static(EK_Queue_t *queue_handler, void *buffer, const size_t capacity);
+EK_Result_t EK_rQueueCreate_Static(EK_Queue_t *queue_handler, void *buffer, const EK_Size_t capacity);
 ```
 - **功能**：使用用户提供的内存初始化队列
 - **参数**：
@@ -99,14 +99,14 @@ bool EK_bQueueIsFull(EK_Queue_t *queue);
 
 #### 获取队列大小
 ```c
-size_t EK_sQueueGetSize(EK_Queue_t *queue);
+EK_Size_t EK_sQueueGetSize(EK_Queue_t *queue);
 ```
 - **功能**：获取当前存储的数据量
 - **返回值**：当前数据字节数
 
 #### 获取剩余空间
 ```c
-size_t EK_sQueueGetRemain(EK_Queue_t *queue);
+EK_Size_t EK_sQueueGetRemain(EK_Queue_t *queue);
 ```
 - **功能**：获取剩余可用空间
 - **返回值**：剩余字节数
@@ -115,7 +115,7 @@ size_t EK_sQueueGetRemain(EK_Queue_t *queue);
 
 #### 入队操作
 ```c
-EK_Result_t EK_rQueueEnqueue(EK_Queue_t *queue, void *data, size_t data_size);
+EK_Result_t EK_rQueueEnqueue(EK_Queue_t *queue, void *data, EK_Size_t data_size);
 ```
 - **功能**：向队列尾部添加数据
 - **参数**：
@@ -130,7 +130,7 @@ EK_Result_t EK_rQueueEnqueue(EK_Queue_t *queue, void *data, size_t data_size);
 
 #### 出队操作
 ```c
-EK_Result_t EK_rQueueDequeue(EK_Queue_t *queue, void *data_buffer, size_t data_size);
+EK_Result_t EK_rQueueDequeue(EK_Queue_t *queue, void *data_buffer, EK_Size_t data_size);
 ```
 - **功能**：从队列头部取出数据
 - **参数**：
@@ -144,7 +144,7 @@ EK_Result_t EK_rQueueDequeue(EK_Queue_t *queue, void *data_buffer, size_t data_s
 
 #### 数据预览
 ```c
-EK_Result_t EK_rQueuePeekFront(EK_Queue_t *queue, void *data_buffer, size_t data_size);
+EK_Result_t EK_rQueuePeekFront(EK_Queue_t *queue, void *data_buffer, EK_Size_t data_size);
 ```
 - **功能**：查看队头数据但不移除
 - **用途**：数据预处理、协议解析等场景
@@ -167,8 +167,8 @@ void UART_IRQ_Handler(void) {
 void uart_process_task(void) {
     uint8_t buffer[64];
     if (!EK_bQueueIsEmpty(uart_rx_queue)) {
-        size_t available = EK_sQueueGetSize(uart_rx_queue);
-        size_t read_size = (available > 64) ? 64 : available;
+        EK_Size_t available = EK_sQueueGetSize(uart_rx_queue);
+        EK_Size_t read_size = (available > 64) ? 64 : available;
         EK_rQueueDequeue(uart_rx_queue, buffer, read_size);
         // 处理接收到的数据
         process_uart_data(buffer, read_size);
@@ -291,7 +291,7 @@ void execute_commands(void) {
 // 网络数据发送队列
 EK_Queue_t *tx_queue = EK_pQueueCreate_Dynamic(4096);
 
-void network_send_data(uint8_t *data, size_t len) {
+void network_send_data(uint8_t *data, EK_Size_t len) {
     // 检查队列剩余空间
     if (EK_sQueueGetRemain(tx_queue) < len) {
         printf("Send buffer full, applying flow control\n");
@@ -304,7 +304,7 @@ void network_send_data(uint8_t *data, size_t len) {
 void network_tx_task(void) {
     if (!EK_bQueueIsEmpty(tx_queue)) {
         uint8_t tx_buffer[128];
-        size_t send_size = EK_sQueueGetSize(tx_queue);
+        EK_Size_t send_size = EK_sQueueGetSize(tx_queue);
         if (send_size > 128) send_size = 128;
         
         EK_rQueueDequeue(tx_queue, tx_buffer, send_size);
@@ -369,7 +369,7 @@ void log_init(void) {
 }
 
 void log_message(const char *message) {
-    size_t msg_len = strlen(message);
+    EK_Size_t msg_len = strlen(message);
     
     // 如果消息太长，截断
     if (msg_len > LOG_BUFFER_SIZE / 2) {
@@ -379,7 +379,7 @@ void log_message(const char *message) {
     // 确保有足够空间，必要时丢弃旧日志
     while (EK_sQueueGetRemain(&log_queue) < msg_len) {
         char temp[64];
-        size_t discard_size = (EK_sQueueGetSize(&log_queue) > 64) ? 64 : EK_sQueueGetSize(&log_queue);
+        EK_Size_t discard_size = (EK_sQueueGetSize(&log_queue) > 64) ? 64 : EK_sQueueGetSize(&log_queue);
         EK_rQueueDequeue(&log_queue, temp, discard_size);
     }
     
@@ -389,7 +389,7 @@ void log_message(const char *message) {
 void log_dump(void) {
     char buffer[256];
     while (!EK_bQueueIsEmpty(&log_queue)) {
-        size_t read_size = EK_sQueueGetSize(&log_queue);
+        EK_Size_t read_size = EK_sQueueGetSize(&log_queue);
         if (read_size > sizeof(buffer)) read_size = sizeof(buffer);
         
         EK_rQueueDequeue(&log_queue, buffer, read_size);
