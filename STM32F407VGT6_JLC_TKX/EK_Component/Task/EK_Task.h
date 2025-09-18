@@ -31,7 +31,7 @@ typedef enum
 
 typedef struct
 {
-    uint32_t Task_TrigTime; /**< 任务倒计时(高16位:设定值, 低16位:当前值) */
+    uint16_t Task_TrigTime; /**< 任务倒计时值(毫秒) */
     uint8_t Task_Info; /**< 任务状态(bit7:静态创建标志, bit6-1:保留, bit0:激活状态) */
     union
     {

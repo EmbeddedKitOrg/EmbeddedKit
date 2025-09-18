@@ -21,15 +21,6 @@
 #include "../MemPool/EK_MemPool.h"
 
 /* ========================= 宏定义区 ========================= */
-/**
- * @brief 任务倒计时操作宏定义
- * @note Task_TrigTime的高16位存储设定值，低16位存储当前值
- */
-#define TASK_SET_TRIG_TIME(set_val, cur_val)  (((uint32_t)(set_val) << 16) | ((uint32_t)(cur_val) & 0xFFFF))
-#define TASK_GET_SET_TIME(trig_time)          ((uint16_t)((trig_time) >> 16))
-#define TASK_GET_CUR_TIME(trig_time)          ((uint16_t)((trig_time) & 0xFFFF))
-#define TASK_SET_CUR_TIME(trig_time, cur_val) (((trig_time) & 0xFFFF0000) | ((uint32_t)(cur_val) & 0xFFFF))
-#define TASK_RESET_TIME(trig_time)            (((trig_time) & 0xFFFF0000) | (((trig_time) >> 16) & 0xFFFF))
 
 /**
  * @brief 任务状态操作宏定义
@@ -49,7 +40,7 @@
 
 /* 激活状态操作 */
 #define TASK_SET_ACTIVE(state)    ((state) | TASK_STATE_ACTIVE_MASK) /**< 设置为激活状态 */
-#define TASK_SET_SUSPENDED(state) ((state) & ~TASK_STATE_ACTIVE_MASK) /**< 设置为挂起状态 */
+#define TASK_SET_SUSPENDED(state) ((state) & (~TASK_STATE_ACTIVE_MASK)) /**< 设置为挂起状态 */
 #define TASK_IS_ACTIVE(state)     (((state) & TASK_STATE_ACTIVE_MASK) != 0) /**< 检查是否激活 */
 
 /* 综合操作 */
@@ -472,7 +463,7 @@ EK_Result_t EK_rTaskCreate_Dynamic(void (*pfunc)(void), uint8_t Priority, EK_pTa
     /*用户段*/
     *func_ptr = pfunc; // 将函数指针存储到内存池分配的空间中
     node->TaskHandler.TaskCallBack.DynamicCallBack = func_ptr; // 指向内存池中的函数指针
-    node->TaskHandler.Task_TrigTime = 0; // 初始化为0，需要通过rTaskDelay设置
+    node->TaskHandler.Task_TrigTime = 0; // 初始化为0，需要通过EK_rTaskDelay设置
     node->TaskHandler.Task_Priority = Priority;
 
     EK_Result_t result = r_task_insert_node(&WaitSchedule, node);
@@ -702,13 +693,15 @@ EK_Result_t EK_rTaskGetInfo(EK_pTaskHandler_t task_handler, EK_TaskInfo_t *task_
  * @brief 设置任务延时
  * @param delay_ms 延时时间(毫秒)
  * @return EK_Result_t 设置结果
- * @note 设置任务的触发间隔时间，高16位存储设定值，低16位存储当前值
+ * @note 设置任务的倒计时值，任务将在倒计时结束后执行
  */
 EK_Result_t EK_rTaskDelay(uint16_t delay_ms)
 {
     if (CurTaskHandler == NULL) return EK_NULL_POINTER;
 
-    CurTaskHandler->Task_TrigTime = TASK_SET_TRIG_TIME(delay_ms, delay_ms);
+    if (delay_ms > UINT16_MAX) delay_ms = UINT16_MAX;
+
+    CurTaskHandler->Task_TrigTime = delay_ms;
     return EK_OK;
 }
 
@@ -761,17 +754,13 @@ void EK_vTaskStart(uint32_t (*tick_get)(void))
                 }
 
                 // 获取当前倒计时值
-                uint16_t cur_time = TASK_GET_CUR_TIME(p->TaskHandler.Task_TrigTime);
-
-                if (cur_time > 0)
+                if (p->TaskHandler.Task_TrigTime > 0)
                 {
-                    cur_time--;
-                    // 更新当前倒计时值
-                    p->TaskHandler.Task_TrigTime = TASK_SET_CUR_TIME(p->TaskHandler.Task_TrigTime, cur_time);
+                    p->TaskHandler.Task_TrigTime--;
                 }
 
                 // 检查是否需要移动到运行链表（包括初始值为0和倒计时到0的情况）
-                if (cur_time == 0)
+                if (p->TaskHandler.Task_TrigTime == 0)
                 {
                     if (r_task_move_node(&WaitSchedule, &RunSchedule, p) != EK_OK)
                     {
@@ -803,7 +792,7 @@ void EK_vTaskStart(uint32_t (*tick_get)(void))
             if (TASK_IS_ACTIVE(ptr->TaskHandler.Task_Info) == false)
             {
                 // 任务已被挂起，直接将其移回等待链表，不执行
-                ptr->TaskHandler.Task_TrigTime = TASK_RESET_TIME(ptr->TaskHandler.Task_TrigTime);
+                // 挂起的任务不重置倒计时，保持当前值
                 if (r_task_move_node(&RunSchedule, &WaitSchedule, ptr) != EK_OK)
                 {
                     Task_Error(TASK_ERR_RUN_TO_WAIT);
@@ -860,8 +849,8 @@ void EK_vTaskStart(uint32_t (*tick_get)(void))
                 ptr->TaskHandler.Task_MaxUsed = diff_tick;
             }
 
-            // 重置倒计时为设定值
-            ptr->TaskHandler.Task_TrigTime = TASK_RESET_TIME(ptr->TaskHandler.Task_TrigTime);
+            // 任务执行完成后，倒计时保持为0，等待下次调用EK_rTaskDelay重新设置
+            // 不自动重置倒计时值
 
             // 尝试移动节点，如果失败说明节点已经不在运行链表中
             if (r_task_move_node(&RunSchedule, &WaitSchedule, ptr) != EK_OK)
