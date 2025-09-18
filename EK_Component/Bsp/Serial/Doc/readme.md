@@ -23,7 +23,7 @@ typedef struct
     EK_Node_t *Serial_Owner;                     // 拥有该结构的链表节点
     EK_Queue_t *Serial_Queue;                    // 数据缓冲队列
     uint8_t Serial_Timer;                        // 定时器
-    void (*Serial_SendCallBack)(void *, size_t); // 数据发送回调函数
+    void (*Serial_SendCallBack)(void *, EK_Size_t); // 数据发送回调函数
 } EK_SeiralQueue_t;
 ```
 
@@ -79,9 +79,9 @@ EK_Result_t EK_rSerialInit_Static(void);
 #### 动态创建串口队列
 ```c
 EK_Result_t EK_rSerialCreateQueue_Dyanmic(EK_pSeiralQueue_t *serial_fifo,
-                                          void (*send_func)(void *, size_t),
+                                          void (*send_func)(void *, EK_Size_t),
                                           uint16_t priority,
-                                          size_t capacity);
+                                          EK_Size_t capacity);
 ```
 - **功能**：动态创建串口队列实例
 - **参数**：
@@ -95,9 +95,9 @@ EK_Result_t EK_rSerialCreateQueue_Dyanmic(EK_pSeiralQueue_t *serial_fifo,
 ```c
 EK_Result_t EK_rSerialCreateQueue_Static(EK_pSeiralQueue_t serial_fifo, 
                                         void *buffer, 
-                                        void (*send_func)(void *, size_t), 
+                                        void (*send_func)(void *, EK_Size_t), 
                                         uint16_t priority, 
-                                        size_t capacity);
+                                        EK_Size_t capacity);
 ```
 - **功能**：使用用户提供的内存创建串口队列
 - **参数**：
@@ -152,15 +152,15 @@ EK_pSeiralQueue_t log_uart;      // 日志串口
 EK_pSeiralQueue_t cmd_uart;      // 命令串口
 
 // 硬件发送回调函数
-void debug_uart_send(void *data, size_t len) {
+void debug_uart_send(void *data, EK_Size_t len) {
     HAL_UART_Transmit(&huart1, (uint8_t*)data, len, HAL_MAX_DELAY);
 }
 
-void log_uart_send(void *data, size_t len) {
+void log_uart_send(void *data, EK_Size_t len) {
     HAL_UART_Transmit(&huart2, (uint8_t*)data, len, HAL_MAX_DELAY);
 }
 
-void cmd_uart_send(void *data, size_t len) {
+void cmd_uart_send(void *data, EK_Size_t len) {
     HAL_UART_Transmit(&huart3, (uint8_t*)data, len, HAL_MAX_DELAY);
 }
 

@@ -21,7 +21,7 @@ typedef struct
 {
     void *Stack_Mem;        // 栈内存起始地址
     void *Stack_TopPtr;     // 栈顶指针
-    size_t Stack_Capacity;  // 栈容量（字节数）
+    EK_Size_t Stack_Capacity;  // 栈容量（字节数）
     bool Stack_isDynamic;   // 动态创建标志
 } EK_Stack_t;
 ```
@@ -38,7 +38,7 @@ typedef struct
 
 #### 动态栈创建
 ```c
-EK_Stack_t *EK_pStackCreate_Dynamic(size_t capacity);
+EK_Stack_t *EK_pStackCreate_Dynamic(EK_Size_t capacity);
 ```
 - **功能**：动态分配内存创建栈
 - **参数**：`capacity` - 栈容量（字节数）
@@ -47,7 +47,7 @@ EK_Stack_t *EK_pStackCreate_Dynamic(size_t capacity);
 
 #### 静态栈创建
 ```c
-EK_Result_t EK_rStackCreate_Static(EK_Stack_t *stack, void *mem_ptr, size_t capacity);
+EK_Result_t EK_rStackCreate_Static(EK_Stack_t *stack, void *mem_ptr, EK_Size_t capacity);
 ```
 - **功能**：使用用户提供的内存初始化栈
 - **参数**：
@@ -82,7 +82,7 @@ bool EK_bStackIsFull(EK_Stack_t *stack);
 
 #### 获取剩余空间
 ```c
-size_t EK_sStackGetRemain(EK_Stack_t *stack);
+EK_Size_t EK_sStackGetRemain(EK_Stack_t *stack);
 ```
 - **功能**：获取栈剩余可用空间
 - **返回值**：剩余字节数
@@ -91,7 +91,7 @@ size_t EK_sStackGetRemain(EK_Stack_t *stack);
 
 #### 入栈操作
 ```c
-EK_Result_t EK_rStackPush(EK_Stack_t *stack, void *data, size_t data_size);
+EK_Result_t EK_rStackPush(EK_Stack_t *stack, void *data, EK_Size_t data_size);
 ```
 - **功能**：向栈顶压入数据
 - **参数**：
@@ -105,7 +105,7 @@ EK_Result_t EK_rStackPush(EK_Stack_t *stack, void *data, size_t data_size);
 
 #### 出栈操作
 ```c
-EK_Result_t EK_rStackPop(EK_Stack_t *stack, void *data_buffer, size_t data_size);
+EK_Result_t EK_rStackPop(EK_Stack_t *stack, void *data_buffer, EK_Size_t data_size);
 ```
 - **功能**：从栈顶弹出数据
 - **参数**：
@@ -348,14 +348,14 @@ bool restore_context(CPU_Context_t *context) {
 // 内存分配记录
 typedef struct {
     void *ptr;
-    size_t size;
+    EK_Size_t size;
     uint32_t alloc_time;
 } MemAlloc_t;
 
 EK_Stack_t *alloc_stack = EK_pStackCreate_Dynamic(sizeof(MemAlloc_t) * 32);
 
 // 跟踪内存分配
-void *tracked_malloc(size_t size) {
+void *tracked_malloc(EK_Size_t size) {
     void *ptr = malloc(size);
     if (ptr != NULL) {
         MemAlloc_t record = {

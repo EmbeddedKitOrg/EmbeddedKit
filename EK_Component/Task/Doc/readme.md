@@ -71,7 +71,7 @@ typedef struct {
     bool isStatic;          // 是否静态创建
     uint8_t Priority;       // 任务优先级
     uint16_t MaxUsedTime;   // 最大执行时间
-    size_t Memory;          // 占用内存大小
+    EK_Size_t Memory;          // 占用内存大小
     EK_TaskState_t state;   // 当前状态
 } EK_TaskInfo_t;
 ```
@@ -187,7 +187,7 @@ EK_Result_t EK_rTaskGetInfo(EK_pTaskHandler_t task_handler, EK_TaskInfo_t *task_
 
 #### 内存使用查询
 ```c
-size_t EK_sTaskGetFreeMemory(void);
+EK_Size_t EK_sTaskGetFreeMemory(void);
 ```
 - **功能**：获取任务系统剩余内存
 - **返回值**：内存池剩余字节数

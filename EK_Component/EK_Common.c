@@ -16,20 +16,20 @@
  * @param bytes 拷贝字节数
  * @note 针对嵌入式系统优化，支持重叠内存区域
  */
-void EK_vMemCpy(void *p_dst, const void *p_src, size_t bytes)
+void EK_vMemCpy(void *p_dst, const void *p_src, EK_Size_t bytes)
 {
     if (p_dst == NULL || p_src == NULL || bytes == 0) return;
-    
+
     uint8_t *temp_dst = (uint8_t *)p_dst;
     const uint8_t *temp_src = (const uint8_t *)p_src;
-    
+
     // 检测内存重叠，选择拷贝方向
     if (temp_dst > temp_src && temp_dst < temp_src + bytes)
     {
         // 从后往前拷贝，防止覆盖
         temp_dst += bytes - 1;
         temp_src += bytes - 1;
-        for (size_t i = 0; i < bytes; i++)
+        for (EK_Size_t i = 0; i < bytes; i++)
         {
             *temp_dst-- = *temp_src--;
         }
@@ -37,7 +37,7 @@ void EK_vMemCpy(void *p_dst, const void *p_src, size_t bytes)
     else
     {
         // 从前往后拷贝
-        for (size_t i = 0; i < bytes; i++)
+        for (EK_Size_t i = 0; i < bytes; i++)
         {
             temp_dst[i] = temp_src[i];
         }
@@ -50,12 +50,12 @@ void EK_vMemCpy(void *p_dst, const void *p_src, size_t bytes)
  * @param value 要设置的值
  * @param bytes 设置字节数
  */
-void EK_vMemSet(void *p_dst, uint8_t value, size_t bytes)
+void EK_vMemSet(void *p_dst, uint8_t value, EK_Size_t bytes)
 {
     if (p_dst == NULL || bytes == 0) return;
-    
+
     uint8_t *temp_dst = (uint8_t *)p_dst;
-    for (size_t i = 0; i < bytes; i++)
+    for (EK_Size_t i = 0; i < bytes; i++)
     {
         temp_dst[i] = value;
     }
@@ -71,14 +71,14 @@ void EK_vMemSet(void *p_dst, uint8_t value, size_t bytes)
  * @retval >0 buf1 > buf2
  * @retval <0 buf1 < buf2
  */
-int EK_iMemCmp(const void *p_buf1, const void *p_buf2, size_t bytes)
+int EK_iMemCmp(const void *p_buf1, const void *p_buf2, EK_Size_t bytes)
 {
     if (p_buf1 == NULL || p_buf2 == NULL) return 0;
-    
+
     const uint8_t *temp_buf1 = (const uint8_t *)p_buf1;
     const uint8_t *temp_buf2 = (const uint8_t *)p_buf2;
-    
-    for (size_t i = 0; i < bytes; i++)
+
+    for (EK_Size_t i = 0; i < bytes; i++)
     {
         if (temp_buf1[i] != temp_buf2[i])
         {
@@ -93,13 +93,13 @@ int EK_iMemCmp(const void *p_buf1, const void *p_buf2, size_t bytes)
 /**
  * @brief 字符串长度计算
  * @param p_str 字符串指针
- * @return size_t 字符串长度
+ * @return EK_Size_t 字符串长度
  */
-size_t EK_sStrLen(const char *p_str)
+EK_Size_t EK_sStrLen(const char *p_str)
 {
     if (p_str == NULL) return 0;
-    
-    size_t len = 0;
+
+    EK_Size_t len = 0;
     while (p_str[len] != '\0')
     {
         len++;
@@ -111,13 +111,13 @@ size_t EK_sStrLen(const char *p_str)
  * @brief 安全字符串长度计算
  * @param p_str 字符串指针
  * @param max_len 最大长度限制
- * @return size_t 字符串长度
+ * @return EK_Size_t 字符串长度
  */
-size_t EK_sStrNLen(const char *p_str, size_t max_len)
+EK_Size_t EK_sStrNLen(const char *p_str, EK_Size_t max_len)
 {
     if (p_str == NULL) return 0;
-    
-    size_t len = 0;
+
+    EK_Size_t len = 0;
     while (len < max_len && p_str[len] != '\0')
     {
         len++;
@@ -134,8 +134,8 @@ size_t EK_sStrNLen(const char *p_str, size_t max_len)
 char *EK_pStrCpy(char *p_dst, const char *p_src)
 {
     if (p_dst == NULL || p_src == NULL) return p_dst;
-    
-    size_t i = 0;
+
+    EK_Size_t i = 0;
     while ((p_dst[i] = p_src[i]) != '\0')
     {
         i++;
@@ -150,11 +150,11 @@ char *EK_pStrCpy(char *p_dst, const char *p_src)
  * @param max_len 最大拷贝长度
  * @return char* 目标字符串指针
  */
-char *EK_pStrNCpy(char *p_dst, const char *p_src, size_t max_len)
+char *EK_pStrNCpy(char *p_dst, const char *p_src, EK_Size_t max_len)
 {
     if (p_dst == NULL || p_src == NULL || max_len == 0) return p_dst;
-    
-    size_t i;
+
+    EK_Size_t i;
     for (i = 0; i < max_len - 1 && p_src[i] != '\0'; i++)
     {
         p_dst[i] = p_src[i];
@@ -175,13 +175,13 @@ char *EK_pStrNCpy(char *p_dst, const char *p_src, size_t max_len)
 int EK_iStrCmp(const char *p_str1, const char *p_str2)
 {
     if (p_str1 == NULL || p_str2 == NULL) return 0;
-    
+
     while (*p_str1 && (*p_str1 == *p_str2))
     {
         p_str1++;
         p_str2++;
     }
-    return *(const uint8_t*)p_str1 - *(const uint8_t*)p_str2;
+    return *(const uint8_t *)p_str1 - *(const uint8_t *)p_str2;
 }
 
 /**
@@ -191,15 +191,15 @@ int EK_iStrCmp(const char *p_str1, const char *p_str2)
  * @param max_len 最大比较长度
  * @return int 比较结果
  */
-int EK_iStrNCmp(const char *p_str1, const char *p_str2, size_t max_len)
+int EK_iStrNCmp(const char *p_str1, const char *p_str2, EK_Size_t max_len)
 {
     if (p_str1 == NULL || p_str2 == NULL || max_len == 0) return 0;
-    
-    for (size_t i = 0; i < max_len; i++)
+
+    for (EK_Size_t i = 0; i < max_len; i++)
     {
         if (p_str1[i] != p_str2[i] || p_str1[i] == '\0')
         {
-            return *(const uint8_t*)&p_str1[i] - *(const uint8_t*)&p_str2[i];
+            return *(const uint8_t *)&p_str1[i] - *(const uint8_t *)&p_str2[i];
         }
     }
     return 0;
@@ -214,15 +214,15 @@ int EK_iStrNCmp(const char *p_str1, const char *p_str2, size_t max_len)
 char *EK_pStrCat(char *p_dst, const char *p_src)
 {
     if (p_dst == NULL || p_src == NULL) return p_dst;
-    
+
     char *p_temp = p_dst;
     while (*p_temp != '\0')
     {
         p_temp++;
     }
-    
+
     while ((*p_temp++ = *p_src++) != '\0');
-    
+
     return p_dst;
 }
 
@@ -235,21 +235,21 @@ char *EK_pStrCat(char *p_dst, const char *p_src)
 char *EK_pStrChr(const char *p_str, int ch)
 {
     if (p_str == NULL) return NULL;
-    
+
     while (*p_str != '\0')
     {
         if (*p_str == (char)ch)
         {
-            return (char*)p_str;
+            return (char *)p_str;
         }
         p_str++;
     }
-    
+
     if (ch == '\0')
     {
-        return (char*)p_str;
+        return (char *)p_str;
     }
-    
+
     return NULL;
 }
 
@@ -265,17 +265,17 @@ char *EK_pStrChr(const char *p_str, int ch)
 char *EK_pItoA(int value, char *p_str, int base)
 {
     if (p_str == NULL || base < 2 || base > 36) return NULL;
-    
+
     char *p_temp = p_str;
     int temp_val = value;
     bool is_negative = false;
-    
+
     if (value < 0 && base == 10)
     {
         is_negative = true;
         temp_val = -value;
     }
-    
+
     // 处理0的特殊情况
     if (temp_val == 0)
     {
@@ -283,7 +283,7 @@ char *EK_pItoA(int value, char *p_str, int base)
         *p_temp = '\0';
         return p_str;
     }
-    
+
     // 转换数字
     while (temp_val > 0)
     {
@@ -291,14 +291,14 @@ char *EK_pItoA(int value, char *p_str, int base)
         *p_temp++ = (digit < 10) ? ('0' + digit) : ('a' + digit - 10);
         temp_val /= base;
     }
-    
+
     if (is_negative)
     {
         *p_temp++ = '-';
     }
-    
+
     *p_temp = '\0';
-    
+
     // 反转字符串
     char *p_start = p_str;
     char *p_end = p_temp - 1;
@@ -308,7 +308,7 @@ char *EK_pItoA(int value, char *p_str, int base)
         *p_start++ = *p_end;
         *p_end-- = temp_char;
     }
-    
+
     return p_str;
 }
 
@@ -320,16 +320,16 @@ char *EK_pItoA(int value, char *p_str, int base)
 int EK_iAtoI(const char *p_str)
 {
     if (p_str == NULL) return 0;
-    
+
     int result = 0;
     int sign = 1;
-    
+
     // 跳过空白字符
     while (*p_str == ' ' || *p_str == '\t' || *p_str == '\n')
     {
         p_str++;
     }
-    
+
     // 处理符号
     if (*p_str == '-')
     {
@@ -340,14 +340,14 @@ int EK_iAtoI(const char *p_str)
     {
         p_str++;
     }
-    
+
     // 转换数字
     while (*p_str >= '0' && *p_str <= '9')
     {
         result = result * 10 + (*p_str - '0');
         p_str++;
     }
-    
+
     return sign * result;
 }
 
@@ -408,12 +408,12 @@ bool EK_bTestBit(uint32_t data, uint8_t bit_pos)
  * @param length 数据长度
  * @return uint8_t 校验和
  */
-uint8_t EK_u8CheckSum(const uint8_t *p_data, size_t length)
+uint8_t EK_u8CheckSum(const uint8_t *p_data, EK_Size_t length)
 {
     if (p_data == NULL) return 0;
-    
+
     uint8_t checksum = 0;
-    for (size_t i = 0; i < length; i++)
+    for (EK_Size_t i = 0; i < length; i++)
     {
         checksum += p_data[i];
     }
@@ -426,12 +426,12 @@ uint8_t EK_u8CheckSum(const uint8_t *p_data, size_t length)
  * @param length 数据长度
  * @return uint8_t 异或校验值
  */
-uint8_t EK_u8XorCheck(const uint8_t *p_data, size_t length)
+uint8_t EK_u8XorCheck(const uint8_t *p_data, EK_Size_t length)
 {
     if (p_data == NULL) return 0;
-    
+
     uint8_t xor_result = 0;
-    for (size_t i = 0; i < length; i++)
+    for (EK_Size_t i = 0; i < length; i++)
     {
         xor_result ^= p_data[i];
     }
