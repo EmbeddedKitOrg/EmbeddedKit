@@ -39,7 +39,7 @@ EK_MemPool 是一个仿照 FreeRTOS heap4 设计思路实现的高效内存池�
 typedef struct MemBlock
 {
     struct MemBlock *MemPool_NextFree; // 指向下一个空闲块
-    size_t MemPool_BlockSize;          // 块大小，最高位用作分配标记
+    EK_Size_t MemPool_BlockSize;          // 块大小，最高位用作分配标记
 } MemBlock_t;
 ```
 
@@ -47,11 +47,11 @@ typedef struct MemBlock
 ```c
 typedef struct
 {
-    size_t Pool_TotalSize;      // 内存池总大小
-    size_t Pool_FreeBytes;      // 当前可用字节数
-    size_t Pool_MinFreeBytes;  // 历史最小可用字节数
-    size_t Pool_AllocCount;     // 分配次数统计
-    size_t Pool_FreeCount;      // 释放次数统计
+    EK_Size_t Pool_TotalSize;      // 内存池总大小
+    EK_Size_t Pool_FreeBytes;      // 当前可用字节数
+    EK_Size_t Pool_MinFreeBytes;  // 历史最小可用字节数
+    EK_Size_t Pool_AllocCount;     // 分配次数统计
+    EK_Size_t Pool_FreeCount;      // 释放次数统计
 } PoolStats_t;
 ```
 
@@ -61,7 +61,7 @@ typedef struct
 
 #### 内存分配
 ```c
-void *EK_pMemPool_Malloc(size_t size);
+void *EK_pMemPool_Malloc(EK_Size_t size);
 ```
 - **功能**：从内存池分配指定大小的内存
 - **参数**：`size` - 需要分配的字节数
@@ -113,7 +113,7 @@ if (free_success) {
 
 #### 获取剩余内存
 ```c
-size_t EK_sMemPool_GetFreeSize(void);
+EK_Size_t EK_sMemPool_GetFreeSize(void);
 ```
 - **功能**：获取当前可用内存大小
 - **返回值**：剩余字节数
@@ -262,7 +262,7 @@ void destroy_node(EK_Node_t *node) {
 ### 2. 临时缓冲区管理
 ```c
 // 数据处理缓冲区
-void process_data(uint8_t *input, size_t len) {
+void process_data(uint8_t *input, EK_Size_t len) {
     // 分配临时工作缓冲区
     uint8_t *work_buffer = (uint8_t*)EK_pMemPool_Malloc(len * 2);
     if (!work_buffer) {
@@ -283,11 +283,11 @@ void process_data(uint8_t *input, size_t len) {
 ```c
 typedef struct Message {
     uint32_t msg_id;
-    size_t data_len;
+    EK_Size_t data_len;
     uint8_t data[];
 } Message_t;
 
-Message_t *create_message(uint32_t id, void *data, size_t len) {
+Message_t *create_message(uint32_t id, void *data, EK_Size_t len) {
     Message_t *msg = (Message_t*)EK_pMemPool_Malloc(sizeof(Message_t) + len);
     if (msg) {
         msg->msg_id = id;

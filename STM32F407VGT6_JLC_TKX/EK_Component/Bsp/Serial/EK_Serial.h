@@ -10,7 +10,7 @@
 #ifndef __EK_SERIAL_H
 #define __EK_SERIAL_H
 
-#include "../../EK_Common.h"
+#include "../../EK_Config.h"
 #include "../../DataStruct/Queue/EK_Queue.h"
 #include "../../DataStruct/List/EK_List.h"
 
@@ -33,8 +33,8 @@ typedef struct
     bool Serial_IsDynamic; /**< 动态创建标志位 */
     union
     {
-        void (*StaticCallBack)(void *, size_t); /**< 静态回调函数 */
-        void (**DynamicCallBack)(void *, size_t); /**< 动态回调函数 */
+        void (*StaticCallBack)(void *, EK_Size_t); /**< 静态回调函数 */
+        void (**DynamicCallBack)(void *, EK_Size_t); /**< 动态回调函数 */
     } Serial_SendCallBack; /**< 数据发送回调函数 */
 } EK_SeiralQueue_t;
 
@@ -44,11 +44,14 @@ typedef EK_SeiralQueue_t *EK_pSeiralQueue_t; // EK_SeiralQueue_t的句柄(aka *E
 EK_Result_t EK_rSerialInit_Dynamic(void);
 EK_Result_t EK_rSerialInit_Static(void);
 EK_Result_t EK_rSerialCreateQueue_Dyanmic(EK_pSeiralQueue_t *serial_fifo,
-                                          void (*send_func)(void *, size_t),
+                                          void (*send_func)(void *, EK_Size_t),
                                           uint16_t priority,
-                                          size_t capacity);
-EK_Result_t EK_rSerialCreateQueue_Static(
-    EK_pSeiralQueue_t serial_fifo, void *buffer, void (*send_func)(void *, size_t), uint16_t priority, size_t capacity);
+                                          EK_Size_t capacity);
+EK_Result_t EK_rSerialCreateQueue_Static(EK_pSeiralQueue_t serial_fifo,
+                                         void *buffer,
+                                         void (*send_func)(void *, EK_Size_t),
+                                         uint16_t priority,
+                                         EK_Size_t capacity);
 EK_Result_t EK_rSerialPrintf(EK_pSeiralQueue_t serial_fifo, const char *format, ...);
 EK_Result_t EK_rSerialPoll(uint32_t (*get_tick)(void));
 EK_Result_t EK_rSerialDeleteQueue(EK_pSeiralQueue_t serial_fifo);

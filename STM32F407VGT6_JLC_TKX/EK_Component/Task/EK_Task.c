@@ -715,9 +715,9 @@ EK_Result_t EK_rTaskDelay(uint16_t delay_ms)
 /**
  * @brief 获取内存池剩余字节数
  * 
- * @return size_t 剩余的可用字节数
+ * @return EK_Size_t 剩余的可用字节数
  */
-size_t EK_sTaskGetFreeMemory(void)
+EK_Size_t EK_sTaskGetFreeMemory(void)
 {
     return EK_sMemPool_GetFreeSize();
 }

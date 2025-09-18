@@ -30,7 +30,7 @@ void Task_LED(void);
 void Task_Key(void);
 void Task_ComponentTest(void);
 
-void Send(void *data, size_t size)
+void Send(void *data, EK_Size_t size)
 {
     HAL_UART_Transmit_DMA(&huart1, data, size);
 }

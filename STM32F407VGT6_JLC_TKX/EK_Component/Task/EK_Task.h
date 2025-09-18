@@ -10,7 +10,7 @@
 #ifndef __EK_TASK_H
 #define __EK_TASK_H
 
-#include "../EK_Common.h"
+#include "../EK_Config.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -61,7 +61,7 @@ typedef struct
     bool isStatic; /**< 任务是否静态创建 */
     uint8_t Priority; /**< 任务优先级 */
     uint16_t MaxUsedTime; /**< 任务最大消耗时间(ms) */
-    size_t Memory; /**< 任务占用的内存字节数 */
+    EK_Size_t Memory; /**< 任务占用的内存字节数 */
     EK_TaskState_t state; /**< 任务当前状态 */
 } EK_TaskInfo_t;
 
@@ -78,7 +78,7 @@ EK_Result_t EK_rTaskResume(EK_pTaskHandler_t task_handler);
 EK_Result_t EK_rTaskDelay(uint16_t delay_ms);
 EK_Result_t EK_rTaskSetPriority(EK_pTaskHandler_t task_handler, uint8_t Priority);
 EK_Result_t EK_rTaskGetInfo(EK_pTaskHandler_t task_handler, EK_TaskInfo_t *task_info);
-size_t EK_sTaskGetFreeMemory(void);
+EK_Size_t EK_sTaskGetFreeMemory(void);
 void EK_vTaskStart(uint32_t (*tick_get)(void));
 
 #ifdef __cplusplus

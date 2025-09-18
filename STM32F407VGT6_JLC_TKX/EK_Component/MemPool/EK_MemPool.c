@@ -65,8 +65,8 @@ static bool pool_initialized = false;
 /* ========================= 内部函数前置声明区 ========================= */
 static void v_init_heap(void);
 static void v_insert_free_block(MemBlock_t *block_to_insert);
-static MemBlock_t *p_find_suitable_block(size_t wanted_size);
-static void v_split_block(MemBlock_t *block, size_t wanted_size);
+static MemBlock_t *p_find_suitable_block(EK_Size_t wanted_size);
+static void v_split_block(MemBlock_t *block, EK_Size_t wanted_size);
 static void v_merge_blocks(void *ptr);
 
 /* ========================= 内部函数定义区 ========================= */
@@ -80,14 +80,14 @@ static void v_init_heap(void)
 {
     MemBlock_t *first_block;
     uint8_t *aligned_heap;
-    size_t heap_size = MEMPOOL_SIZE;
-    size_t total_heap_size;
+    EK_Size_t heap_size = MEMPOOL_SIZE;
+    EK_Size_t total_heap_size;
 
     // 确保堆起始地址对齐
-    aligned_heap = (uint8_t *)ALIGN_UP((size_t)heap_memory);
+    aligned_heap = (uint8_t *)ALIGN_UP((EK_Size_t)heap_memory);
 
     // 调整堆大小以考虑对齐损失
-    total_heap_size = heap_size - ((size_t)aligned_heap - (size_t)heap_memory);
+    total_heap_size = heap_size - ((EK_Size_t)aligned_heap - (EK_Size_t)heap_memory);
 
     // 创建起始标记块
     free_list_start.MemPool_NextFree = (MemBlock_t *)aligned_heap;
@@ -172,7 +172,7 @@ static inline void v_insert_free_block(MemBlock_t *block_to_insert)
  * @retval 找到的块指针，NULL表示未找到
  * @note 使用首次适应算法
  */
-static inline MemBlock_t *p_find_suitable_block(size_t wanted_size)
+static inline MemBlock_t *p_find_suitable_block(EK_Size_t wanted_size)
 {
     MemBlock_t *current, *prev = &free_list_start;
 
@@ -200,10 +200,10 @@ static inline MemBlock_t *p_find_suitable_block(size_t wanted_size)
  * @retval 无
  * @note 如果剩余部分足够大，将其作为新的空闲块
  */
-static inline void v_split_block(MemBlock_t *block, size_t wanted_size)
+static inline void v_split_block(MemBlock_t *block, EK_Size_t wanted_size)
 {
     MemBlock_t *new_block;
-    size_t MemPool_BlockSize = GET_SIZE(block->MemPool_BlockSize);
+    EK_Size_t MemPool_BlockSize = GET_SIZE(block->MemPool_BlockSize);
 
     // 检查剩余部分是否足够大以形成新的空闲块
     if ((MemPool_BlockSize - wanted_size) > MIN_BLOCK_SIZE)
@@ -232,7 +232,7 @@ static inline void v_merge_blocks(void *ptr)
     MemBlock_t *block = (MemBlock_t *)((uint8_t *)ptr - sizeof(MemBlock_t));
     MemBlock_t *next_block;
     MemBlock_t *current, *prev;
-    size_t MemPool_BlockSize;
+    EK_Size_t MemPool_BlockSize;
 
     // 设置为空闲状态
     block->MemPool_BlockSize = SET_FREE(block->MemPool_BlockSize);
@@ -268,7 +268,7 @@ static inline void v_merge_blocks(void *ptr)
     current = free_list_start.MemPool_NextFree;
     while (current != NULL && current != free_list_end)
     {
-        size_t current_size = GET_SIZE(current->MemPool_BlockSize);
+        EK_Size_t current_size = GET_SIZE(current->MemPool_BlockSize);
         MemBlock_t *current_next = (MemBlock_t *)((uint8_t *)current + current_size);
 
         // 如果找到了前驱块
@@ -298,11 +298,11 @@ static inline void v_merge_blocks(void *ptr)
  * @retval NULL 分配失败
  * @note 使用首次适应算法查找合适的空闲块
  */
-void *EK_pMemPool_Malloc(size_t size)
+void *EK_pMemPool_Malloc(EK_Size_t size)
 {
     MemBlock_t *block;
     void *return_ptr = NULL;
-    size_t wanted_size;
+    EK_Size_t wanted_size;
 
     // 检查内存池是否已初始化
     if (!pool_initialized)
@@ -367,7 +367,7 @@ void *EK_pMemPool_Malloc(size_t size)
 bool EK_bMemPool_Free(void *ptr)
 {
     MemBlock_t *block;
-    size_t MemPool_BlockSize;
+    EK_Size_t MemPool_BlockSize;
 
     // 参数检查
     if (ptr == NULL || !pool_initialized)
@@ -397,6 +397,23 @@ bool EK_bMemPool_Free(void *ptr)
     return true;
 }
 
+/**
+ * @brief 安全释放宏
+ * @note 释放成功后会把对应的指针设置为NULL
+ * @param ptr 
+ */
+void EK_vMemPool_FreeSafely(void *ptr)
+{
+    if (ptr != NULL)
+    {
+        if (EK_bMemPool_Free(ptr) == true)
+        {
+            ptr = NULL;
+        }
+        else return;
+    }
+}
+
 /* ========================= 统计和诊断函数区 ========================= */
 
 /**
@@ -417,7 +434,7 @@ void EK_vMemPool_GetStats(PoolStats_t *stats)
  * @param 无
  * @retval 剩余可用字节数
  */
-size_t EK_sMemPool_GetFreeSize(void)
+EK_Size_t EK_sMemPool_GetFreeSize(void)
 {
     return pool_initialized ? pool_statistics.Pool_FreeBytes : 0;
 }
@@ -431,7 +448,7 @@ size_t EK_sMemPool_GetFreeSize(void)
 bool EK_bMemPool_CheckIntegrity(void)
 {
     MemBlock_t *current;
-    size_t total_free = 0;
+    EK_Size_t total_free = 0;
     uint32_t block_count = 0;
 
     if (!pool_initialized)

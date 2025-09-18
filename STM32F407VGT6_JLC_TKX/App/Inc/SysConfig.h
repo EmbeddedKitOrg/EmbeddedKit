@@ -2,12 +2,7 @@
 #define __SysConfig_h
 
 /*STD C*/
-#include <stdio.h>
-#include <string.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <stdint.h>
+#include "EK_Common.h"
 
 /*Math*/
 #include <math.h>

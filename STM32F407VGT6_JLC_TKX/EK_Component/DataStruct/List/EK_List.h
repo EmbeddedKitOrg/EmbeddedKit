@@ -10,7 +10,7 @@
 #ifndef __EK_LIST_H
 #define __EK_LIST_H
 
-#include "../../EK_Common.h"
+#include "../../EK_Config.h"
 
 #ifdef __cplusplus
 extern "C"
