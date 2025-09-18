@@ -64,11 +64,6 @@ typedef unsigned char bool;
 #define true  (1 == 1)
 #endif
 
-#ifdef __cpluscplus
-extern "C"
-{
-#endif
-
 /* 数据类型定义 */
 #ifndef __STDINT_H
 #ifndef _STDINT_H
@@ -108,6 +103,11 @@ typedef unsigned long long uint64_t;
 #endif /* _STDINT_H */
 #endif /* __STDINT_H */
 
+#ifdef __cpluscplus
+extern "C"
+{
+#endif
+
 /**
  * @brief EmbeddedKit 全局统一状态枚举
  * @details 所有模块统一使用此枚举返回操作状态
@@ -130,7 +130,7 @@ typedef enum
 } EK_Result_t;
 
 typedef uint32_t index_t; //  索引类型定义
-typedef uint32_t EK_Size_t; // size大小类型，修正为数值类型
+typedef unsigned int EK_Size_t; // size大小类型，修正为数值类型
 
 /* ========================= 函数声明区 ========================= */
 

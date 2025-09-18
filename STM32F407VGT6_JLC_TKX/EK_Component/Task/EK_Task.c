@@ -29,28 +29,19 @@
  *       - bit6-bit1:   保留位
  *       - 最低位(bit0): 是否激活 (1=激活, 0=挂起)
  */
-#define TASK_STATE_STATIC_MASK   (0x80) /**< 静态创建标志位掩码 */
-#define TASK_STATE_ACTIVE_MASK   (0x01) /**< 激活状态掩码 */
-#define TASK_STATE_RESERVED_MASK (0x7E) /**< 保留位掩码 */
 
 /* 静态创建标志操作 */
-#define TASK_SET_STATIC(state)  ((state) | TASK_STATE_STATIC_MASK) /**< 设置为静态创建 */
-#define TASK_SET_DYNAMIC(state) ((state) & ~TASK_STATE_STATIC_MASK) /**< 设置为动态创建 */
-#define TASK_IS_STATIC(state)   (((state) & TASK_STATE_STATIC_MASK) != 0) /**< 检查是否静态创建 */
+#define TASK_SET_STATIC(state)  ((state) | 0x80) /**< 设置为静态创建 */
+#define TASK_SET_DYNAMIC(state) ((state) & ~0x80) /**< 设置为动态创建 */
+#define TASK_IS_STATIC(state)   (((state) & 0x80) != 0) /**< 检查是否静态创建 */
 
 /* 激活状态操作 */
-#define TASK_SET_ACTIVE(state)    ((state) | TASK_STATE_ACTIVE_MASK) /**< 设置为激活状态 */
-#define TASK_SET_SUSPENDED(state) ((state) & (~TASK_STATE_ACTIVE_MASK)) /**< 设置为挂起状态 */
-#define TASK_IS_ACTIVE(state)     (((state) & TASK_STATE_ACTIVE_MASK) != 0) /**< 检查是否激活 */
+#define TASK_SET_ACTIVE(state)    ((state) | 0x01) /**< 设置为激活状态 */
+#define TASK_SET_SUSPENDED(state) ((state) & ~0x01) /**< 设置为挂起状态 */
+#define TASK_IS_ACTIVE(state)     (((state) & 0x01) != 0) /**< 检查是否激活 */
 
 /* 综合操作 */
-#define TASK_INIT_STATE(is_static, is_active) \
-    ((is_static) ? TASK_STATE_STATIC_MASK : 0) | ((is_active) ? TASK_STATE_ACTIVE_MASK : 0)
-
-/* 兼容性宏定义 - 用于替换原有的bool操作 */
-#define TASK_GET_ACTIVE_STATE(handler) TASK_IS_ACTIVE((handler)->Task_Info)
-#define TASK_ACTIVATE(handler)         ((handler)->Task_Info = TASK_SET_ACTIVE((handler)->Task_Info))
-#define TASK_SUSPEND(handler)          ((handler)->Task_Info = TASK_SET_SUSPENDED((handler)->Task_Info))
+#define TASK_INIT_STATE(is_static, is_active) ((is_static) ? 0x80 : 0) | ((is_active) ? 0x01 : 0)
 
 /**
  * @brief 任务调度器错误代码枚举
