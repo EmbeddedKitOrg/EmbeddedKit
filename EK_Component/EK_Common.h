@@ -129,8 +129,7 @@ typedef enum
     EK_NULL_POINTER = -12 /*!< 空指针错误 */
 } EK_Result_t;
 
-typedef uint32_t index_t; //  索引类型定义
-typedef unsigned int EK_Size_t; // size大小类型，修正为数值类型
+typedef uint32_t EK_Size_t; // size大小类型，修正为数值类型
 
 /* ========================= 函数声明区 ========================= */
 

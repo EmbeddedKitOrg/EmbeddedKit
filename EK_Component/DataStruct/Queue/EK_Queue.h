@@ -21,8 +21,8 @@ extern "C"
 typedef struct EK_Queue_t
 {
     void *Queue_Buf; /**< 队列缓冲区 */
-    index_t Queue_Front; /**< 第一个元素的索引 待出队的元素索引 */
-    index_t Queue_Rear; /**< 最后一个元素的下一个位置的索引 */
+    uint16_t Queue_Front; /**< 第一个元素的索引 待出队的元素索引 */
+    uint16_t Queue_Rear; /**< 最后一个元素的下一个位置的索引 */
     EK_Size_t Queue_Size; /**< 当前的元素个数 */
     EK_Size_t Queue_Capacity; /**< 队列容量 */
     bool Queue_isDynamic; /**< 判断是否是动态创建的队列 */
