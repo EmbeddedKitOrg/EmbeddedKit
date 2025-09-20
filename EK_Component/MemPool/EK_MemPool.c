@@ -398,7 +398,7 @@ bool EK_bMemPool_Free(void *ptr)
 }
 
 /**
- * @brief 安全释放宏
+ * @brief 安全释放
  * @note 释放成功后会把对应的指针设置为NULL
  * @param ptr 
  */

@@ -41,6 +41,24 @@
 #endif
 #endif
 
+/*
+裸函数宏
+具体来说，当一个函数被声明为 naked 时，编译器不会为它生成：
+  1.  函数前奏（Prologue）: 通常是保存调用者寄存器（如LR）、设置堆栈指针等代码。
+  2.  函数尾声（Epilogue）: 通常是恢复寄存器、清理堆栈、返回等代码。
+*/
+#ifndef __naked
+#if defined(__GNUC__) || defined(__clang__)
+#define __naked __attribute__((naked))
+#elif defined(__IAR_SYSTEMS_ICC__)
+#define __naked __naked
+#elif defined(__CC_ARM) || defined(__ARMCC_VERSION)
+#define __naked __declspec(naked)
+#else
+#define __naked
+#endif
+#endif
+
 /*未使用变量宏*/
 #if defined(__GNUC__) || defined(__clang__)
 #define UNUSED_VAR(x) ((void)(x))
