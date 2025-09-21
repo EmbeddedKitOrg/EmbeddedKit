@@ -397,23 +397,6 @@ bool EK_bMemPool_Free(void *ptr)
     return true;
 }
 
-/**
- * @brief 安全释放
- * @note 释放成功后会把对应的指针设置为NULL
- * @param ptr 
- */
-void EK_vMemPool_FreeSafely(void *ptr)
-{
-    if (ptr != NULL)
-    {
-        if (EK_bMemPool_Free(ptr) == true)
-        {
-            ptr = NULL;
-        }
-        else return;
-    }
-}
-
 /* ========================= 统计和诊断函数区 ========================= */
 
 /**

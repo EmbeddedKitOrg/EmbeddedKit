@@ -13,7 +13,7 @@
 #include "EK_Common.h"
 
 extern void *EK_pMemPool_Malloc(EK_Size_t size);
-extern void EK_vMemPool_FreeSafely(void *ptr);
+extern bool EK_bMemPool_Free(void *ptr);
 
 /**
  * @brief 内存分配宏定义
@@ -25,7 +25,15 @@ extern void EK_vMemPool_FreeSafely(void *ptr);
  * @brief 内存释放宏定义
  * @details 函数入参要求是 void*
  */
-#define EK_FREE(X) EK_vMemPool_FreeSafely(X)
+#define EK_FREE(X)               \
+    do                           \
+    {                            \
+        if (X != NULL)           \
+        {                        \
+            EK_bMemPool_Free(X); \
+            X = NULL;            \
+        }                        \
+    } while (0);
 
 /**
  * @brief 内存池总大小 (字节)
