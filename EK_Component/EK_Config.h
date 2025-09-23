@@ -79,8 +79,9 @@ extern bool EK_bMemPool_Free(void *ptr);
 #define SERIAL_OVER_TIME (20)
 
 /**
- * @brief 通讯相关 遍历间隔时间(ms)
+ * @brief 协程空闲任务堆栈大小
+ * 
  */
-#define SERIAL_POLL_INTERVAL (5)
+#define EK_IDLE_TASK_STACK_SIZE (256) // 定义空闲任务的堆栈大小
 
 #endif

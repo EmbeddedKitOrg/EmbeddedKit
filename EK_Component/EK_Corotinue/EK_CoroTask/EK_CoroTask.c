@@ -40,18 +40,21 @@ static inline void v_task_init_context(EK_CoroTCB_t *tcb)
     // 使用公共库函数填充整个栈区域，用于栈使用情况的监控
     EK_vMemSet(tcb->TCB_StackBase, EK_STACK_FILL_PATTERN, tcb->TCB_StackSize);
 
-    EK_CoroStack_t *stk = (EK_CoroStack_t *)(tcb->TCB_StackBase + tcb->TCB_StackSize);
+    // 注意：stk 的类型是 EK_CoroStack_t (即 uint32_t*), 而不是 EK_CoroStack_t*
+    EK_CoroStack_t stk = (EK_CoroStack_t)((uint8_t *)tcb->TCB_StackBase + tcb->TCB_StackSize);
 
-    stk = (EK_CoroStack_t *)((uint32_t)stk & ~0x07UL);
+    // 使用 uintptr_t 进行地址对齐，这是更安全和可移植的做法
+    stk = (EK_CoroStack_t)((uintptr_t)stk & ~0x07UL);
 
     *(--stk) = 0x01000000UL; // xPSR (Thumb bit)
-    *(--stk) = (uint32_t)tcb->TCB_Entry; // PC (任务入口)
-    *(--stk) = (uint32_t)v_coro_exit; // LR (任务返回地址)
+    // 使用 uintptr_t 来进行指针到整数的转换，以消除警告
+    *(--stk) = (uintptr_t)tcb->TCB_Entry; // PC (任务入口)
+    *(--stk) = (uintptr_t)v_coro_exit; // LR (任务返回地址)
     *(--stk) = 0; // R12
     *(--stk) = 0; // R3
     *(--stk) = 0; // R2
     *(--stk) = 0; // R1
-    *(--stk) = (uint32_t)tcb->TCB_Arg; // R0 (任务参数)
+    *(--stk) = (uintptr_t)tcb->TCB_Arg; // R0 (任务参数)
 
     /* PendSV手动保存的上下文 */
     *(--stk) = 0xFFFFFFFD; // LR (EXC_RETURN: 返回线程模式, 使用PSP)

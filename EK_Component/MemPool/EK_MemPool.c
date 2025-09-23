@@ -244,7 +244,7 @@ static inline void v_merge_blocks(void *ptr)
     MemBlock_t *next_block = (MemBlock_t *)((uint8_t *)block + MemPool_BlockSize);
     if (next_block < free_list_end && !IS_ALLOCATED(next_block->MemPool_BlockSize))
     {
-        // 从空闲链表中移除 next_block 
+        // 从空闲链表中移除 next_block (O(1) 操作)
         next_block->MemPool_PrevFree->MemPool_NextFree = next_block->MemPool_NextFree;
         next_block->MemPool_NextFree->MemPool_PrevFree = next_block->MemPool_PrevFree;
 
@@ -254,7 +254,7 @@ static inline void v_merge_blocks(void *ptr)
     }
 
     // 尝试与前面的物理块合并
-    // 遍历空闲链表寻找可能的前驱块
+    // 遍历空闲链表寻找可能的前驱块 (此部分仍然是 O(N) )
     for (current = free_list_head.MemPool_NextFree; current != free_list_end; current = current->MemPool_NextFree)
     {
         EK_Size_t current_size = GET_SIZE(current->MemPool_BlockSize);
@@ -262,14 +262,14 @@ static inline void v_merge_blocks(void *ptr)
 
         if (current_next_physical == block)
         {
-            // 从空闲链表中移除 current
+            // 从空闲链表中移除 current (O(1) 操作)
             current->MemPool_PrevFree->MemPool_NextFree = current->MemPool_NextFree;
             current->MemPool_NextFree->MemPool_PrevFree = current->MemPool_PrevFree;
 
             // 合并到前驱块
             current->MemPool_BlockSize += MemPool_BlockSize;
             block = current; // 更新块指针为合并后的块
-            break; // 找到后即可退出循环
+            break;           // 找到后即可退出循环
         }
     }
 
@@ -427,8 +427,7 @@ bool EK_bMemPool_CheckIntegrity(void)
     }
 
     // 遍历空闲链表
-    for (current = free_list_head.MemPool_NextFree; current != free_list_end && block_count < 10000;
-         current = current->MemPool_NextFree)
+    for (current = free_list_head.MemPool_NextFree; current != free_list_end && block_count < 10000; current = current->MemPool_NextFree)
     { // 防止死循环
         // 检查块大小
         if (GET_SIZE(current->MemPool_BlockSize) < MIN_BLOCK_SIZE)

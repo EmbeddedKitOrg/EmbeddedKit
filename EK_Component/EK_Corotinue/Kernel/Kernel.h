@@ -15,7 +15,7 @@
 #ifndef __KERNEL_H
 #define __KERNEL_H
 
-#include "../../EK_Config.h"
+#include "../EK_CoroConfig.h"
 
 #ifdef __cplusplus
 extern "C"

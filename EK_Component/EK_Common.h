@@ -41,24 +41,6 @@
 #endif
 #endif
 
-/*
-裸函数宏
-具体来说，当一个函数被声明为 naked 时，编译器不会为它生成：
-  1.  函数前奏（Prologue）: 通常是保存调用者寄存器（如LR）、设置堆栈指针等代码。
-  2.  函数尾声（Epilogue）: 通常是恢复寄存器、清理堆栈、返回等代码。
-*/
-#ifndef __naked
-#if defined(__GNUC__) || defined(__clang__)
-#define __naked __attribute__((naked))
-#elif defined(__IAR_SYSTEMS_ICC__)
-#define __naked __naked
-#elif defined(__CC_ARM) || defined(__ARMCC_VERSION)
-#define __naked __declspec(naked)
-#else
-#define __naked
-#endif
-#endif
-
 /*未使用变量宏*/
 #if defined(__GNUC__) || defined(__clang__)
 #define UNUSED_VAR(x) ((void)(x))
@@ -89,21 +71,21 @@ typedef unsigned char bool;
 #ifndef __STDINT_TYPES_DEFINED__
 
 /* 整数类型限制宏定义 */
-#define INT8_MIN   (-128)
-#define INT8_MAX   (127)
-#define UINT8_MAX  (255)
+#define INT8_MIN   (-0x80)
+#define INT8_MAX   (0x7F)
+#define UINT8_MAX  (0xFF)
 
-#define INT16_MIN  (-32768)
-#define INT16_MAX  (32767)
-#define UINT16_MAX (65535)
+#define INT16_MIN  (-0x8000)
+#define INT16_MAX  (0x7FFF)
+#define UINT16_MAX (0xFFFF)
 
-#define INT32_MIN  (-2147483648)
-#define INT32_MAX  (2147483647)
-#define UINT32_MAX (4294967295U)
+#define INT32_MIN  (-0x7FFFFFFF - 1)
+#define INT32_MAX  (0x7FFFFFFF)
+#define UINT32_MAX (0xFFFFFFFFU)
 
-#define INT64_MIN  (-9223372036854775808LL)
-#define INT64_MAX  (9223372036854775807LL)
-#define UINT64_MAX (18446744073709551615ULL)
+#define INT64_MIN  (-0x7FFFFFFFFFFFFFFFLL - 1)
+#define INT64_MAX  (0x7FFFFFFFFFFFFFFFLL)
+#define UINT64_MAX (0xFFFFFFFFFFFFFFFFULL)
 
 typedef char int8_t;
 typedef unsigned char uint8_t;
@@ -113,6 +95,8 @@ typedef int int32_t;
 typedef unsigned int uint32_t;
 typedef long long int64_t;
 typedef unsigned long long uint64_t;
+
+typedef uint32_t uintptr_t; /*!< 用于指针和整数转换. */
 
 #define _SYS__STDINT_H // 避免GCC报错
 

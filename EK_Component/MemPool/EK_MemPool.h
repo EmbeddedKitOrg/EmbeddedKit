@@ -26,7 +26,7 @@ typedef struct MemBlock
 {
     struct MemBlock *MemPool_NextFree; /**< 指向下一个空闲块 */
     struct MemBlock *MemPool_PrevFree; /**< 指向上一个空闲块 */
-    EK_Size_t MemPool_BlockSize;       /**< 块大小，最高位用作分配标记 */
+    EK_Size_t MemPool_BlockSize; /**< 块大小，最高位用作分配标记 */
 } MemBlock_t;
 
 /**
