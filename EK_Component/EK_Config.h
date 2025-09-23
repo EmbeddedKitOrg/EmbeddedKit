@@ -13,7 +13,7 @@
 #include "EK_Common.h"
 
 extern void *EK_pMemPool_Malloc(EK_Size_t size);
-extern void EK_vMemPool_FreeSafely(void *ptr);
+extern bool EK_bMemPool_Free(void *ptr);
 
 /**
  * @brief 内存分配宏定义
@@ -25,7 +25,15 @@ extern void EK_vMemPool_FreeSafely(void *ptr);
  * @brief 内存释放宏定义
  * @details 函数入参要求是 void*
  */
-#define EK_FREE(X) EK_vMemPool_FreeSafely(X)
+#define EK_FREE(X)               \
+    do                           \
+    {                            \
+        if (X != NULL)           \
+        {                        \
+            EK_bMemPool_Free(X); \
+            X = NULL;            \
+        }                        \
+    } while (0);
 
 /**
  * @brief 内存池总大小 (字节)
@@ -71,8 +79,9 @@ extern void EK_vMemPool_FreeSafely(void *ptr);
 #define SERIAL_OVER_TIME (20)
 
 /**
- * @brief 通讯相关 遍历间隔时间(ms)
+ * @brief 协程空闲任务堆栈大小
+ * 
  */
-#define SERIAL_POLL_INTERVAL (5)
+#define EK_IDLE_TASK_STACK_SIZE (256) // 定义空闲任务的堆栈大小
 
 #endif
