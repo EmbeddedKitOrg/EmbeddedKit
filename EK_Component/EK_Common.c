@@ -20,26 +20,27 @@ void EK_vMemCpy(void *p_dst, const void *p_src, EK_Size_t bytes)
 {
     if (p_dst == NULL || p_src == NULL || bytes == 0) return;
 
-    uint8_t *dst = (uint8_t *)p_dst;
-    const uint8_t *src = (const uint8_t *)p_src;
+    uint8_t *temp_dst = (uint8_t *)p_dst;
+    const uint8_t *temp_src = (const uint8_t *)p_src;
 
-    // 同一地址无需复制
-    if (dst == src) return;
-
-    // 不重叠或目标在源之前，正向复制
-    if (dst < src || dst >= (src + bytes))
+    // 检测内存重叠，选择拷贝方向
+    if (temp_dst > temp_src && temp_dst < temp_src + bytes)
     {
+        // 从后往前拷贝，防止覆盖
+        temp_dst += bytes - 1;
+        temp_src += bytes - 1;
         for (EK_Size_t i = 0; i < bytes; i++)
         {
-            dst[i] = src[i];
+            *temp_dst-- = *temp_src--;
         }
-        return;
     }
-
-    // 处理重叠（目标位于源之后）时，反向复制
-    for (EK_Size_t i = bytes; i > 0; i--)
+    else
     {
-        dst[i - 1] = src[i - 1];
+        // 从前往后拷贝
+        for (EK_Size_t i = 0; i < bytes; i++)
+        {
+            temp_dst[i] = temp_src[i];
+        }
     }
 }
 
@@ -53,10 +54,10 @@ void EK_vMemSet(void *p_dst, uint8_t value, EK_Size_t bytes)
 {
     if (p_dst == NULL || bytes == 0) return;
 
-    uint8_t *dst = (uint8_t *)p_dst;
+    uint8_t *temp_dst = (uint8_t *)p_dst;
     for (EK_Size_t i = 0; i < bytes; i++)
     {
-        dst[i] = value;
+        temp_dst[i] = value;
     }
 }
 
@@ -74,17 +75,16 @@ int EK_iMemCmp(const void *p_buf1, const void *p_buf2, EK_Size_t bytes)
 {
     if (p_buf1 == NULL || p_buf2 == NULL) return 0;
 
-    const uint8_t *buf1 = (const uint8_t *)p_buf1;
-    const uint8_t *buf2 = (const uint8_t *)p_buf2;
+    const uint8_t *temp_buf1 = (const uint8_t *)p_buf1;
+    const uint8_t *temp_buf2 = (const uint8_t *)p_buf2;
 
     for (EK_Size_t i = 0; i < bytes; i++)
     {
-        if (buf1[i] != buf2[i])
+        if (temp_buf1[i] != temp_buf2[i])
         {
-            return (int)buf1[i] - (int)buf2[i];
+            return temp_buf1[i] - temp_buf2[i];
         }
     }
-
     return 0;
 }
 
@@ -351,7 +351,80 @@ int EK_iAtoI(const char *p_str)
     return sign * result;
 }
 
-/* 位操作函数已移至 EK_Common.h 作为 ALWAYS_INLINE 函数实现 */
+/* ========================= 位操作函数 ========================= */
+
+/**
+ * @brief 设置位图中的指定位为1
+ * @param p_data 指向位图内存的指针 (void*)
+ * @param bit_pos 要操作的位的位置 (从0开始)
+ * @note 该函数是类型和对齐安全的。
+ */
+void EK_vSetBit(void *p_data, uint32_t bit_pos)
+{
+    if (p_data == NULL) return;
+    
+    // 以字节方式访问内存，避免对齐问题
+    uint8_t *p_map = (uint8_t *)p_data;
+    uint32_t byte_index = bit_pos / 8;
+    uint8_t bit_in_byte = bit_pos % 8;
+    
+    p_map[byte_index] |= (1U << bit_in_byte);
+}
+
+/**
+ * @brief 清除位图中的指定位为0
+ * @param p_data 指向位图内存的指针 (void*)
+ * @param bit_pos 要操作的位的位置 (从0开始)
+ * @note 该函数是类型和对齐安全的。
+ */
+void EK_vClearBit(void *p_data, uint32_t bit_pos)
+{
+    if (p_data == NULL) return;
+
+    uint8_t *p_map = (uint8_t *)p_data;
+    uint32_t byte_index = bit_pos / 8;
+    uint8_t bit_in_byte = bit_pos % 8;
+
+    p_map[byte_index] &= ~(1U << bit_in_byte);
+}
+
+/**
+ * @brief 翻转位图中的指定位
+ * @param p_data 指向位图内存的指针 (void*)
+ * @param bit_pos 要操作的位的位置 (从0开始)
+ * @note 该函数是类型和对齐安全的。
+ */
+void EK_vToggleBit(void *p_data, uint32_t bit_pos)
+{
+    if (p_data == NULL) return;
+
+    uint8_t *p_map = (uint8_t *)p_data;
+    uint32_t byte_index = bit_pos / 8;
+    uint8_t bit_in_byte = bit_pos % 8;
+
+    p_map[byte_index] ^= (1U << bit_in_byte);
+}
+
+/**
+ * @brief 测试位图中的指定位是否为1
+ * @param p_data 指向位图内存的指针 (const void*)
+ * @param bit_pos 要测试的位的位置 (从0开始)
+ * @return bool 位状态
+ * @retval true 位为1
+ * @retval false 位为0
+ * @note 该函数是类型和对齐安全的。
+ */
+bool EK_bTestBit(const void *p_data, uint32_t bit_pos)
+{
+    if (p_data == NULL) return false;
+
+    const uint8_t *p_map = (const uint8_t *)p_data;
+    uint32_t byte_index = bit_pos / 8;
+    uint8_t bit_in_byte = bit_pos % 8;
+
+    return (p_map[byte_index] & (1U << bit_in_byte)) != 0;
+}
+
 /* ========================= 校验函数 ========================= */
 
 /**
