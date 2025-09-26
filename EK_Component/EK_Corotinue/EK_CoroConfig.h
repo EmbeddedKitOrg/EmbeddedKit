@@ -52,6 +52,24 @@
 #error "Unsupported compiler. Please add a corresponding CMSIS header."
 #endif
 
+/**
+ * @brief 判断FPU是否启用
+ * 
+ */
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
+#define EK_CORO_FPU_USED (1)
+#else
+#define EK_CORO_FPU_USED (0)
+#endif
+
+/**
+ * @brief 协程优先级分组数目
+ * 
+ */
+#ifndef EK_CORO_PRIORITY_GROUPS
+#define EK_CORO_PRIORITY_GROUPS (16)
+#endif
+
 /*
 裸函数宏
 具体来说，当一个函数被声明为 naked 时，编译器不会为它生成：
@@ -74,8 +92,20 @@
  * @brief 协程空闲任务堆栈大小
  * 
  */
-#ifndef EK_IDLE_TASK_STACK_SIZE
-#define EK_IDLE_TASK_STACK_SIZE (256) // 定义空闲任务的堆栈大小
+#ifndef EK_CORO_IDLE_TASK_STACK_SIZE
+#if (EK_CORO_FPU_USED == 0)
+#define EK_CORO_IDLE_TASK_STACK_SIZE (256) // 定义空闲任务的堆栈大小
+#else
+#define EK_CORO_IDLE_TASK_STACK_SIZE (512) // 定义空闲任务的堆栈大小
+#endif
+#endif
+
+/**
+ * @brief 是否使能消息队列
+ * 
+ */
+#ifndef EK_CORO_USE_MESSAGE_QUEUE
+#define EK_CORO_USE_MESSAGE_QUEUE (1) // 1:使能 0:失能
 #endif
 
 #endif
