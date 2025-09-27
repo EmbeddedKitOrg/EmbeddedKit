@@ -42,12 +42,12 @@
 #endif
 
 /*CMSIS 头文件自动包含*/
-#if defined(__GNUC__)
+#if defined(__clang__)
+#include "cmsis_armclang.h"
+#elif defined(__GNUC__)
 #include "cmsis_gcc.h"
 #elif defined(__CC_ARM) || defined(__ARMCC_VERSION)
 #include "cmsis_armcc.h"
-#elif defined(__clang__)
-#include "cmsis_armclang.h"
 #else
 #error "Unsupported compiler. Please add a corresponding CMSIS header."
 #endif
