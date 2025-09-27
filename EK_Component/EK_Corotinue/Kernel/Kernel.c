@@ -70,17 +70,6 @@ static inline uint8_t v_kernel_find_msb_index(EK_BitMap_t val)
 #endif
 #endif
 
-/**
- * @brief 直接申请一次调度
- * 
- */
-#define EK_KERNEL_YIELD()                   \
-    do                                      \
-    {                                       \
-        SCB->ICSR = SCB_ICSR_PENDSVSET_Msk; \
-        __DSB();                            \
-        __ISB();                            \
-    } while (0)
 /* ========================= 全局变量定义区 ========================= */
 EK_CoroList_t EK_CoroKernelReadyList[EK_CORO_PRIORITY_GROUPS]; // 就绪任务列表
 EK_CoroList_t EK_CoroKernelBlockList; // 阻塞任务列表
@@ -117,7 +106,7 @@ static inline EK_Result_t _r_insert_node(EK_CoroList_t *list, EK_CoroTCB_t *tcb,
         list->List_Head = node_to_insert;
         list->List_Tail = node_to_insert;
     }
-    else if (is_sorted)
+    else if (is_sorted) // 按照时间顺序插入链表
     {
         EK_CoroListNode_t *current = list->List_Head;
         EK_CoroListNode_t *prev = NULL;
@@ -173,16 +162,18 @@ static inline EK_Result_t _r_insert_node(EK_CoroList_t *list, EK_CoroTCB_t *tcb,
  */
 EK_Result_t EK_rKernelRemove(EK_CoroList_t *list, EK_CoroTCB_t *tcb)
 {
+    // 入参检查
     if (list == NULL || tcb == NULL) return EK_NULL_POINTER;
     if (list->List_Count == 0) return EK_ERROR;
     if (tcb->TCB_Node.CoroNode_OwnerList != list) return EK_ERROR;
 
-    EK_CoroListNode_t *node_to_remove = &tcb->TCB_Node;
-    EK_CoroListNode_t *current = list->List_Head;
-    EK_CoroListNode_t *prev = NULL;
+    EK_CoroListNode_t *node_to_remove = &tcb->TCB_Node; // 要删除的TCB的节点
+    EK_CoroListNode_t *current = list->List_Head; // 遍历节点
+    EK_CoroListNode_t *prev = NULL; // 前个节点
 
     EK_ENTER_CRITICAL();
 
+    // 找到要删除的节点
     while (current != NULL && current != node_to_remove)
     {
         prev = current;
@@ -209,11 +200,14 @@ EK_Result_t EK_rKernelRemove(EK_CoroList_t *list, EK_CoroTCB_t *tcb)
         list->List_Tail = prev;
     }
 
+    // 更新链表信息
     list->List_Count--;
 
+    // 更新节点信息
     node_to_remove->CoroNode_OwnerList = NULL;
     node_to_remove->CoroNode_Next = NULL;
 
+    // 设置位图
     if (list->List_Count == 0 && list != &EK_CoroKernelBlockList && list != &EK_CoroKernelSuspendList)
     {
         EK_vClearBit(&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
@@ -445,14 +439,22 @@ void EK_vKernelYield(void)
 {
     EK_ENTER_CRITICAL();
 
+    // 找到最高优先级
     uint8_t highest_prio = EK_KERNEL_GET_HIGHEST_PRIO(KernelReadyBitMap);
+
+    // 更新链表
     KernelNextTCB = (EK_CoroTCB_t *)EK_CoroKernelReadyList[highest_prio].List_Head->CoroNode_OwnerTCB;
     KernelNextTCB->TCB_State = EK_CORO_RUNNING;
+
+    // 将TCB移除
     EK_rKernelRemove(&EK_CoroKernelReadyList[highest_prio], KernelNextTCB);
 
     EK_EXIT_CRITICAL();
 
-    EK_KERNEL_YIELD();
+    // 申请一次调度
+    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+    __DSB();
+    __ISB();
 }
 
 /**
@@ -463,30 +465,35 @@ void EK_vKernelYield(void)
  */
 void EK_vTickHandler(void)
 {
+    // 无阻塞直接退出
     if (EK_CoroKernelBlockList.List_Count == 0) return;
 
     EK_ENTER_CRITICAL();
 
-    uint32_t current_tick = EK_CoroKernelGetTick();
-    EK_CoroListNode_t *current_node = EK_CoroKernelBlockList.List_Head;
+    uint32_t current_tick = EK_CoroKernelGetTick(); // 获取当前的Tick
+
+    EK_CoroListNode_t *current_node = EK_CoroKernelBlockList.List_Head; // 遍历节点
 
     while (current_node != NULL)
     {
-        EK_CoroTCB_t *current_tcb = (EK_CoroTCB_t *)current_node->CoroNode_OwnerTCB;
+        EK_CoroTCB_t *current_tcb = (EK_CoroTCB_t *)current_node->CoroNode_OwnerTCB; // 获取当前的TCB
 
+        // 当前的Tick小于阻塞链表当前节点的唤醒时间：说明该节点之后都没有任务唤醒
         if (current_tick < current_tcb->TCB_WakeUpTime) break;
 
-        EK_CoroListNode_t *next_node = current_node->CoroNode_Next;
+        EK_CoroListNode_t *next_node = current_node->CoroNode_Next; // 存储下一个节点
 
-        current_tcb->TCB_State = EK_CORO_READY;
-        EK_rKernelMove_Tail(&EK_CoroKernelReadyList[current_tcb->TCB_Priority], current_tcb);
+        current_tcb->TCB_State = EK_CORO_READY; // 任务唤醒 先修改标志位
 
+        EK_rKernelMove_Tail(&EK_CoroKernelReadyList[current_tcb->TCB_Priority], current_tcb); // 移动到就绪链表的尾节点
+
+        // 如果当前为空闲任务 并且有任务唤醒 则向空闲任务中申请一次调度
         if (EK_CoroKernelCurrentTCB == EK_CoroKernelIdleHandler)
         {
             KernelIdleYield = true;
         }
 
-        current_node = next_node;
+        current_node = next_node; //步进
     }
 
     EK_EXIT_CRITICAL();
@@ -509,16 +516,14 @@ __naked void EK_vKernelPendSV_Handler(void)
 
         // 保存新的栈顶指针到 TCB
         "ldr r1, =EK_CoroKernelCurrentTCB \n"
-        "ldr r1, [r1] \n"
-        "str r0, [r1] \n"
+        "ldr r1, [r1] \n" // 解引用得到SP位置
+        "str r0, [r1] \n" // 将r0寄存器中的数据存储的SP中
 
         // 执行调度: EK_CoroKernelCurrentTCB = KernelNextTCB
         "ldr r0, =KernelNextTCB \n"
         "ldr r0, [r0] \n"
         "ldr r1, =EK_CoroKernelCurrentTCB \n"
         "str r0, [r1] \n"
-
-        // 恢复新任务的上下文
 
         // 恢复新任务的SP
         "ldr r1, =EK_CoroKernelCurrentTCB \n"
