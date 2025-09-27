@@ -354,50 +354,75 @@ int EK_iAtoI(const char *p_str)
 /* ========================= 位操作函数 ========================= */
 
 /**
- * @brief 设置位
- * @param p_data 数据指针
- * @param bit_pos 位位置
+ * @brief 设置位图中的指定位为1
+ * @param p_data 指向位图内存的指针 (void*)
+ * @param bit_pos 要操作的位的位置 (从0开始)
+ * @note 该函数是类型和对齐安全的。
  */
-void EK_vSetBit(uint32_t *p_data, uint8_t bit_pos)
+void EK_vSetBit(void *p_data, uint32_t bit_pos)
 {
-    if (p_data == NULL || bit_pos >= 32) return;
-    *p_data |= (1UL << bit_pos);
+    if (p_data == NULL) return;
+    
+    // 以字节方式访问内存，避免对齐问题
+    uint8_t *p_map = (uint8_t *)p_data;
+    uint32_t byte_index = bit_pos / 8;
+    uint8_t bit_in_byte = bit_pos % 8;
+    
+    p_map[byte_index] |= (1U << bit_in_byte);
 }
 
 /**
- * @brief 清除位
- * @param p_data 数据指针
- * @param bit_pos 位位置
+ * @brief 清除位图中的指定位为0
+ * @param p_data 指向位图内存的指针 (void*)
+ * @param bit_pos 要操作的位的位置 (从0开始)
+ * @note 该函数是类型和对齐安全的。
  */
-void EK_vClearBit(uint32_t *p_data, uint8_t bit_pos)
+void EK_vClearBit(void *p_data, uint32_t bit_pos)
 {
-    if (p_data == NULL || bit_pos >= 32) return;
-    *p_data &= ~(1UL << bit_pos);
+    if (p_data == NULL) return;
+
+    uint8_t *p_map = (uint8_t *)p_data;
+    uint32_t byte_index = bit_pos / 8;
+    uint8_t bit_in_byte = bit_pos % 8;
+
+    p_map[byte_index] &= ~(1U << bit_in_byte);
 }
 
 /**
- * @brief 翻转位
- * @param p_data 数据指针
- * @param bit_pos 位位置
+ * @brief 翻转位图中的指定位
+ * @param p_data 指向位图内存的指针 (void*)
+ * @param bit_pos 要操作的位的位置 (从0开始)
+ * @note 该函数是类型和对齐安全的。
  */
-void EK_vToggleBit(uint32_t *p_data, uint8_t bit_pos)
+void EK_vToggleBit(void *p_data, uint32_t bit_pos)
 {
-    if (p_data == NULL || bit_pos >= 32) return;
-    *p_data ^= (1UL << bit_pos);
+    if (p_data == NULL) return;
+
+    uint8_t *p_map = (uint8_t *)p_data;
+    uint32_t byte_index = bit_pos / 8;
+    uint8_t bit_in_byte = bit_pos % 8;
+
+    p_map[byte_index] ^= (1U << bit_in_byte);
 }
 
 /**
- * @brief 测试位
- * @param data 数据
- * @param bit_pos 位位置
+ * @brief 测试位图中的指定位是否为1
+ * @param p_data 指向位图内存的指针 (const void*)
+ * @param bit_pos 要测试的位的位置 (从0开始)
  * @return bool 位状态
  * @retval true 位为1
  * @retval false 位为0
+ * @note 该函数是类型和对齐安全的。
  */
-bool EK_bTestBit(uint32_t data, uint8_t bit_pos)
+bool EK_bTestBit(const void *p_data, uint32_t bit_pos)
 {
-    if (bit_pos >= 32) return false;
-    return (data & (1UL << bit_pos)) != 0;
+    if (p_data == NULL) return false;
+
+    const uint8_t *p_map = (const uint8_t *)p_data;
+    uint32_t byte_index = bit_pos / 8;
+    uint8_t bit_in_byte = bit_pos % 8;
+
+    return (p_map[byte_index] & (1U << bit_in_byte)) != 0;
 }
 
 /* ========================= 校验函数 ========================= */

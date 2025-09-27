@@ -24,6 +24,32 @@ extern "C"
 
 /* ========================= 宏定义 ========================= */
 /**
+ * @brief 优先级相关变量
+ * @details EK_CORO_PRIORITY_MOUNT:优先级数目
+ *          EK_CORO_MAX_PRIORITY_NBR:最高优先级对应的值
+ *          EK_BitMap_t:位图类型
+ */
+#if (EK_CORO_PRIORITY_GROUPS <= 8)
+#define EK_CORO_PRIORITY_MOUNT   (8)
+#define EK_CORO_MAX_PRIORITY_NBR (0x80UL)
+typedef uint8_t EK_BitMap_t;
+#elif (EK_CORO_PRIORITY_GROUPS <= 16)
+#define EK_CORO_PRIORITY_MOUNT   (16)
+#define EK_CORO_MAX_PRIORITY_NBR (0x8000UL)
+typedef uint16_t EK_BitMap_t;
+#else
+#define EK_CORO_PRIORITY_MOUNT   (32)
+#define EK_CORO_MAX_PRIORITY_NBR (0x80000000UL)
+typedef uint32_t EK_BitMap_t;
+#endif
+
+/**
+ * @brief 最大阻塞时间，设置这个代表一直阻塞
+ * 
+ */
+#define EK_MAX_DELAY (UINT32_MAX)
+
+/**
  * @brief 进入临界区宏 (支持嵌套, CMSIS版)
  */
 #define EK_ENTER_CRITICAL()                    \
@@ -35,22 +61,10 @@ extern "C"
  */
 #define EK_EXIT_CRITICAL() __set_PRIMASK(primask_status);
 
-/**
- * @brief 让出CPU，请求一次任务调度
- * 
- */
-#define EK_KERNEL_YIELD()                   \
-    do                                      \
-    {                                       \
-        SCB->ICSR = SCB_ICSR_PENDSVSET_Msk; \
-        __DSB();                            \
-        __ISB();                            \
-    } while (0)
-
 /* ========================= 数据结构 ========================= */
-
+typedef uint32_t (*EK_GetTickFunction_t)(void); // 获取时间Tick的函数
 typedef void (*EK_CoroFunction_t)(void *arg); //协程任务的入口函数指针类型
-typedef uint32_t *EK_CoroStack_t; // 堆栈指针类型
+typedef uint32_t EK_CoroStack_t; // 堆栈元素类型
 /**
  * @brief 协程的运行状态枚举.
  */
@@ -74,9 +88,24 @@ typedef struct EK_CoroListNode_t
 } EK_CoroListNode_t;
 
 /**
+ * @brief 协程链表管理结构体.
+ * @details 用于管理一组协程，例如就绪链表、阻塞链表等。
+ */
+typedef struct EK_CoroList_t
+{
+    EK_CoroListNode_t *List_Head; /**< 指向链表的头节点. */
+    EK_CoroListNode_t *List_Tail; /**< 指向链表的尾节点. */
+    uint16_t List_Count; /**< 链表中节点的数量. */
+} EK_CoroList_t;
+
+/**
  * @brief 协程任务控制块 (Task Control Block).
  * @details 这是内核管理协程的核心数据结构，包含了协程运行所需的所有信息。
  */
+#if (EK_CORO_USE_MESSAGE_QUEUE == 1)
+struct EK_CoroMsg_t; // 前向声明消息结构体
+#endif
+
 typedef struct EK_CoroTCB_t
 {
     EK_CoroStack_t *TCB_SP; /**< 协程的栈顶指针 (Stack Pointer). */
@@ -84,43 +113,45 @@ typedef struct EK_CoroTCB_t
     void *TCB_StackBase; /**< 协程栈的起始(低)地址. */
     uint16_t TCB_Priority; /**< 协程的优先级 (数值越小，优先级越高). */
     bool TCB_isDynamic; /**< 标记协程是否为动态创建 (用于内存管理). */
-    uint32_t TCB_DelayTicks; /**< 协程需要延时的节拍数. */
+    uint32_t TCB_WakeUpTime; /**< 要被唤醒的tick */
     EK_Size_t TCB_StackSize; /**< 协程栈的总大小 (以字节为单位). */
     EK_CoroState_t TCB_State; /**< 协程的当前状态. */
     EK_CoroFunction_t TCB_Entry; /**< 协程的入口函数地址. */
     EK_CoroListNode_t TCB_Node; /**< 用于将此TCB链入管理链表的节点. */
+#if (EK_CORO_USE_MESSAGE_QUEUE == 1)
+    struct EK_CoroMsg_t *TCB_pMsg; /**< TCB相关的消息队列. */
+    EK_Result_t TCB_MsgResult; /**< 任务被唤醒时的结果 (OK, TIMEOUT, etc.). */
+#endif
+
 } EK_CoroTCB_t;
 
 typedef EK_CoroTCB_t *EK_CoroHandler_t; // 动态类型的指针
 typedef EK_CoroTCB_t *EK_CoroStaticHandler_t; // 静态类型的指针
 
-/**
- * @brief 协程链表管理结构体.
- * @details 用于管理一组协程，例如就绪链表、阻塞链表等。
- */
-typedef struct EK_CoroList_t
-{
-    EK_CoroListNode_t *List_Head; /**< 指向链表的头节点. */
-    EK_Size_t List_Count; /**< 链表中节点的数量. */
-} EK_CoroList_t;
-
 /* ========================= 内核全局变量声明 ========================= */
-extern EK_CoroList_t Kernel_ReadyList;
-extern EK_CoroList_t Kernel_BlockList;
-extern EK_CoroList_t Kernel_SuspendList;
-extern EK_CoroTCB_t *Kernel_CurrentTCB;
-extern EK_CoroTCB_t *Kernel_NextTCB;
-extern EK_CoroTCB_t *Kernel_DeleteTCB;
-extern EK_CoroStaticHandler_t Kernel_IdleTaskHandler;
+extern EK_CoroList_t EK_CoroKernelReadyList[EK_CORO_PRIORITY_GROUPS];
+extern EK_CoroList_t EK_CoroKernelBlockList;
+extern EK_CoroList_t EK_CoroKernelSuspendList;
+extern EK_CoroTCB_t *EK_CoroKernelCurrentTCB;
+extern EK_CoroTCB_t *EK_CoroKernelDeleteTCB;
+extern EK_CoroStaticHandler_t EK_CoroKernelIdleHandler;
+extern EK_GetTickFunction_t EK_CoroKernelGetTick;
 
 /* ========================= 内核核心API函数 ========================= */
-EK_Result_t r_insert_node(EK_CoroList_t *list, EK_CoroTCB_t *tcb);
-EK_Result_t r_remove_node(EK_CoroList_t *list, EK_CoroTCB_t *tcb);
-EK_Result_t r_move_node(EK_CoroList_t *list, EK_CoroTCB_t *tcb);
+void EK_vKernelYield(void);
+EK_Result_t EK_rKernelInsert(EK_CoroList_t *list, EK_CoroTCB_t *tcb);
+EK_Result_t EK_rKernelInsert_Tail(EK_CoroList_t *list, EK_CoroTCB_t *tcb);
+EK_Result_t EK_rKernelRemove(EK_CoroList_t *list, EK_CoroTCB_t *tcb);
+EK_Result_t EK_rKernelMove(EK_CoroList_t *list, EK_CoroTCB_t *tcb);
+EK_Result_t EK_rKernelMove_Tail(EK_CoroList_t *list, EK_CoroTCB_t *tcb);
 void EK_vKernelInit(void);
-void EK_vKernelStart(void);
+void EK_vKernelStart(EK_GetTickFunction_t get_tick);
 void EK_vTickHandler(void);
-void EK_vPendSVHandler(void);
+void EK_vKernelPendSV_Handler(void);
+
+/* ========================= PendSV ========================= */
+void PendSV_Handler(void) __naked;
+#define EK_vPendSVHandler() __ASM volatile("b EK_vKernelPendSV_Handler")
 
 #ifdef __cplusplus
 }

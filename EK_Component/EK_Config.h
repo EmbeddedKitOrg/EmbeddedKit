@@ -79,9 +79,21 @@ extern bool EK_bMemPool_Free(void *ptr);
 #define SERIAL_OVER_TIME (20)
 
 /**
+ * @brief 优先级组数目
+ * 
+ */
+#define EK_CORO_PRIORITY_GROUPS (16)
+
+/**
  * @brief 协程空闲任务堆栈大小
  * 
  */
-#define EK_IDLE_TASK_STACK_SIZE (256) // 定义空闲任务的堆栈大小
+#define EK_CORO_IDLE_TASK_STACK_SIZE (256) // 定义空闲任务的堆栈大小(字节)
+
+/**
+ * @brief 是否使能消息队列
+ * 
+ */
+#define EK_CORO_USE_MESSAGE_QUEUE (1) // 1:使能 0:失能
 
 #endif

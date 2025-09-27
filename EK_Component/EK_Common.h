@@ -155,10 +155,10 @@ char *EK_pItoA(int value, char *p_str, int base);
 int EK_iAtoI(const char *p_str);
 
 // 位操作函数
-void EK_vSetBit(uint32_t *p_data, uint8_t bit_pos);
-void EK_vClearBit(uint32_t *p_data, uint8_t bit_pos);
-void EK_vToggleBit(uint32_t *p_data, uint8_t bit_pos);
-bool EK_bTestBit(uint32_t data, uint8_t bit_pos);
+void EK_vSetBit(void *p_data, uint32_t bit_pos);
+void EK_vClearBit(void *p_data, uint32_t bit_pos);
+void EK_vToggleBit(void *p_data, uint32_t bit_pos);
+bool EK_bTestBit(const void *p_data, uint32_t bit_pos);
 
 // 校验函数
 uint8_t EK_u8CheckSum(const uint8_t *p_data, EK_Size_t length);
