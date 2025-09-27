@@ -95,7 +95,7 @@ typedef struct EK_CoroList_t
 {
     EK_CoroListNode_t *List_Head; /**< 指向链表的头节点. */
     EK_CoroListNode_t *List_Tail; /**< 指向链表的尾节点. */
-    EK_Size_t List_Count; /**< 链表中节点的数量. */
+    uint16_t List_Count; /**< 链表中节点的数量. */
 } EK_CoroList_t;
 
 /**
@@ -149,6 +149,8 @@ void EK_vKernelStart(EK_GetTickFunction_t get_tick);
 void EK_vTickHandler(void);
 void EK_vKernelPendSV_Handler(void);
 
+/* ========================= PendSV ========================= */
+void PendSV_Handler(void) __naked;
 #define EK_vPendSVHandler() __ASM volatile("b EK_vKernelPendSV_Handler")
 
 #ifdef __cplusplus
