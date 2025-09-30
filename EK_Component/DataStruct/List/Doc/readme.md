@@ -45,7 +45,7 @@ typedef struct EK_List_t
 
 #### 静态节点创建
 ```c
-EK_Result_t EK_rNodeCreate_Static(EK_Node_t *node, void *content, uint16_t order);
+EK_Result_t EK_pNodeCreateStatic(EK_Node_t *node, void *content, uint16_t order);
 ```
 - **功能**：在用户提供的内存上初始化节点
 - **参数**：
@@ -56,7 +56,7 @@ EK_Result_t EK_rNodeCreate_Static(EK_Node_t *node, void *content, uint16_t order
 
 #### 动态节点创建
 ```c
-EK_Node_t *EK_pNodeCreate_Dynamic(void *content, uint16_t order);
+EK_Node_t *EK_pNodeCreate(void *content, uint16_t order);
 ```
 - **功能**：动态分配内存并创建节点
 - **参数**：
@@ -68,7 +68,7 @@ EK_Node_t *EK_pNodeCreate_Dynamic(void *content, uint16_t order);
 
 #### 静态链表创建
 ```c
-EK_Result_t EK_rListCreate_Static(EK_List_t *list, EK_Node_t *dummy_node);
+EK_Result_t EK_pListCreateStatic(EK_List_t *list, EK_Node_t *dummy_node);
 ```
 - **功能**：在用户提供的内存上初始化链表
 - **参数**：
@@ -78,7 +78,7 @@ EK_Result_t EK_rListCreate_Static(EK_List_t *list, EK_Node_t *dummy_node);
 
 #### 动态链表创建
 ```c
-EK_List_t *EK_pListCreate_Dynamic(void);
+EK_List_t *EK_pListCreate(void);
 ```
 - **功能**：动态分配内存并创建链表，自动创建哨兵节点
 - **返回值**：创建的链表指针，失败返回NULL
@@ -185,13 +185,13 @@ EK_Result_t EK_rListSort(EK_List_t *list, bool is_descend);
 ### 1. 基础链表操作
 ```c
 // 创建空链表
-EK_List_t *my_list = EK_pListCreate_Dynamic();
+EK_List_t *my_list = EK_pListCreate();
 
 // 创建数据节点
 int data1 = 100, data2 = 200, data3 = 50;
-EK_Node_t *node1 = EK_pNodeCreate_Dynamic(&data1, 10);
-EK_Node_t *node2 = EK_pNodeCreate_Dynamic(&data2, 20);
-EK_Node_t *node3 = EK_pNodeCreate_Dynamic(&data3, 5);
+EK_Node_t *node1 = EK_pNodeCreate(&data1, 10);
+EK_Node_t *node2 = EK_pNodeCreate(&data2, 20);
+EK_Node_t *node3 = EK_pNodeCreate(&data3, 5);
 
 // 插入节点
 EK_rListInsertEnd(my_list, node1);      // 尾部插入
@@ -209,8 +209,8 @@ EK_rListDelete(my_list);
 ### 2. 任务调度队列
 ```c
 // 创建任务队列
-EK_List_t *ready_queue = EK_pListCreate_Dynamic();
-EK_List_t *wait_queue = EK_pListCreate_Dynamic();
+EK_List_t *ready_queue = EK_pListCreate();
+EK_List_t *wait_queue = EK_pListCreate();
 
 // 任务状态切换
 EK_rListMoveNode(wait_queue, ready_queue, task_node, -1); // 移到就绪队列尾部
@@ -220,8 +220,8 @@ EK_rListMoveNode(ready_queue, wait_queue, task_node, 0);  // 移到等待队列�
 ### 3. 优先级管理
 ```c
 // 创建优先级节点
-EK_Node_t *high_priority_node = EK_pNodeCreate_Dynamic(task_data, 1);    // 高优先级
-EK_Node_t *low_priority_node = EK_pNodeCreate_Dynamic(task_data, 10);    // 低优先级
+EK_Node_t *high_priority_node = EK_pNodeCreate(task_data, 1);    // 高优先级
+EK_Node_t *low_priority_node = EK_pNodeCreate(task_data, 10);    // 低优先级
 
 // 按优先级插入
 EK_rListInsertOrder(priority_list, high_priority_node);
@@ -238,7 +238,7 @@ typedef struct {
 } Event_t;
 
 Event_t event = {.event_id = 1, .timestamp = get_tick(), .event_data = data};
-EK_Node_t *event_node = EK_pNodeCreate_Dynamic(&event, event.timestamp);
+EK_Node_t *event_node = EK_pNodeCreate(&event, event.timestamp);
 
 // 按时间戳有序插入事件队列
 EK_rListInsertOrder(event_queue, event_node);
@@ -247,8 +247,8 @@ EK_rListInsertOrder(event_queue, event_node);
 ### 5. 资源池管理
 ```c
 // 空闲资源链表
-EK_List_t *free_buffers = EK_pListCreate_Dynamic();
-EK_List_t *used_buffers = EK_pListCreate_Dynamic();
+EK_List_t *free_buffers = EK_pListCreate();
+EK_List_t *used_buffers = EK_pListCreate();
 
 // 分配资源：从空闲链表移到使用链表
 EK_rListMoveNode(free_buffers, used_buffers, buffer_node, -1);
@@ -260,12 +260,12 @@ EK_rListMoveNode(used_buffers, free_buffers, buffer_node, 0);
 ### 6. 数据排序处理
 ```c
 // 创建包含随机数据的链表
-EK_List_t *data_list = EK_pListCreate_Dynamic();
+EK_List_t *data_list = EK_pListCreate();
 
 // 添加一些数据节点
 int values[] = {50, 20, 80, 10, 60, 30};
 for (int i = 0; i < 6; i++) {
-    EK_Node_t *node = EK_pNodeCreate_Dynamic(&values[i], values[i]);
+    EK_Node_t *node = EK_pNodeCreate(&values[i], values[i]);
     EK_rListInsertEnd(data_list, node);
 }
 
@@ -287,11 +287,11 @@ static EK_Node_t dummy_node;
 static EK_Node_t nodes[10];
 
 // 创建静态链表
-EK_rListCreate_Static(&my_static_list, &dummy_node);
+EK_pListCreateStatic(&my_static_list, &dummy_node);
 
 // 创建静态节点并插入
 for (int i = 0; i < 10; i++) {
-    EK_rNodeCreate_Static(&nodes[i], &data[i], i);
+    EK_pNodeCreateStatic(&nodes[i], &data[i], i);
     EK_rListInsertEnd(&my_static_list, &nodes[i]);
 }
 ```
@@ -299,9 +299,9 @@ for (int i = 0; i < 10; i++) {
 ### 8. 节点删除管理示例
 ```c
 // 创建链表和节点
-EK_List_t *my_list = EK_pListCreate_Dynamic();
-EK_Node_t *node1 = EK_pNodeCreate_Dynamic(&data1, 10);
-EK_Node_t *node2 = EK_pNodeCreate_Dynamic(&data2, 20);
+EK_List_t *my_list = EK_pListCreate();
+EK_Node_t *node1 = EK_pNodeCreate(&data1, 10);
+EK_Node_t *node2 = EK_pNodeCreate(&data2, 20);
 
 // 插入节点
 EK_rListInsertEnd(my_list, node1);
@@ -315,7 +315,7 @@ EK_rNodeDelete(node1);                  // 删除节点并释放内存
 EK_rListDelete(my_list);                // 自动移除并删除所有节点
 
 // 错误示例：不能删除仍在链表中的节点
-EK_Node_t *node3 = EK_pNodeCreate_Dynamic(&data3, 30);
+EK_Node_t *node3 = EK_pNodeCreate(&data3, 30);
 EK_rListInsertEnd(another_list, node3);
 EK_Result_t result = EK_rNodeDelete(node3);  // 返回 EK_ERROR，因为节点仍在链表中
 ```

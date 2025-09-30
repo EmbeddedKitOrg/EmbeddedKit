@@ -31,30 +31,6 @@ static inline void *v_stack_get_top(EK_Stack_t *stack)
 }
 
 /* ========================= 公用API函数定义区 ========================= */
-
-/**
- * @brief 静态创建栈（使用用户提供的内存）
- * @details 在已分配的栈内存上初始化栈结构
- * @param stack 指向已分配内存的栈结构体指针
- * @param mem_ptr 用户提供的栈空间内存指针
- * @param capacity 栈容量（字节数）
- * @return EK_Result_t 操作结果
- * @note 适用于静态分配场景，栈结构体和栈空间内存都由用户管理
- */
-
-EK_Result_t EK_rStackCreate_Static(EK_Stack_t *stack, void *mem_ptr, EK_Size_t capacity)
-{
-    if (mem_ptr == NULL || stack == NULL) return EK_NULL_POINTER;
-    if (capacity == 0) return EK_INVALID_PARAM;
-
-    stack->Stack_Mem = mem_ptr;
-    stack->Stack_Capacity = capacity;
-    stack->Stack_TopPtr = mem_ptr; // 栈顶指针初始化为栈底
-    stack->Stack_isDynamic = false;
-
-    return EK_OK;
-}
-
 /**
  * @brief 动态创建栈（使用动态内存分配）
  * @details 动态分配内存并初始化栈结构
@@ -62,7 +38,7 @@ EK_Result_t EK_rStackCreate_Static(EK_Stack_t *stack, void *mem_ptr, EK_Size_t c
  * @return EK_Stack_t* 创建的栈指针
  * @note 适用于动态分配场景，栈内存由malloc管理，需要使用EK_rStackDelete释放
  */
-EK_Stack_t *EK_pStackCreate_Dynamic(EK_Size_t capacity)
+EK_Stack_t *EK_pStackCreate(EK_Size_t capacity)
 {
     if (capacity == 0) return NULL;
 
@@ -87,6 +63,29 @@ EK_Stack_t *EK_pStackCreate_Dynamic(EK_Size_t capacity)
     stack->Stack_isDynamic = true;
 
     return stack;
+}
+
+/**
+ * @brief 静态创建栈（使用用户提供的内存）
+ * @details 在已分配的栈内存上初始化栈结构
+ * @param stack 指向已分配内存的栈结构体指针
+ * @param mem_ptr 用户提供的栈空间内存指针
+ * @param capacity 栈容量（字节数）
+ * @return EK_Result_t 操作结果
+ * @note 适用于静态分配场景，栈结构体和栈空间内存都由用户管理
+ */
+
+EK_Result_t EK_rStackCreateStatic(EK_Stack_t *stack, void *mem_ptr, EK_Size_t capacity)
+{
+    if (mem_ptr == NULL || stack == NULL) return EK_NULL_POINTER;
+    if (capacity == 0) return EK_INVALID_PARAM;
+
+    stack->Stack_Mem = mem_ptr;
+    stack->Stack_Capacity = capacity;
+    stack->Stack_TopPtr = mem_ptr; // 栈顶指针初始化为栈底
+    stack->Stack_isDynamic = false;
+
+    return EK_OK;
 }
 
 /**

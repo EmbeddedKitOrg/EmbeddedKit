@@ -11,7 +11,7 @@
 /* ========================= 宏定义区 ========================= */
 #ifndef LIST_RECURSION_SORT
 #define LIST_RECURSION_SORT 1
-#endif
+#endif /* LIST_RECURSION_SORT */
 
 /* ========================= 常数定义区 ========================= */
 /**
@@ -389,7 +389,7 @@ static EK_Result_t r_merge_list(EK_List_t *list1, EK_List_t *list2, EK_List_t *l
 
     return EK_OK;
 }
-#endif
+#endif /* LIST_RECURSION_SORT != 0 */
 /* ========================= 公用API函数定义区 ========================= */
 /**
  * @brief 获取链表的第一个有效节点
@@ -416,28 +416,6 @@ EK_Node_t *EK_pListGetEnd(EK_List_t *list)
 }
 
 /**
- * @brief 静态创建节点
- * @details 在已分配的节点内存上初始化节点数据
- * @param node 指向已分配内存的节点指针
- * @param content 节点存储的内容指针
- * @param order 节点序号
- * @return EK_Result_t 操作结果
- */
-EK_Result_t EK_rNodeCreate_Static(EK_Node_t *node, void *content, uint16_t order)
-{
-    if (node == NULL || content == NULL) return EK_NULL_POINTER;
-
-    node->Node_Data = content;
-    node->Node_Order = order;
-    node->Node_Next = NULL;
-    node->Node_Prev = NULL;
-    node->Node_Owner = NULL;
-    node->Node_isDynamic = false;
-
-    return EK_OK;
-}
-
-/**
  * @brief 动态创建节点
  * @details 动态分配内存并初始化节点数据
  * @param content 节点存储的内容指针
@@ -446,7 +424,7 @@ EK_Result_t EK_rNodeCreate_Static(EK_Node_t *node, void *content, uint16_t order
  * @retval 非NULL 创建成功，返回节点指针
  * @retval NULL 创建失败（参数为空或内存分配失败）
  */
-EK_Node_t *EK_pNodeCreate_Dynamic(void *content, uint16_t order)
+EK_Node_t *EK_pNodeCreate(void *content, uint16_t order)
 {
     if (content == NULL) return NULL;
     EK_Node_t *node = (EK_Node_t *)EK_MALLOC(sizeof(EK_Node_t));
@@ -468,24 +446,25 @@ EK_Node_t *EK_pNodeCreate_Dynamic(void *content, uint16_t order)
 }
 
 /**
- * @brief 静态创建链表
- * @details 在已分配的链表内存上初始化链表
- * @param list 指向已分配内存的链表指针
- * @param dummy_node 哨兵节点
+ * @brief 静态创建节点
+ * @details 在已分配的节点内存上初始化节点数据
+ * @param node 指向已分配内存的节点指针
+ * @param content 节点存储的内容指针
+ * @param order 节点序号
  * @return EK_Result_t 操作结果
  */
-EK_Result_t EK_rListCreate_Static(EK_List_t *list, EK_Node_t *dummy_node)
+EK_Result_t EK_pNodeCreateStatic(EK_Node_t *node, void *content, uint16_t order)
 {
-    if (list == NULL || dummy_node == NULL) return EK_NULL_POINTER;
+    if (node == NULL || content == NULL) return EK_NULL_POINTER;
 
-    // 初始化哨兵节点
-    list->List_Dummy = dummy_node;
-    list->List_isDynamic = false;
+    node->Node_Data = content;
+    node->Node_Order = order;
+    node->Node_Next = NULL;
+    node->Node_Prev = NULL;
+    node->Node_Owner = NULL;
+    node->Node_isDynamic = false;
 
-    // 确保哨兵节点被标记为静态
-    dummy_node->Node_isDynamic = false;
-
-    return r_list_init(list);
+    return EK_OK;
 }
 
 /**
@@ -495,7 +474,7 @@ EK_Result_t EK_rListCreate_Static(EK_List_t *list, EK_Node_t *dummy_node)
  * @retval 非NULL 创建成功，返回链表指针
  * @retval NULL 创建失败（参数为空或内存分配失败）
  */
-EK_List_t *EK_pListCreate_Dynamic(void)
+EK_List_t *EK_pListCreate(void)
 {
     EK_List_t *list = (EK_List_t *)EK_MALLOC(sizeof(EK_List_t));
 
@@ -524,6 +503,27 @@ EK_List_t *EK_pListCreate_Dynamic(void)
     }
 
     return list;
+}
+
+/**
+ * @brief 静态创建链表
+ * @details 在已分配的链表内存上初始化链表
+ * @param list 指向已分配内存的链表指针
+ * @param dummy_node 哨兵节点
+ * @return EK_Result_t 操作结果
+ */
+EK_Result_t EK_pListCreateStatic(EK_List_t *list, EK_Node_t *dummy_node)
+{
+    if (list == NULL || dummy_node == NULL) return EK_NULL_POINTER;
+
+    // 初始化哨兵节点
+    list->List_Dummy = dummy_node;
+    list->List_isDynamic = false;
+
+    // 确保哨兵节点被标记为静态
+    dummy_node->Node_isDynamic = false;
+
+    return r_list_init(list);
 }
 
 /**
@@ -909,7 +909,7 @@ EK_Result_t EK_rListSort(EK_List_t *list, bool is_descend)
     // 小型链表采用选择排序法
     if (list->List_Count < 5)
     {
-#endif
+#endif /* LIST_RECURSION_SORT != 0 */
         EK_Node_t *current = p_list_get_head(list);
         uint32_t processed_count = 0; // 添加计数器防止无限循环
 
@@ -974,8 +974,8 @@ EK_Result_t EK_rListSort(EK_List_t *list, bool is_descend)
         if (mid_node == NULL) return EK_ERROR;
 
         // 创建左右子链表
-        EK_List_t *left_list = EK_pListCreate_Dynamic();
-        EK_List_t *right_list = EK_pListCreate_Dynamic();
+        EK_List_t *left_list = EK_pListCreate();
+        EK_List_t *right_list = EK_pListCreate();
         if (left_list == NULL || right_list == NULL)
         {
             if (left_list)
@@ -1060,5 +1060,5 @@ EK_Result_t EK_rListSort(EK_List_t *list, bool is_descend)
 
         return result;
     }
-#endif
+#endif /* LIST_RECURSION_SORT != 0 */
 }

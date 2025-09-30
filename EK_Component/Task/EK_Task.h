@@ -12,10 +12,12 @@
 
 #include "../EK_Config.h"
 
+#if (EK_NORMAL_SCHEDULER == 1)
+
 #ifdef __cplusplus
 extern "C"
 {
-#endif
+#endif /* __cplusplus */
 
 /* ========================= 类型定义区 ========================= */
 
@@ -70,8 +72,8 @@ typedef EK_TaskEK_Node_t *EK_pTaskEK_Node_t; /**< 节点句柄指针(aka EK_Task
 
 /* ========================= 函数声明区 ========================= */
 EK_Result_t EK_rTaskInit(void);
-EK_pTaskHandler_t EK_pTaskCreate_Static(EK_TaskEK_Node_t *node, EK_TaskHandler_t *static_handler);
-EK_Result_t EK_rTaskCreate_Dynamic(void (*pfunc)(void), uint8_t Priority, EK_pTaskHandler_t *task_handler);
+EK_pTaskHandler_t EK_pTaskCreateStatic(EK_TaskEK_Node_t *node, EK_TaskHandler_t *static_handler);
+EK_Result_t EK_rTaskCreate(void (*pfunc)(void), uint8_t Priority, EK_pTaskHandler_t *task_handler);
 EK_Result_t EK_rTaskDelete(EK_pTaskHandler_t task_handler);
 EK_Result_t EK_rTaskSuspend(EK_pTaskHandler_t task_handler);
 EK_Result_t EK_rTaskResume(EK_pTaskHandler_t task_handler);
@@ -83,6 +85,8 @@ void EK_vTaskStart(uint32_t (*tick_get)(void));
 
 #ifdef __cplusplus
 }
-#endif
+#endif /* __cplusplus */
 
-#endif
+#endif /* EK_NORMAL_SCHEDULER == 1 */
+
+#endif /* __EK_TASK_H */

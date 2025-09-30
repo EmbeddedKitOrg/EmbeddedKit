@@ -15,6 +15,8 @@
 
 #include "../EK_Config.h"
 
+#if (EK_CORO_ENABLE == 1)
+
 /**
  * @warning: 此处必须要包含你的设备的文件头！
  * @example: #include "stm32f4xx_hal.h"
@@ -39,7 +41,7 @@
 #define CORTEX_M_CORE (0)
 #else
 #error "Cannot detect Cortex-M Core. Please include the correct core header manually in EK_CoroConfig.h."
-#endif
+#endif /* Cortex-M core detection */
 
 /*CMSIS 头文件自动包含*/
 #if defined(__clang__)
@@ -50,7 +52,7 @@
 #include "cmsis_armcc.h"
 #else
 #error "Unsupported compiler. Please add a corresponding CMSIS header."
-#endif
+#endif /* Compiler CMSIS header selection */
 
 /**
  * @brief 判断FPU是否启用
@@ -60,7 +62,7 @@
 #define EK_CORO_FPU_USED (1)
 #else
 #define EK_CORO_FPU_USED (0)
-#endif
+#endif /* __FPU_PRESENT == 1 && __FPU_USED == 1 */
 
 /**
  * @brief 协程优先级分组数目
@@ -68,7 +70,7 @@
  */
 #ifndef EK_CORO_PRIORITY_GROUPS
 #define EK_CORO_PRIORITY_GROUPS (16)
-#endif
+#endif /* EK_CORO_PRIORITY_GROUPS */
 
 /*
 裸函数宏
@@ -85,8 +87,8 @@
 #define __naked __declspec(naked)
 #else
 #define __naked
-#endif
-#endif
+#endif /* __GNUC__ || __clang__ || __IAR_SYSTEMS_ICC__ || __CC_ARM || __ARMCC_VERSION */
+#endif /* __naked */
 
 /**
  * @brief 协程空闲任务堆栈大小
@@ -97,8 +99,8 @@
 #define EK_CORO_IDLE_TASK_STACK_SIZE (256) // 定义空闲任务的堆栈大小
 #else
 #define EK_CORO_IDLE_TASK_STACK_SIZE (512) // 定义空闲任务的堆栈大小
-#endif
-#endif
+#endif /* EK_CORO_FPU_USED == 0 */
+#endif /* EK_CORO_IDLE_TASK_STACK_SIZE */
 
 /**
  * @brief 是否使能消息队列
@@ -106,6 +108,8 @@
  */
 #ifndef EK_CORO_USE_MESSAGE_QUEUE
 #define EK_CORO_USE_MESSAGE_QUEUE (1) // 1:使能 0:失能
-#endif
+#endif /* EK_CORO_USE_MESSAGE_QUEUE */
 
-#endif
+#endif /* EK_CORO_ENABLE == 1 */
+
+#endif /* __EK_COROCONFIG_H */

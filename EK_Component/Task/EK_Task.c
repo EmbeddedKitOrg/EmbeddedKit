@@ -20,6 +20,8 @@
 #include "EK_Task.h"
 #include "../MemPool/EK_MemPool.h"
 
+#if (EK_NORMAL_SCHEDULER == 1)
+
 /* ========================= 宏定义区 ========================= */
 
 /**
@@ -389,36 +391,6 @@ EK_Result_t EK_rTaskInit(void)
 }
 
 /**
- * @brief 静态添加一个任务（节点内存由用户提供）
- * @param node 用户提供的节点内存
- * @param static_handler 用户的静态任务句柄
- * @return EK_pTaskHandler_t 返回节点中的任务句柄指针，失败返回NULL
- * @note 适用于静态分配场景，节点内存和函数指针都由用户管理，不使用内存池
- */
-EK_pTaskHandler_t EK_pTaskCreate_Static(EK_TaskEK_Node_t *node, EK_TaskHandler_t *static_handler)
-{
-    if (node == NULL || static_handler == NULL) return NULL;
-
-    // 先复制用户的句柄内容到节点中
-    node->TaskHandler = *static_handler;
-    node->Next = NULL;
-    node->Owner = &WaitSchedule;
-
-    // 强制覆盖Task_Info值 - 静态创建，激活状态
-    node->TaskHandler.Task_Info = TASK_INIT_STATE(true, true);
-    node->TaskHandler.Task_OwnerNode = node;
-
-    // 插入到等待队列
-    if (r_task_insert_node(&WaitSchedule, node) != EK_OK)
-    {
-        return NULL;
-    }
-
-    // 返回节点中的句柄指针
-    return &(node->TaskHandler);
-}
-
-/**
  * @brief 动态添加一个任务（使用内存池分配节点）
  * @param pfunc 任务回调函数
  * @param Priority 任务优先级
@@ -426,7 +398,7 @@ EK_pTaskHandler_t EK_pTaskCreate_Static(EK_TaskEK_Node_t *node, EK_TaskHandler_t
  * @return EK_Result_t 添加结果
  * @note 适用于动态分配场景，节点内存由内存池管理，需要使用rTaskDelay设置延时
  */
-EK_Result_t EK_rTaskCreate_Dynamic(void (*pfunc)(void), uint8_t Priority, EK_pTaskHandler_t *task_handler)
+EK_Result_t EK_rTaskCreate(void (*pfunc)(void), uint8_t Priority, EK_pTaskHandler_t *task_handler)
 {
     if (pfunc == NULL) return EK_NULL_POINTER;
 
@@ -471,6 +443,36 @@ EK_Result_t EK_rTaskCreate_Dynamic(void (*pfunc)(void), uint8_t Priority, EK_pTa
     }
 
     return EK_OK;
+}
+
+/**
+ * @brief 静态添加一个任务（节点内存由用户提供）
+ * @param node 用户提供的节点内存
+ * @param static_handler 用户的静态任务句柄
+ * @return EK_pTaskHandler_t 返回节点中的任务句柄指针，失败返回NULL
+ * @note 适用于静态分配场景，节点内存和函数指针都由用户管理，不使用内存池
+ */
+EK_pTaskHandler_t EK_pTaskCreateStatic(EK_TaskEK_Node_t *node, EK_TaskHandler_t *static_handler)
+{
+    if (node == NULL || static_handler == NULL) return NULL;
+
+    // 先复制用户的句柄内容到节点中
+    node->TaskHandler = *static_handler;
+    node->Next = NULL;
+    node->Owner = &WaitSchedule;
+
+    // 强制覆盖Task_Info值 - 静态创建，激活状态
+    node->TaskHandler.Task_Info = TASK_INIT_STATE(true, true);
+    node->TaskHandler.Task_OwnerNode = node;
+
+    // 插入到等待队列
+    if (r_task_insert_node(&WaitSchedule, node) != EK_OK)
+    {
+        return NULL;
+    }
+
+    // 返回节点中的句柄指针
+    return &(node->TaskHandler);
 }
 
 /**
@@ -854,3 +856,5 @@ void EK_vTaskStart(uint32_t (*tick_get)(void))
         }
     }
 }
+
+#endif /*EK_NORMAL_SCHEDULER == 1*/

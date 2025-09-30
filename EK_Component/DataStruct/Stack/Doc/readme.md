@@ -38,7 +38,7 @@ typedef struct
 
 #### 动态栈创建
 ```c
-EK_Stack_t *EK_pStackCreate_Dynamic(EK_Size_t capacity);
+EK_Stack_t *EK_pStackCreate(EK_Size_t capacity);
 ```
 - **功能**：动态分配内存创建栈
 - **参数**：`capacity` - 栈容量（字节数）
@@ -47,7 +47,7 @@ EK_Stack_t *EK_pStackCreate_Dynamic(EK_Size_t capacity);
 
 #### 静态栈创建
 ```c
-EK_Result_t EK_rStackCreate_Static(EK_Stack_t *stack, void *mem_ptr, EK_Size_t capacity);
+EK_Result_t EK_rStackCreateStatic(EK_Stack_t *stack, void *mem_ptr, EK_Size_t capacity);
 ```
 - **功能**：使用用户提供的内存初始化栈
 - **参数**：
@@ -122,7 +122,7 @@ EK_Result_t EK_rStackPop(EK_Stack_t *stack, void *data_buffer, EK_Size_t data_si
 ### 1. 函数调用栈模拟
 ```c
 // 创建函数调用栈
-EK_Stack_t *call_stack = EK_pStackCreate_Dynamic(1024);
+EK_Stack_t *call_stack = EK_pStackCreate(1024);
 
 // 函数调用记录
 typedef struct {
@@ -149,7 +149,7 @@ uint32_t function_return(void) {
 ### 2. 表达式求值
 ```c
 // 操作数栈
-EK_Stack_t *operand_stack = EK_pStackCreate_Dynamic(256);
+EK_Stack_t *operand_stack = EK_pStackCreate(256);
 
 // 压入操作数
 void push_operand(int value) {
@@ -175,7 +175,7 @@ EK_Stack_t bracket_stack;
 
 // 初始化括号检查栈
 void bracket_checker_init(void) {
-    EK_rStackCreate_Static(&bracket_stack, bracket_buffer, MAX_BRACKETS);
+    EK_rStackCreateStatic(&bracket_stack, bracket_buffer, MAX_BRACKETS);
 }
 
 // 检查括号匹配
@@ -215,8 +215,8 @@ typedef struct {
     uint32_t timestamp;
 } Operation_t;
 
-EK_Stack_t *undo_stack = EK_pStackCreate_Dynamic(sizeof(Operation_t) * 50);
-EK_Stack_t *redo_stack = EK_pStackCreate_Dynamic(sizeof(Operation_t) * 50);
+EK_Stack_t *undo_stack = EK_pStackCreate(sizeof(Operation_t) * 50);
+EK_Stack_t *redo_stack = EK_pStackCreate(sizeof(Operation_t) * 50);
 
 // 执行操作并记录
 void execute_operation(uint8_t type, uint32_t data) {
@@ -228,7 +228,7 @@ void execute_operation(uint8_t type, uint32_t data) {
     
     // 清空重做栈
     EK_rStackDelete(redo_stack);
-    redo_stack = EK_pStackCreate_Dynamic(sizeof(Operation_t) * 50);
+    redo_stack = EK_pStackCreate(sizeof(Operation_t) * 50);
     
     // 记录到撤销栈
     EK_rStackPush(undo_stack, &op, sizeof(op));
@@ -274,7 +274,7 @@ typedef struct {
     uint8_t depth;
 } DFS_Node_t;
 
-EK_Stack_t *dfs_stack = EK_pStackCreate_Dynamic(sizeof(DFS_Node_t) * 100);
+EK_Stack_t *dfs_stack = EK_pStackCreate(sizeof(DFS_Node_t) * 100);
 
 // DFS遍历
 void dfs_traverse(uint16_t start_node) {
@@ -320,7 +320,7 @@ EK_Stack_t context_stack;
 
 // 初始化上下文栈
 void context_stack_init(void) {
-    EK_rStackCreate_Static(&context_stack, context_buffer, CONTEXT_STACK_SIZE);
+    EK_rStackCreateStatic(&context_stack, context_buffer, CONTEXT_STACK_SIZE);
 }
 
 // 中断发生时保存上下文
@@ -352,7 +352,7 @@ typedef struct {
     uint32_t alloc_time;
 } MemAlloc_t;
 
-EK_Stack_t *alloc_stack = EK_pStackCreate_Dynamic(sizeof(MemAlloc_t) * 32);
+EK_Stack_t *alloc_stack = EK_pStackCreate(sizeof(MemAlloc_t) * 32);
 
 // 跟踪内存分配
 void *tracked_malloc(EK_Size_t size) {
