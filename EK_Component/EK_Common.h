@@ -23,8 +23,8 @@
 #define __weak __weak
 #else
 #define __weak
-#endif
-#endif
+#endif /* __weak implementation */
+#endif /* __weak */
 
 /*未使用函数宏*/
 #ifndef __unused
@@ -38,8 +38,8 @@
 #define __unused __pragma(warning(suppress:4505))
 #else
 #define __unused
-#endif
-#endif
+#endif /* __unused implementation */
+#endif /* __unused */
 
 /*未使用变量宏*/
 #if defined(__GNUC__) || defined(__clang__)
@@ -48,12 +48,12 @@
 #define UNUSED_VAR(x) ((void)(x))
 #else
 #define UNUSED_VAR(X) ((void)(x))
-#endif
+#endif /* UNUSED_VAR macro */
 
 /* 空指针定义 */
 #ifndef NULL
 #define NULL ((void *)0)
-#endif
+#endif /* NULL */
 
 /* bool 定义*/
 #ifndef bool
@@ -62,7 +62,7 @@ typedef unsigned char bool;
 // 定义假值（0）和真值（1）
 #define false (0 == 1)
 #define true  (1 == 1)
-#endif
+#endif /* bool */
 
 /* 数据类型定义 */
 #ifndef __STDINT_H
@@ -106,7 +106,7 @@ typedef unsigned long long uint64_t;
 #ifdef __cpluscplus
 extern "C"
 {
-#endif
+#endif /* __cpluscplus */
 
 /**
  * @brief EmbeddedKit 全局统一状态枚举
@@ -170,6 +170,6 @@ int EK_iClamp(int value, int min_val, int max_val);
 
 #ifdef __cpluscplus
 }
-#endif
+#endif /* __cpluscplus */
 
-#endif
+#endif /* __EK_COMMON_H */

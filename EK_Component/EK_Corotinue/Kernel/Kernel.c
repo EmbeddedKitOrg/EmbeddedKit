@@ -16,6 +16,12 @@
 #include "../MemPool/EK_MemPool.h"
 #include "EK_CoroTask.h"
 
+#if (EK_CORO_ENABLE == 1)
+
+#if (EK_CORO_USE_MESSAGE_QUEUE == 1)
+#include "../Message/EK_CoroMessage.h"
+#endif /* EK_CORO_USE_MESSAGE_QUEUE == 1 */
+
 /* ========================= 内部宏定义区 ========================= */
 
 /**
@@ -50,7 +56,7 @@ static inline uint8_t v_kernel_find_msb_index(EK_BitMap_t val)
     return msb_idx;
 }
 #define EK_KERNEL_CLZ(__BITMAP__) v_kernel_find_msb_index(__BITMAP__)
-#endif
+#endif /* EK_KERNEL_CLZ selection */
 
 /**
  * @brief 计算最高的优先级
@@ -67,17 +73,17 @@ static inline uint8_t v_kernel_find_msb_index(EK_BitMap_t val)
 #define EK_CORO_IDLE_TASK_STACK_SIZE (256) // 定义空闲任务的堆栈大小
 #else
 #define EK_CORO_IDLE_TASK_STACK_SIZE (512) // 定义空闲任务的堆栈大小
-#endif
-#endif
+#endif /* EK_CORO_FPU_USED == 0 */
+#endif /* EK_CORO_IDLE_TASK_STACK_SIZE */
 
 /* ========================= 全局变量定义区 ========================= */
+uint32_t EK_CoroKernelTick; //时基
 EK_CoroList_t EK_CoroKernelReadyList[EK_CORO_PRIORITY_GROUPS]; // 就绪任务列表
 EK_CoroList_t EK_CoroKernelBlockList; // 阻塞任务列表
 EK_CoroList_t EK_CoroKernelSuspendList; // 挂起任务列表
 EK_CoroTCB_t *EK_CoroKernelCurrentTCB; // 当前正在运行的任务TCB指针
 EK_CoroTCB_t *EK_CoroKernelDeleteTCB; // 等待被删除的任务TCB指针
-EK_GetTickFunction_t EK_CoroKernelGetTick; //获取时基的函数
-EK_CoroTCB_t *KernelNextTCB; // 下一个任务TCB
+static EK_CoroTCB_t *KernelNextTCB; // 下一个任务TCB
 static EK_CoroTCB_t *EK_CoroKernelIdleTCB; // 空闲任务TCB指针
 static bool KernelIdleYield = false; // 调度请求标志位, 由TickHandler在唤醒任务时设置
 static bool KernelIsInited = false; // 内核初始化状态标志
@@ -85,89 +91,23 @@ static volatile EK_BitMap_t KernelReadyBitMap; // 就绪链表位图
 
 /* ========================= 内部函数定义区 ========================= */
 /**
- * @brief 向链表中插入一个tcb (内部函数)
- * 
- * @param list 待插入的链表
- * @param tcb 想要插入的tcb
- * @param is_sorted 是否按时间排序插入 (false则插入到尾部)
- * @return EK_Result_t 
+ * @brief 从一个链表中移除一个指定的协程节点。
+ * @details
+ *  此函数会在指定的链表中查找并移除一个节点。它会正确处理头节点、尾节点和中间节点的情况，
+ *  并更新链表的计数器和头/尾指针。移除后，节点的归属链表指针会被清空。
+ *  如果一个就绪链表因此变为空，对应的就绪位图位也会被清除。
+ * @param list 从中移除节点的链表。
+ * @param node_to_remove 要移除的协程节点。
+ * @return EK_Result_t 操作结果 (EK_OK, EK_NULL_POINTER, EK_NOT_FOUND)。
  */
-static inline EK_Result_t _r_insert_node(EK_CoroList_t *list, EK_CoroTCB_t *tcb, bool is_sorted)
-{
-    if (list == NULL || tcb == NULL) return EK_NULL_POINTER;
-
-    EK_CoroListNode_t *node_to_insert = &tcb->TCB_Node;
-    node_to_insert->CoroNode_Next = NULL;
-
-    EK_ENTER_CRITICAL();
-
-    if (list->List_Head == NULL) // 如果链表为空
-    {
-        list->List_Head = node_to_insert;
-        list->List_Tail = node_to_insert;
-    }
-    else if (is_sorted) // 按照时间顺序插入链表
-    {
-        EK_CoroListNode_t *current = list->List_Head;
-        EK_CoroListNode_t *prev = NULL;
-
-        while (current != NULL)
-        {
-            EK_CoroTCB_t *current_tcb = (EK_CoroTCB_t *)current->CoroNode_OwnerTCB;
-            if (tcb->TCB_WakeUpTime < current_tcb->TCB_WakeUpTime) break;
-            prev = current;
-            current = current->CoroNode_Next;
-        }
-
-        if (prev == NULL) // 插入到头部
-        {
-            node_to_insert->CoroNode_Next = list->List_Head;
-            list->List_Head = node_to_insert;
-        }
-        else // 插入到中间或尾部
-        {
-            node_to_insert->CoroNode_Next = prev->CoroNode_Next;
-            prev->CoroNode_Next = node_to_insert;
-        }
-
-        if (node_to_insert->CoroNode_Next == NULL) // 如果插入到了尾部, 更新Tail指针
-        {
-            list->List_Tail = node_to_insert;
-        }
-    }
-    else // 尾部插入 (O(1) 操作)
-    {
-        list->List_Tail->CoroNode_Next = node_to_insert;
-        list->List_Tail = node_to_insert;
-    }
-
-    node_to_insert->CoroNode_OwnerList = list;
-    list->List_Count++;
-
-    if (list != &EK_CoroKernelBlockList && list != &EK_CoroKernelSuspendList)
-    {
-        EK_vSetBit(&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
-    }
-
-    EK_EXIT_CRITICAL();
-    return EK_OK;
-}
-
-/**
- * @brief 从链表中移除一个tcb
- * 
- * @param list 待移除的链表
- * @param tcb 想要移除的tcb
- * @return EK_Result_t 
- */
-EK_Result_t EK_rKernelRemove(EK_CoroList_t *list, EK_CoroTCB_t *tcb)
+EK_Result_t EK_rKernelRemove(EK_CoroList_t *list, EK_CoroListNode_t *node_to_remove)
 {
     // 入参检查
-    if (list == NULL || tcb == NULL) return EK_NULL_POINTER;
+    if (list == NULL || node_to_remove == NULL) return EK_NULL_POINTER;
     if (list->List_Count == 0) return EK_ERROR;
-    if (tcb->TCB_Node.CoroNode_OwnerList != list) return EK_ERROR;
+    if (node_to_remove->CoroNode_List != list) return EK_ERROR;
 
-    EK_CoroListNode_t *node_to_remove = &tcb->TCB_Node; // 要删除的TCB的节点
+    EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)node_to_remove->CoroNode_Owner; // 获取TCB
     EK_CoroListNode_t *current = list->List_Head; // 遍历节点
     EK_CoroListNode_t *prev = NULL; // 前个节点
 
@@ -204,11 +144,12 @@ EK_Result_t EK_rKernelRemove(EK_CoroList_t *list, EK_CoroTCB_t *tcb)
     list->List_Count--;
 
     // 更新节点信息
-    node_to_remove->CoroNode_OwnerList = NULL;
+    node_to_remove->CoroNode_List = NULL;
     node_to_remove->CoroNode_Next = NULL;
 
     // 设置位图
-    if (list->List_Count == 0 && list != &EK_CoroKernelBlockList && list != &EK_CoroKernelSuspendList)
+    // 判断是不是就绪链表
+    if (list >= EK_CoroKernelReadyList && list < EK_CoroKernelReadyList + EK_CORO_PRIORITY_GROUPS)
     {
         EK_vClearBit(&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
     }
@@ -219,74 +160,241 @@ EK_Result_t EK_rKernelRemove(EK_CoroList_t *list, EK_CoroTCB_t *tcb)
 }
 
 /**
- * @brief 将tcb移动到指定链表 (内部函数)
- * 
- * @param list 待移动的链表
- * @param tcb 想要移动的tcb
- * @param is_sorted 是否按时间排序插入 (false则插入到尾部)
- * @return EK_Result_t 
+ * @brief 将一个协程节点按唤醒时间升序插入到链表中。
+ * @details
+ *  这是一个公共接口，用于将节点按照其 `TCB_WakeUpTime` 成员的值从小到大插入到链表中。
+ *  主要用于将任务插入到阻塞链表 `EK_CoroKernelBlockList`。
+ * @param list 目标链表。
+ * @param node 要插入的协程节点。
+ * @return EK_Result_t 操作结果。
  */
-static inline EK_Result_t _r_move_node(EK_CoroList_t *list, EK_CoroTCB_t *tcb, bool is_sorted)
+EK_Result_t EK_rKernelInsert_WakeUpTime(EK_CoroList_t *list, EK_CoroListNode_t *node)
 {
-    if (list == NULL || tcb == NULL) return EK_NULL_POINTER;
+    if (list == NULL || node == NULL) return EK_NULL_POINTER;
 
-    if (tcb->TCB_Node.CoroNode_OwnerList != NULL)
+    EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)node->CoroNode_Owner;
+    node->CoroNode_Next = NULL;
+
+    EK_ENTER_CRITICAL();
+
+    if (list->List_Head == NULL) // 如果链表为空
     {
-        EK_Result_t remove_res = EK_rKernelRemove((EK_CoroList_t *)tcb->TCB_Node.CoroNode_OwnerList, tcb);
+        list->List_Head = node;
+        list->List_Tail = node;
+    }
+    else // 按照时间顺序插入链表
+    {
+        EK_CoroListNode_t *current = list->List_Head;
+        EK_CoroListNode_t *prev = NULL;
+
+        while (current != NULL)
+        {
+            EK_CoroTCB_t *current_tcb = (EK_CoroTCB_t *)current->CoroNode_Owner;
+            if (tcb->TCB_WakeUpTime < current_tcb->TCB_WakeUpTime) break;
+            prev = current;
+            current = current->CoroNode_Next;
+        }
+
+        if (prev == NULL) // 插入到头部
+        {
+            node->CoroNode_Next = list->List_Head;
+            list->List_Head = node;
+        }
+        else // 插入到中间或尾部
+        {
+            node->CoroNode_Next = prev->CoroNode_Next;
+            prev->CoroNode_Next = node;
+        }
+
+        if (node->CoroNode_Next == NULL) // 如果插入到了尾部, 更新Tail指针
+        {
+            list->List_Tail = node;
+        }
+    }
+
+    node->CoroNode_List = list;
+    list->List_Count++;
+
+    // 判断是不是就绪链表
+    if (list >= EK_CoroKernelReadyList && list < EK_CoroKernelReadyList + EK_CORO_PRIORITY_GROUPS)
+    {
+        EK_vSetBit(&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
+    }
+
+    EK_EXIT_CRITICAL();
+    return EK_OK;
+}
+
+/**
+ * @brief 将一个协程节点插入到链表的尾部。
+ * @details
+ *  这是一个公共接口，以 O(1) 的时间复杂度将节点添加到链表的末尾。
+ *  主要用于将任务添加到就绪链表 `EK_CoroKernelReadyList` 或挂起链表 `EK_CoroKernelSuspendList`。
+ * @param list 目标链表。
+ * @param node 要插入的协程节点。
+ * @return EK_Result_t 操作结果。
+ */
+EK_Result_t EK_rKernelInsert_Tail(EK_CoroList_t *list, EK_CoroListNode_t *node)
+{
+    if (list == NULL || node == NULL) return EK_NULL_POINTER;
+
+    EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)node->CoroNode_Owner;
+    node->CoroNode_Next = NULL;
+
+    EK_ENTER_CRITICAL();
+
+    if (list->List_Head == NULL) // 如果链表为空
+    {
+        list->List_Head = node;
+        list->List_Tail = node;
+    }
+    else // 尾部插入 (O(1) 操作)
+    {
+        list->List_Tail->CoroNode_Next = node;
+        list->List_Tail = node;
+    }
+
+    node->CoroNode_List = list;
+    list->List_Count++;
+
+    // 判断是不是就绪链表
+    if (list >= EK_CoroKernelReadyList && list < EK_CoroKernelReadyList + EK_CORO_PRIORITY_GROUPS)
+    {
+        EK_vSetBit(&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
+    }
+
+    EK_EXIT_CRITICAL();
+    return EK_OK;
+}
+
+/**
+ * @brief 将一个协程节点按优先级升序插入到链表中。
+ * @details
+ *  这是一个公共接口，用于将节点按照其 `TCB_Priority` 成员的值从小到大插入到链表中 (值越小优先级越高)。
+ * @param list 目标链表。
+ * @param node 要插入的协程节点。
+ * @return EK_Result_t 操作结果。
+ */
+EK_Result_t EK_rKernelInsert_Prio(EK_CoroList_t *list, EK_CoroListNode_t *node)
+{
+    if (list == NULL || node == NULL) return EK_NULL_POINTER;
+
+    EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)node->CoroNode_Owner;
+    node->CoroNode_Next = NULL;
+
+    EK_ENTER_CRITICAL();
+
+    if (list->List_Head == NULL) // 如果链表为空
+    {
+        list->List_Head = node;
+        list->List_Tail = node;
+    }
+    else // 按照优先级顺序插入链表
+    {
+        EK_CoroListNode_t *current = list->List_Head;
+        EK_CoroListNode_t *prev = NULL;
+
+        while (current != NULL)
+        {
+            EK_CoroTCB_t *current_tcb = (EK_CoroTCB_t *)current->CoroNode_Owner;
+            if (tcb->TCB_Priority < current_tcb->TCB_Priority) break; // 找到了插入点 (新任务优先级更高)
+            prev = current;
+            current = current->CoroNode_Next;
+        }
+
+        if (prev == NULL) // 插入到头部
+        {
+            node->CoroNode_Next = list->List_Head;
+            list->List_Head = node;
+        }
+        else // 插入到中间或尾部
+        {
+            node->CoroNode_Next = prev->CoroNode_Next;
+            prev->CoroNode_Next = node;
+        }
+
+        if (node->CoroNode_Next == NULL) // 如果插入到了尾部, 更新Tail指针
+        {
+            list->List_Tail = node;
+        }
+    }
+
+    node->CoroNode_List = list;
+    list->List_Count++;
+
+    // 判断是不是就绪链表
+    if (list >= EK_CoroKernelReadyList && list < EK_CoroKernelReadyList + EK_CORO_PRIORITY_GROUPS)
+    {
+        EK_vSetBit(&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
+    }
+
+    EK_EXIT_CRITICAL();
+    return EK_OK;
+}
+
+/**
+ * @brief 将一个协程节点移动到另一个链表，并按唤醒时间升序排序。
+ * @details
+ *  此函数将节点从当前链表移除，然后按唤醒时间 `TCB_WakeUpTime` 升序插入到目标链表中。
+ *  常用于将任务从就绪链表移动到阻塞链表。
+ * @param list 目标链表。
+ * @param node 要移动的协程节点。
+ * @return EK_Result_t 操作结果。
+ */
+EK_Result_t EK_rKernelMove_WakeUpTime(EK_CoroList_t *list, EK_CoroListNode_t *node)
+{
+    if (list == NULL || node == NULL) return EK_NULL_POINTER;
+
+    if (node->CoroNode_List != NULL)
+    {
+        EK_Result_t remove_res = EK_rKernelRemove((EK_CoroList_t *)node->CoroNode_List, node);
         if (remove_res != EK_OK) return remove_res;
     }
 
-    return _r_insert_node(list, tcb, is_sorted);
+    return EK_rKernelInsert_WakeUpTime(list, node);
 }
 
 /**
- * @brief 向链表中插入一个tcb
- * 
- * @param list 待插入的链表
- * @param tcb 想要插入的tcb
- * @details 按照唤醒时间从小到大的顺序插入链表
- * @return EK_Result_t 
+ * @brief 将一个协程节点移动到另一个链表的尾部。
+ * @details
+ *  此函数将节点从当前链表移除，然后插入到目标链表的末尾。
+ *  常用于将任务从阻塞/挂起链表移回到就绪链表。
+ * @param list 目标链表。
+ * @param node 要移动的协程节点。
+ * @return EK_Result_t 操作结果。
  */
-EK_Result_t EK_rKernelInsert(EK_CoroList_t *list, EK_CoroTCB_t *tcb)
+EK_Result_t EK_rKernelMove_Tail(EK_CoroList_t *list, EK_CoroListNode_t *node)
 {
-    return _r_insert_node(list, tcb, true);
+    if (list == NULL || node == NULL) return EK_NULL_POINTER;
+
+    if (node->CoroNode_List != NULL)
+    {
+        EK_Result_t remove_res = EK_rKernelRemove((EK_CoroList_t *)node->CoroNode_List, node);
+        if (remove_res != EK_OK) return remove_res;
+    }
+
+    return EK_rKernelInsert_Tail(list, node);
 }
 
 /**
- * @brief 向链表末尾插入一个tcb
- * 
- * @param list 待插入的链表
- * @param tcb 想要插入的tcb
- * @return EK_Result_t 
+ * @brief 将一个协程节点移动到另一个链表，并按优先级升序排序。
+ * @details
+ *  此函数将节点从当前链表移除，然后按任务优先级 `TCB_Priority` 升序插入到目标链表中。
+ * @param list 目标链表。
+ * @param node 要移动的协程节点。
+ * @return EK_Result_t 操作结果。
  */
-EK_Result_t EK_rKernelInsert_Tail(EK_CoroList_t *list, EK_CoroTCB_t *tcb)
+EK_Result_t EK_rKernelMove_Prio(EK_CoroList_t *list, EK_CoroListNode_t *node)
 {
-    return _r_insert_node(list, tcb, false);
-}
+    if (list == NULL || node == NULL) return EK_NULL_POINTER;
 
-/**
- * @brief 将tcb移动到指定链表
- * 
- * @param list 待移动的链表
- * @param tcb 想要移动的txb
- * @details 按照唤醒时间从小到大的顺序插入链表
- * @return EK_Result_t 
- */
-EK_Result_t EK_rKernelMove(EK_CoroList_t *list, EK_CoroTCB_t *tcb)
-{
-    return _r_move_node(list, tcb, true);
-}
+    if (node->CoroNode_List != NULL)
+    {
+        EK_Result_t remove_res = EK_rKernelRemove((EK_CoroList_t *)node->CoroNode_List, node);
+        if (remove_res != EK_OK) return remove_res;
+    }
 
-/**
- * @brief 将tcb移动到指定链表的尾部
- * 
- * @param list 待移动的链表
- * @param tcb 想要移动的txb
- * @return EK_Result_t 
- */
-EK_Result_t EK_rKernelMove_Tail(EK_CoroList_t *list, EK_CoroTCB_t *tcb)
-{
-    return _r_move_node(list, tcb, false);
+    return EK_rKernelInsert_Prio(list, node);
 }
 
 /* ========================= 空闲任务实现区 ========================= */
@@ -352,38 +460,49 @@ __naked static void v_kernel_start(void)
 }
 
 /**
- * @brief 初始化协程内核
+ * @brief 初始化协程内核。
  * @details
- *  - 初始化所有任务列表。
- *  -初始化全局变量。
- *  -将内核状态标记为已初始化。
+ *  此函数必须在创建任何协程或启动内核之前调用一次。
+ *  它负责初始化内存池、所有任务列表（就绪、阻塞、挂起等）、
+ *  内核全局变量，并创建系统空闲任务。
  */
 void EK_vKernelInit(void)
 {
     if (KernelIsInited == true) return;
 
+    // 初始化内存池
     while (EK_bMemPool_Init() != true);
 
+    // 初始化就绪链表
     for (uint8_t i = 0; i < EK_CORO_PRIORITY_GROUPS; i++)
     {
         EK_CoroKernelReadyList[i].List_Count = 0;
         EK_CoroKernelReadyList[i].List_Head = NULL;
         EK_CoroKernelReadyList[i].List_Tail = NULL;
     }
+
+    // 初始化阻塞链表
     EK_CoroKernelBlockList.List_Count = 0;
     EK_CoroKernelBlockList.List_Head = NULL;
     EK_CoroKernelBlockList.List_Tail = NULL;
 
+    // 初始化挂起链表
     EK_CoroKernelSuspendList.List_Count = 0;
     EK_CoroKernelSuspendList.List_Head = NULL;
     EK_CoroKernelSuspendList.List_Tail = NULL;
 
+    // 初始化位图
     KernelReadyBitMap = 0;
+
+    // 初始化Tick
+    EK_CoroKernelTick = 0;
+
+    // 初始化指针
     EK_CoroKernelCurrentTCB = NULL;
     EK_CoroKernelDeleteTCB = NULL;
     KernelNextTCB = NULL;
-    EK_CoroKernelGetTick = NULL;
 
+    // 创建空闲任务
     EK_CoroKernelIdleHandler = EK_pCoroCreateStatic(&Kernel_IdleTaskTCB,
                                                     Kernel_CoroIdleFunction,
                                                     NULL,
@@ -395,21 +514,18 @@ void EK_vKernelInit(void)
 }
 
 /**
- * @brief 启动协程调度器
+ * @brief 启动协程调度器。
  * @details
- *  - 确保内核已初始化。
- *  - 选出就绪列表中优先级最高的任务作为第一个任务。
- *  - 调用裸函数 v_kernel_start() 启动第一个任务。
- * @note 此函数不会返回。
+ *  此函数启动整个协程系统。它会选择就绪列表中优先级最高的任务作为第一个任务来运行。
+ *  在启动之前，它会检查内核是否已初始化，并保存用户提供的获取系统Tick的函数。
+ *  一旦调用，它将通过 `v_kernel_start` 执行第一次上下文切换，并且不会返回。
+ * @note 此函数永不返回。
  */
-void EK_vKernelStart(EK_GetTickFunction_t get_tick)
+void EK_vKernelStart(void)
 {
     if (KernelIsInited == false) EK_vKernelInit();
-    if (get_tick == NULL) return;
 
     EK_ENTER_CRITICAL();
-
-    EK_CoroKernelGetTick = get_tick;
 
     if (KernelReadyBitMap == 0)
     {
@@ -418,9 +534,9 @@ void EK_vKernelStart(EK_GetTickFunction_t get_tick)
 
     // 找到优先级最高的TCB 启动
     uint8_t highest_prio = EK_KERNEL_GET_HIGHEST_PRIO(KernelReadyBitMap);
-    EK_CoroKernelCurrentTCB = (EK_CoroTCB_t *)EK_CoroKernelReadyList[highest_prio].List_Head->CoroNode_OwnerTCB;
+    EK_CoroKernelCurrentTCB = (EK_CoroTCB_t *)EK_CoroKernelReadyList[highest_prio].List_Head->CoroNode_Owner;
     EK_CoroKernelCurrentTCB->TCB_State = EK_CORO_RUNNING;
-    EK_rKernelRemove(&EK_CoroKernelReadyList[highest_prio], EK_CoroKernelCurrentTCB);
+    EK_rKernelRemove(&EK_CoroKernelReadyList[highest_prio], &EK_CoroKernelCurrentTCB->TCB_StateNode);
 
     EK_EXIT_CRITICAL();
 
@@ -432,8 +548,11 @@ void EK_vKernelStart(EK_GetTickFunction_t get_tick)
 }
 
 /**
- * @brief 让出CPU同时更改协程链表
- * 
+ * @brief 请求一次任务调度。
+ * @details
+ *  此函数用于触发一次任务调度。它会从就绪位图中找到当前最高优先级的就绪任务，
+ *  将其设置为下一个要运行的任务 (`KernelNextTCB`)，然后通过触发 PendSV 异常来进行上下文切换。
+ *  当前正在运行的任务在调用此函数之前，应该已经被放回了某个链表（如就绪链表或阻塞链表）。
  */
 void EK_vKernelYield(void)
 {
@@ -443,11 +562,11 @@ void EK_vKernelYield(void)
     uint8_t highest_prio = EK_KERNEL_GET_HIGHEST_PRIO(KernelReadyBitMap);
 
     // 更新链表
-    KernelNextTCB = (EK_CoroTCB_t *)EK_CoroKernelReadyList[highest_prio].List_Head->CoroNode_OwnerTCB;
+    KernelNextTCB = (EK_CoroTCB_t *)EK_CoroKernelReadyList[highest_prio].List_Head->CoroNode_Owner;
     KernelNextTCB->TCB_State = EK_CORO_RUNNING;
 
     // 将TCB移除
-    EK_rKernelRemove(&EK_CoroKernelReadyList[highest_prio], KernelNextTCB);
+    EK_rKernelRemove(&EK_CoroKernelReadyList[highest_prio], &KernelNextTCB->TCB_StateNode);
 
     EK_EXIT_CRITICAL();
 
@@ -458,51 +577,80 @@ void EK_vKernelYield(void)
 }
 
 /**
- * @brief 内核时钟节拍处理函数
+ * @brief 内核时钟节拍处理函数。
  * @details
- *  此函数应在系统的时钟节拍中断（如SysTick_Handler）中被周期性调用。
- *  它负责遍历阻塞任务列表, 将延时时间已到的任务唤醒到就绪列表中。
+ *  此函数应在系统的时钟节拍中断（如 SysTick_Handler）中被周期性调用。
+ *  它负责处理所有带超时的阻塞。它会遍历延时阻塞列表 (`EK_CoroKernelBlockList`)
+ *  以及所有等待消息队列的阻塞列表，检查是否有任务的延时已经到期。
+ *  如果一个任务的 `TCB_WakeUpTime` 小于或等于当前Tick，该任务将被唤醒并移至就绪链表。
+ *  此函数能够正确处理系统Tick值的溢出情况。
  */
 void EK_vTickHandler(void)
 {
-    // 无阻塞直接退出
-    if (EK_CoroKernelBlockList.List_Count == 0) return;
-
     EK_ENTER_CRITICAL();
 
-    uint32_t current_tick = EK_CoroKernelGetTick(); // 获取当前的Tick
+    EK_CoroKernelTick++;
 
-    EK_CoroListNode_t *current_node = EK_CoroKernelBlockList.List_Head; // 遍历节点
-
-    while (current_node != NULL)
+    // 处理因 EK_vCoroDelay() 而阻塞的任务
+    if (EK_CoroKernelBlockList.List_Count > 0)
     {
-        EK_CoroTCB_t *current_tcb = (EK_CoroTCB_t *)current_node->CoroNode_OwnerTCB; // 获取当前的TCB
-
-        // 当前的Tick小于阻塞链表当前节点的唤醒时间：说明该节点之后都没有任务唤醒
-        if (current_tick < current_tcb->TCB_WakeUpTime) break;
-
-        EK_CoroListNode_t *next_node = current_node->CoroNode_Next; // 存储下一个节点
-
-        current_tcb->TCB_State = EK_CORO_READY; // 任务唤醒 先修改标志位
-
-        EK_rKernelMove_Tail(&EK_CoroKernelReadyList[current_tcb->TCB_Priority], current_tcb); // 移动到就绪链表的尾节点
-
-        // 如果当前为空闲任务 并且有任务唤醒 则向空闲任务中申请一次调度
-        if (EK_CoroKernelCurrentTCB == EK_CoroKernelIdleHandler)
+        // 获取当前状态节点
+        EK_CoroListNode_t *current_state_node = EK_CoroKernelBlockList.List_Head;
+        while (current_state_node != NULL)
         {
-            KernelIdleYield = true;
-        }
+            EK_CoroTCB_t *current_tcb = (EK_CoroTCB_t *)current_state_node->CoroNode_Owner;
 
-        current_node = next_node; //步进
+            // 预先保存下一个节点，防止当前节点被移动后链表断裂
+            EK_CoroListNode_t *next_node = current_state_node->CoroNode_Next;
+
+            // 永久阻塞的任务需要被显式唤醒，Tick处理器直接跳过
+            if (current_tcb->TCB_WakeUpTime == EK_MAX_DELAY)
+            {
+                current_state_node = next_node;
+                continue;
+            }
+
+            // 通过计算差值并转为有符号数来判断时间是否到达，这种方法可以优雅地处理Tick溢出
+            if ((int32_t)(EK_CoroKernelTick - current_tcb->TCB_WakeUpTime) < 0)
+            {
+                // 由于阻塞链表是按唤醒时间升序排列的，如果当前任务还没到期，后续任务也一定没到期
+                break;
+            }
+
+            // 如果任务正在等待某个事件 (即其事件节点在某个等待列表中)
+            if (current_tcb->TCB_EventNode.CoroNode_List != NULL)
+            {
+                // 那么延时到期意味着事件超时
+                current_tcb->TCB_EventResult = EK_CORO_EVENT_TIMEOUT;
+            }
+
+            // 任务延时已到，将其唤醒
+            current_tcb->TCB_State = EK_CORO_READY;
+            EK_rKernelMove_Tail(&EK_CoroKernelReadyList[current_tcb->TCB_Priority], &current_tcb->TCB_StateNode);
+
+            // 如果当前CPU正处于空闲状态，并且我们唤醒了一个任务，那么就需要请求一次调度
+            if (EK_CoroKernelCurrentTCB == EK_CoroKernelIdleHandler)
+            {
+                KernelIdleYield = true;
+            }
+            current_state_node = next_node;
+        }
     }
 
     EK_EXIT_CRITICAL();
 }
 
 /**
- * @brief Coroutine内核的PendSV处理函数
- * @details 这是一个裸函数, 必须由用户在实际的PendSV_Handler中调用。
- *          它负责保存和恢复上下文, 并执行调度。
+ * @brief Coroutine内核的PendSV处理函数 (上下文切换核心)。
+ * @details
+ *  这是一个裸函数，实现了实际的上下文切换逻辑。它必须由用户在实际的 `PendSV_Handler` 中调用。
+ *  其主要职责是：
+ *  1. 保存当前任务的CPU寄存器（R4-R11, LR）到其堆栈。
+ *  2. 将更新后的堆栈指针保存到当前任务的TCB中。
+ *  3. 将 `KernelNextTCB` 设置为 `EK_CoroKernelCurrentTCB`。
+ *  4. 从新任务的TCB中加载其堆栈指针。
+ *  5. 从新任务的堆栈中恢复其CPU寄存器。
+ *  6. 异常返回，CPU开始执行新任务的代码。
  */
 __naked void EK_vKernelPendSV_Handler(void)
 {
@@ -539,3 +687,5 @@ __naked void EK_vKernelPendSV_Handler(void)
         // 异常返回
         "bx lr \n");
 }
+
+#endif /*EK_CORO_ENABLE == 1*/

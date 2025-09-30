@@ -12,10 +12,12 @@
 
 #include "../Kernel/Kernel.h"
 
+#if (EK_CORO_ENABLE == 1)
+
 #ifdef __cplusplus
 extern "C"
 {
-#endif
+#endif /* __cplusplus */
 
 /* ========================= 函数声明区 ========================= */
 
@@ -32,12 +34,15 @@ void EK_vCoroResume(EK_CoroHandler_t task_handle, EK_Result_t *result);
 void EK_vCoroDelete(EK_CoroHandler_t task_handle, EK_Result_t *result);
 void EK_vCoroDelay(uint32_t xticks);
 void EK_vCoroYield(void);
+EK_Result_t EK_rCoroWakeup(EK_CoroHandler_t task_handle);
 void EK_vCoroSetPriority(EK_CoroHandler_t task_handle, uint16_t priority, EK_Result_t *result);
 EK_Size_t EK_uCoroGetStack(EK_CoroHandler_t task_handle);
 EK_Size_t EK_uCoroGetStackUsage(EK_CoroHandler_t task_handle);
 
 #ifdef __cplusplus
 }
-#endif
+#endif /* __cplusplus */
 
-#endif
+#endif /* EK_CORO_ENABLE == 1 */
+
+#endif /* __EK_COROTASK_H */

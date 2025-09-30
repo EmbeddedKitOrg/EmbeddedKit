@@ -79,6 +79,21 @@ extern bool EK_bMemPool_Free(void *ptr);
 #define SERIAL_OVER_TIME (20)
 
 /**
+ * @brief 启动协程 1-ENABLE 0-DISABLE
+ * @details 当该选项为1 即启动协程 这个时候普通的任务调度不会被编译
+ *          当该选项为0 即关闭协程 这个时候会自动启用普通的任务调度器
+ * 
+ */
+#define EK_CORO_ENABLE (1)
+#if (EK_CORO_ENABLE == 1)
+
+/**
+ * @brief 关闭普通的调度器
+ * @warning 不要修改这个宏！
+ */
+#define EK_NORMAL_SCHEDULER (0)
+
+/**
  * @brief 优先级组数目
  * 
  */
@@ -96,4 +111,14 @@ extern bool EK_bMemPool_Free(void *ptr);
  */
 #define EK_CORO_USE_MESSAGE_QUEUE (1) // 1:使能 0:失能
 
-#endif
+#else
+
+/**
+ * @brief 开启普通的调度器
+ * @warning 不要修改这个宏！
+ */
+#define EK_NORMAL_SCHEDULER (1)
+
+#endif /* EK_CORO_ENABLE == 1 */
+
+#endif /* __EK_CONFIG_H */

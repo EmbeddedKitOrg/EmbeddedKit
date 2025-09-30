@@ -15,7 +15,7 @@
 #ifdef __cplusplus
 extern "C"
 {
-#endif
+#endif /* __cplusplus */
 
 /* ========================= 类型定义区 ========================= */
 /**
@@ -70,6 +70,6 @@ bool EK_bMemPool_CheckIntegrity(void);
 
 #ifdef __cplusplus
 }
-#endif
+#endif /* __cplusplus */
 
-#endif
+#endif /* __EK_MEMPOOL_H */

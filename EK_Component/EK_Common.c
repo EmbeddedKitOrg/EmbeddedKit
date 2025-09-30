@@ -20,27 +20,26 @@ void EK_vMemCpy(void *p_dst, const void *p_src, EK_Size_t bytes)
 {
     if (p_dst == NULL || p_src == NULL || bytes == 0) return;
 
-    uint8_t *temp_dst = (uint8_t *)p_dst;
-    const uint8_t *temp_src = (const uint8_t *)p_src;
+    uint8_t *dst = (uint8_t *)p_dst;
+    const uint8_t *src = (const uint8_t *)p_src;
 
-    // 检测内存重叠，选择拷贝方向
-    if (temp_dst > temp_src && temp_dst < temp_src + bytes)
+    // 同一地址无需复制
+    if (dst == src) return;
+
+    // 不重叠或目标在源之前，正向复制
+    if (dst < src || dst >= (src + bytes))
     {
-        // 从后往前拷贝，防止覆盖
-        temp_dst += bytes - 1;
-        temp_src += bytes - 1;
         for (EK_Size_t i = 0; i < bytes; i++)
         {
-            *temp_dst-- = *temp_src--;
+            dst[i] = src[i];
         }
+        return;
     }
-    else
+
+    // 处理重叠（目标位于源之后）时，反向复制
+    for (EK_Size_t i = bytes; i > 0; i--)
     {
-        // 从前往后拷贝
-        for (EK_Size_t i = 0; i < bytes; i++)
-        {
-            temp_dst[i] = temp_src[i];
-        }
+        dst[i - 1] = src[i - 1];
     }
 }
 
@@ -54,10 +53,10 @@ void EK_vMemSet(void *p_dst, uint8_t value, EK_Size_t bytes)
 {
     if (p_dst == NULL || bytes == 0) return;
 
-    uint8_t *temp_dst = (uint8_t *)p_dst;
+    uint8_t *dst = (uint8_t *)p_dst;
     for (EK_Size_t i = 0; i < bytes; i++)
     {
-        temp_dst[i] = value;
+        dst[i] = value;
     }
 }
 
@@ -75,16 +74,17 @@ int EK_iMemCmp(const void *p_buf1, const void *p_buf2, EK_Size_t bytes)
 {
     if (p_buf1 == NULL || p_buf2 == NULL) return 0;
 
-    const uint8_t *temp_buf1 = (const uint8_t *)p_buf1;
-    const uint8_t *temp_buf2 = (const uint8_t *)p_buf2;
+    const uint8_t *buf1 = (const uint8_t *)p_buf1;
+    const uint8_t *buf2 = (const uint8_t *)p_buf2;
 
     for (EK_Size_t i = 0; i < bytes; i++)
     {
-        if (temp_buf1[i] != temp_buf2[i])
+        if (buf1[i] != buf2[i])
         {
-            return temp_buf1[i] - temp_buf2[i];
+            return (int)buf1[i] - (int)buf2[i];
         }
     }
+
     return 0;
 }
 
@@ -362,12 +362,12 @@ int EK_iAtoI(const char *p_str)
 void EK_vSetBit(void *p_data, uint32_t bit_pos)
 {
     if (p_data == NULL) return;
-    
+
     // 以字节方式访问内存，避免对齐问题
     uint8_t *p_map = (uint8_t *)p_data;
     uint32_t byte_index = bit_pos / 8;
     uint8_t bit_in_byte = bit_pos % 8;
-    
+
     p_map[byte_index] |= (1U << bit_in_byte);
 }
 

@@ -10,14 +10,14 @@
 #ifndef __EK_SERIAL_H
 #define __EK_SERIAL_H
 
-#include "../../EK_Common.h"
+#include "../../EK_Config.h"
 #include "../../DataStruct/Queue/EK_Queue.h"
 #include "../../DataStruct/List/EK_List.h"
 
 #ifdef __cplusplus
 extern "C"
 {
-#endif
+#endif /* __cplusplus */
 
 /* ========================= 类型定义区 ========================= */
 
@@ -29,24 +29,35 @@ typedef struct
 {
     EK_Node_t *Serial_Owner; /**< 拥有该结构的链表节点 */
     EK_Queue_t *Serial_Queue; /**< 数据缓冲队列 */
-    uint16_t Serial_Timer; /**< 定时器(高8位:设定值, 低8位:当前值) */
-    void *(*Serial_SendCallBack)(void *); /**< 数据发送回调函数 */
+    uint8_t Serial_Timer; /**< 定时器 */
+    bool Serial_IsDynamic; /**< 动态创建标志位 */
+    union
+    {
+        void (*StaticCallBack)(void *, EK_Size_t); /**< 静态回调函数 */
+        void (**DynamicCallBack)(void *, EK_Size_t); /**< 动态回调函数 */
+    } Serial_SendCallBack; /**< 数据发送回调函数 */
 } EK_SeiralQueue_t;
+
+typedef EK_SeiralQueue_t *EK_pSeiralQueue_t; // EK_SeiralQueue_t的句柄(aka *EK_SeiralQueue_t)
 
 /* ========================= 函数声明区 ========================= */
 EK_Result_t EK_rSerialInit_Dynamic(void);
 EK_Result_t EK_rSerialInit_Static(void);
-EK_Result_t EK_rSerialCreateQueue_Dyanmic(EK_SeiralQueue_t *serial_fifo,
-                                          void *(*send_func)(void *),
-                                          uint16_t priority,
-                                          size_t capacity);
-EK_Result_t EK_rSerialCreateQueue_Static(
-    EK_SeiralQueue_t *serial_fifo, void *buffer, void *(*send_func)(void *), uint16_t priority, size_t capacity);
-EK_Result_t EK_rSerialPrintf(EK_SeiralQueue_t *serial_fifo, size_t buffer_size, const char *format, ...);
+EK_Result_t EK_rSerialCreateQueue(EK_pSeiralQueue_t *serial_fifo,
+                                  void (*send_func)(void *, EK_Size_t),
+                                  uint16_t priority,
+                                  EK_Size_t capacity);
+EK_Result_t EK_rSerialCreateQueueStatic(EK_pSeiralQueue_t serial_fifo,
+                                        void *buffer,
+                                        void (*send_func)(void *, EK_Size_t),
+                                        uint16_t priority,
+                                        EK_Size_t capacity);
+EK_Result_t EK_rSerialPrintf(EK_pSeiralQueue_t serial_fifo, const char *format, ...);
 EK_Result_t EK_rSerialPoll(uint32_t (*get_tick)(void));
+EK_Result_t EK_rSerialDeleteQueue(EK_pSeiralQueue_t serial_fifo);
 
 #ifdef __cplusplus
 }
-#endif
+#endif /* __cplusplus */
 
-#endif
+#endif /* __EK_SERIAL_H */
