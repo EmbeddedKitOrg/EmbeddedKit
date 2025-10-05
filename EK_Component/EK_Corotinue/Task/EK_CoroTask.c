@@ -150,7 +150,12 @@ EK_CoroHandler_t EK_pCoroCreate(EK_CoroFunction_t task_func, void *task_arg, uin
     dynamic_tcb->TCB_State = EK_CORO_READY;
     dynamic_tcb->TCB_StateNode.CoroNode_Owner = dynamic_tcb;
     dynamic_tcb->TCB_StateNode.CoroNode_Next = NULL;
+    dynamic_tcb->TCB_StateNode.CoroNode_Prev = NULL;
     dynamic_tcb->TCB_StateNode.CoroNode_List = NULL;
+    dynamic_tcb->TCB_EventNode.CoroNode_Owner = dynamic_tcb;
+    dynamic_tcb->TCB_EventNode.CoroNode_Next = NULL;
+    dynamic_tcb->TCB_EventNode.CoroNode_Prev = NULL;
+    dynamic_tcb->TCB_EventNode.CoroNode_List = NULL;
 
 #if (EK_CORO_USE_MESSAGE_QUEUE == 1)
     dynamic_tcb->TCB_EventResult = EK_CORO_EVENT_NONE;
@@ -209,7 +214,12 @@ EK_CoroStaticHandler_t EK_pCoroCreateStatic(EK_CoroTCB_t *static_tcb,
     static_tcb->TCB_State = EK_CORO_READY;
     static_tcb->TCB_StateNode.CoroNode_Owner = static_tcb;
     static_tcb->TCB_StateNode.CoroNode_Next = NULL;
+    static_tcb->TCB_StateNode.CoroNode_Prev = NULL;
     static_tcb->TCB_StateNode.CoroNode_List = NULL;
+    static_tcb->TCB_EventNode.CoroNode_Owner = static_tcb;
+    static_tcb->TCB_EventNode.CoroNode_Next = NULL;
+    static_tcb->TCB_EventNode.CoroNode_Prev = NULL;
+    static_tcb->TCB_EventNode.CoroNode_List = NULL;
 
 #if (EK_CORO_USE_MESSAGE_QUEUE == 1)
     static_tcb->TCB_EventResult = EK_CORO_EVENT_NONE;
@@ -323,6 +333,15 @@ void EK_vCoroResume(EK_CoroHandler_t task_handle, EK_Result_t *result)
     EK_Result_t op_res =
         EK_rKernelMove_Tail(&EK_CoroKernelReadyList[target_tcb->TCB_Priority], &target_tcb->TCB_StateNode);
     if (result) *result = op_res;
+
+    // 如果唤醒的任务比当前任务优先级更高，则请求调度
+    if (target_tcb->TCB_Priority < EK_CoroKernelCurrentTCB->TCB_Priority)
+    {
+        EK_EXIT_CRITICAL();
+        EK_vKernelYield();
+        return EK_OK;
+    }
+
     EK_EXIT_CRITICAL();
 }
 
@@ -402,7 +421,7 @@ void EK_vCoroDelete(EK_CoroHandler_t task_handle, EK_Result_t *result)
  * @details
  *  此函数会阻塞当前正在运行的任务。它将当前任务从就绪状态改变为阻塞状态，
  *  并根据延时时间 `xticks` 计算出未来的唤醒时间 `TCB_WakeUpTime`。
- *  然后将任务移入阻塞链表 `EK_CoroKernelBlockList`，并立即触发一次任务调度。
+ *  然后将任务移入阻塞链表 `KernelBlockList1`，并立即触发一次任务调度。
  *  当系统Tick到达唤醒时间后，`EK_vTickHandler` 会自动唤醒该任务。
  * @param xticks 要延时的Tick数。如果设置为 `EK_MAX_DELAY`，任务将永久阻塞，直到被 `EK_rCoroWakeup` 显式唤醒。
  */
@@ -431,15 +450,26 @@ void EK_vCoroDelay(uint32_t xticks)
     }
     else // 否则就是普通延时
     {
+        // 计算唤醒时间
+        uint32_t temp = xticks + EK_CoroKernelTick;
+
         // 设置当前TCB的唤醒时间
-        current->TCB_WakeUpTime = xticks + EK_CoroKernelTick;
+        current->TCB_WakeUpTime = (temp == EK_MAX_DELAY ? EK_MAX_DELAY + 1 : temp);
+
+        if (current->TCB_WakeUpTime < EK_CoroKernelTick)
+        {
+            // 唤醒时间小于当前时基，说明是溢出后的链表
+            EK_rKernelMove_WakeUpTime(EK_CoroKernelNextBlock, &current->TCB_StateNode);
+        }
+        else
+        {
+            // 唤醒时间大于等于当前时基，说明是当前周期链表
+            EK_rKernelMove_WakeUpTime(EK_CoroKernelCurrBlock, &current->TCB_StateNode);
+        }
     }
 
     // 设置当前的TCB状态为阻塞
     current->TCB_State = EK_CORO_BLOCKED;
-
-    // 按照唤醒时间插入到阻塞链表
-    EK_rKernelMove_WakeUpTime(&EK_CoroKernelBlockList, &current->TCB_StateNode);
 
     EK_EXIT_CRITICAL();
     // 请求一次调度
@@ -464,8 +494,9 @@ EK_Result_t EK_rCoroWakeup(EK_CoroHandler_t task_handle)
 
     EK_ENTER_CRITICAL();
 
-    // 检查任务是否在阻塞链表中，并且是永久阻塞状态
-    if (target_tcb->TCB_StateNode.CoroNode_List != &EK_CoroKernelBlockList ||
+    // 检查任务是否在阻塞链表中（可能是当前链表或溢出链表），并且是永久阻塞状态
+    if ((target_tcb->TCB_StateNode.CoroNode_List != EK_CoroKernelCurrBlock &&
+         target_tcb->TCB_StateNode.CoroNode_List != EK_CoroKernelNextBlock) ||
         target_tcb->TCB_WakeUpTime != EK_MAX_DELAY)
     {
         EK_EXIT_CRITICAL();

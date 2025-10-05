@@ -88,6 +88,18 @@ extern bool EK_bMemPool_Free(void *ptr);
 #if (EK_CORO_ENABLE == 1)
 
 /**
+ * @brief 系统的时钟频率(HZ)
+ * 
+ */
+#define EK_CORO_SYSTEM_FREQ (SystemCoreClock)
+
+/**
+ * @brief SysTick中断周期(HZ)
+ * 
+ */
+#define EK_CORO_TICK_RATE_HZ (1000)
+
+/**
  * @brief 关闭普通的调度器
  * @warning 不要修改这个宏！
  */

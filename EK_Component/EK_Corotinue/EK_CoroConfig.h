@@ -91,6 +91,22 @@
 #endif /* __naked */
 
 /**
+ * @brief 系统的时钟频率(HZ)
+ * 
+ */
+#ifndef EK_CORO_SYSTEM_FREQ
+#define EK_CORO_SYSTEM_FREQ (SystemCoreClock)
+#endif /*EK_CORO_SYSTEM_FREQ*/
+
+/**
+ * @brief SysTick中断周期
+ * 
+ */
+#ifndef EK_CORO_TICK_RATE_HZ
+#define EK_CORO_TICK_RATE_HZ (1000)
+#endif /*EK_CORO_TICK_RATE_HZ*/
+
+/**
  * @brief 协程空闲任务堆栈大小
  * 
  */
