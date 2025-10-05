@@ -76,13 +76,18 @@ static inline uint8_t v_kernel_find_msb_index(EK_BitMap_t val)
 #endif /* EK_CORO_FPU_USED == 0 */
 #endif /* EK_CORO_IDLE_TASK_STACK_SIZE */
 
-/* ========================= 全局变量定义区 ========================= */
+/* ========================= 全局变量(公开)定义区 ========================= */
 uint32_t EK_CoroKernelTick; //时基
 EK_CoroList_t EK_CoroKernelReadyList[EK_CORO_PRIORITY_GROUPS]; // 就绪任务列表
-EK_CoroList_t EK_CoroKernelBlockList; // 阻塞任务列表
+EK_CoroList_t *EK_CoroKernelCurrBlock; // 用于指向当前就绪的阻塞链表
+EK_CoroList_t *EK_CoroKernelNextBlock; // 用于指向溢出的就绪的阻塞链表
 EK_CoroList_t EK_CoroKernelSuspendList; // 挂起任务列表
 EK_CoroTCB_t *EK_CoroKernelCurrentTCB; // 当前正在运行的任务TCB指针
 EK_CoroTCB_t *EK_CoroKernelDeleteTCB; // 等待被删除的任务TCB指针
+
+/* ========================= 全局变量(内部)定义区 ========================= */
+static EK_CoroList_t KernelBlockList1; // 阻塞任务列表 1
+static EK_CoroList_t KernelBlockList2; // 阻塞任务列表 2
 static EK_CoroTCB_t *KernelNextTCB; // 下一个任务TCB
 static EK_CoroTCB_t *EK_CoroKernelIdleTCB; // 空闲任务TCB指针
 static bool KernelIdleYield = false; // 调度请求标志位, 由TickHandler在唤醒任务时设置
@@ -108,36 +113,26 @@ EK_Result_t EK_rKernelRemove(EK_CoroList_t *list, EK_CoroListNode_t *node_to_rem
     if (node_to_remove->CoroNode_List != list) return EK_ERROR;
 
     EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)node_to_remove->CoroNode_Owner; // 获取TCB
-    EK_CoroListNode_t *current = list->List_Head; // 遍历节点
-    EK_CoroListNode_t *prev = NULL; // 前个节点
 
     EK_ENTER_CRITICAL();
 
-    // 找到要删除的节点
-    while (current != NULL && current != node_to_remove)
+    // 利用双向链表特性 (O(1) 删除)
+    if (node_to_remove->CoroNode_Prev != NULL)
     {
-        prev = current;
-        current = current->CoroNode_Next;
+        node_to_remove->CoroNode_Prev->CoroNode_Next = node_to_remove->CoroNode_Next;
     }
-
-    if (current == NULL) // 没有找到节点
-    {
-        EK_EXIT_CRITICAL();
-        return EK_NOT_FOUND;
-    }
-
-    if (prev == NULL) // 移除的是头节点
+    else // 移除的是头节点
     {
         list->List_Head = node_to_remove->CoroNode_Next;
     }
-    else
-    {
-        prev->CoroNode_Next = node_to_remove->CoroNode_Next;
-    }
 
-    if (list->List_Tail == node_to_remove) // 如果移除的是尾节点, 更新Tail指针
+    if (node_to_remove->CoroNode_Next != NULL)
     {
-        list->List_Tail = prev;
+        node_to_remove->CoroNode_Next->CoroNode_Prev = node_to_remove->CoroNode_Prev;
+    }
+    else // 移除的是尾节点
+    {
+        list->List_Tail = node_to_remove->CoroNode_Prev;
     }
 
     // 更新链表信息
@@ -146,10 +141,11 @@ EK_Result_t EK_rKernelRemove(EK_CoroList_t *list, EK_CoroListNode_t *node_to_rem
     // 更新节点信息
     node_to_remove->CoroNode_List = NULL;
     node_to_remove->CoroNode_Next = NULL;
+    node_to_remove->CoroNode_Prev = NULL;
 
-    // 设置位图
-    // 判断是不是就绪链表
-    if (list >= EK_CoroKernelReadyList && list < EK_CoroKernelReadyList + EK_CORO_PRIORITY_GROUPS)
+    // 如果就绪链表变为空，则清除对应的位图位
+    if (list->List_Count == 0 && list >= EK_CoroKernelReadyList &&
+        list < EK_CoroKernelReadyList + EK_CORO_PRIORITY_GROUPS)
     {
         EK_vClearBit(&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
     }
@@ -174,6 +170,7 @@ EK_Result_t EK_rKernelInsert_WakeUpTime(EK_CoroList_t *list, EK_CoroListNode_t *
 
     EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)node->CoroNode_Owner;
     node->CoroNode_Next = NULL;
+    node->CoroNode_Prev = NULL;
 
     EK_ENTER_CRITICAL();
 
@@ -185,29 +182,31 @@ EK_Result_t EK_rKernelInsert_WakeUpTime(EK_CoroList_t *list, EK_CoroListNode_t *
     else // 按照时间顺序插入链表
     {
         EK_CoroListNode_t *current = list->List_Head;
-        EK_CoroListNode_t *prev = NULL;
-
         while (current != NULL)
         {
             EK_CoroTCB_t *current_tcb = (EK_CoroTCB_t *)current->CoroNode_Owner;
             if (tcb->TCB_WakeUpTime < current_tcb->TCB_WakeUpTime) break;
-            prev = current;
             current = current->CoroNode_Next;
         }
 
-        if (prev == NULL) // 插入到头部
+        if (current != NULL) // 插入到current节点之前
         {
-            node->CoroNode_Next = list->List_Head;
-            list->List_Head = node;
+            node->CoroNode_Next = current;
+            node->CoroNode_Prev = current->CoroNode_Prev;
+            if (current->CoroNode_Prev != NULL)
+            {
+                current->CoroNode_Prev->CoroNode_Next = node;
+            }
+            else // 插入到头部
+            {
+                list->List_Head = node;
+            }
+            current->CoroNode_Prev = node;
         }
-        else // 插入到中间或尾部
+        else // 插入到尾部
         {
-            node->CoroNode_Next = prev->CoroNode_Next;
-            prev->CoroNode_Next = node;
-        }
-
-        if (node->CoroNode_Next == NULL) // 如果插入到了尾部, 更新Tail指针
-        {
+            node->CoroNode_Prev = list->List_Tail;
+            list->List_Tail->CoroNode_Next = node;
             list->List_Tail = node;
         }
     }
@@ -240,6 +239,7 @@ EK_Result_t EK_rKernelInsert_Tail(EK_CoroList_t *list, EK_CoroListNode_t *node)
 
     EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)node->CoroNode_Owner;
     node->CoroNode_Next = NULL;
+    node->CoroNode_Prev = NULL;
 
     EK_ENTER_CRITICAL();
 
@@ -250,6 +250,7 @@ EK_Result_t EK_rKernelInsert_Tail(EK_CoroList_t *list, EK_CoroListNode_t *node)
     }
     else // 尾部插入 (O(1) 操作)
     {
+        node->CoroNode_Prev = list->List_Tail;
         list->List_Tail->CoroNode_Next = node;
         list->List_Tail = node;
     }
@@ -281,6 +282,7 @@ EK_Result_t EK_rKernelInsert_Prio(EK_CoroList_t *list, EK_CoroListNode_t *node)
 
     EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)node->CoroNode_Owner;
     node->CoroNode_Next = NULL;
+    node->CoroNode_Prev = NULL;
 
     EK_ENTER_CRITICAL();
 
@@ -292,29 +294,31 @@ EK_Result_t EK_rKernelInsert_Prio(EK_CoroList_t *list, EK_CoroListNode_t *node)
     else // 按照优先级顺序插入链表
     {
         EK_CoroListNode_t *current = list->List_Head;
-        EK_CoroListNode_t *prev = NULL;
-
         while (current != NULL)
         {
             EK_CoroTCB_t *current_tcb = (EK_CoroTCB_t *)current->CoroNode_Owner;
             if (tcb->TCB_Priority < current_tcb->TCB_Priority) break; // 找到了插入点 (新任务优先级更高)
-            prev = current;
             current = current->CoroNode_Next;
         }
 
-        if (prev == NULL) // 插入到头部
+        if (current != NULL) // 插入到current节点之前
         {
-            node->CoroNode_Next = list->List_Head;
-            list->List_Head = node;
+            node->CoroNode_Next = current;
+            node->CoroNode_Prev = current->CoroNode_Prev;
+            if (current->CoroNode_Prev != NULL)
+            {
+                current->CoroNode_Prev->CoroNode_Next = node;
+            }
+            else // 插入到头部
+            {
+                list->List_Head = node;
+            }
+            current->CoroNode_Prev = node;
         }
-        else // 插入到中间或尾部
+        else // 插入到尾部
         {
-            node->CoroNode_Next = prev->CoroNode_Next;
-            prev->CoroNode_Next = node;
-        }
-
-        if (node->CoroNode_Next == NULL) // 如果插入到了尾部, 更新Tail指针
-        {
+            node->CoroNode_Prev = list->List_Tail;
+            list->List_Tail->CoroNode_Next = node;
             list->List_Tail = node;
         }
     }
@@ -481,10 +485,15 @@ void EK_vKernelInit(void)
         EK_CoroKernelReadyList[i].List_Tail = NULL;
     }
 
-    // 初始化阻塞链表
-    EK_CoroKernelBlockList.List_Count = 0;
-    EK_CoroKernelBlockList.List_Head = NULL;
-    EK_CoroKernelBlockList.List_Tail = NULL;
+    // 初始化阻塞链表1
+    KernelBlockList1.List_Count = 0;
+    KernelBlockList1.List_Head = NULL;
+    KernelBlockList1.List_Tail = NULL;
+
+    // 初始化阻塞链表2
+    KernelBlockList2.List_Count = 0;
+    KernelBlockList2.List_Head = NULL;
+    KernelBlockList2.List_Tail = NULL;
 
     // 初始化挂起链表
     EK_CoroKernelSuspendList.List_Count = 0;
@@ -502,6 +511,10 @@ void EK_vKernelInit(void)
     EK_CoroKernelDeleteTCB = NULL;
     KernelNextTCB = NULL;
 
+    // 初始化当前就绪链表的指针
+    EK_CoroKernelCurrBlock = &KernelBlockList1;
+    EK_CoroKernelNextBlock = &KernelBlockList2;
+
     // 创建空闲任务
     EK_CoroKernelIdleHandler = EK_pCoroCreateStatic(&Kernel_IdleTaskTCB,
                                                     Kernel_CoroIdleFunction,
@@ -509,6 +522,9 @@ void EK_vKernelInit(void)
                                                     EK_CORO_PRIORITY_MOUNT - 1, // 最低优先级
                                                     Kernel_IdleTaskStack,
                                                     EK_CORO_IDLE_TASK_STACK_SIZE);
+
+    // 开启SysTick
+    while (SysTick_Config(EK_CORO_SYSTEM_FREQ / EK_CORO_TICK_RATE_HZ));
 
     KernelIsInited = true;
 }
@@ -580,22 +596,23 @@ void EK_vKernelYield(void)
  * @brief 内核时钟节拍处理函数。
  * @details
  *  此函数应在系统的时钟节拍中断（如 SysTick_Handler）中被周期性调用。
- *  它负责处理所有带超时的阻塞。它会遍历延时阻塞列表 (`EK_CoroKernelBlockList`)
+ *  它负责处理所有带超时的阻塞。它会遍历延时阻塞列表
  *  以及所有等待消息队列的阻塞列表，检查是否有任务的延时已经到期。
  *  如果一个任务的 `TCB_WakeUpTime` 小于或等于当前Tick，该任务将被唤醒并移至就绪链表。
  *  此函数能够正确处理系统Tick值的溢出情况。
  */
 void EK_vTickHandler(void)
 {
+    static uint32_t last_tick = 0;
     EK_ENTER_CRITICAL();
 
     EK_CoroKernelTick++;
 
     // 处理因 EK_vCoroDelay() 而阻塞的任务
-    if (EK_CoroKernelBlockList.List_Count > 0)
+    if (EK_CoroKernelCurrBlock->List_Count > 0)
     {
         // 获取当前状态节点
-        EK_CoroListNode_t *current_state_node = EK_CoroKernelBlockList.List_Head;
+        EK_CoroListNode_t *current_state_node = EK_CoroKernelCurrBlock->List_Head;
         while (current_state_node != NULL)
         {
             EK_CoroTCB_t *current_tcb = (EK_CoroTCB_t *)current_state_node->CoroNode_Owner;
@@ -610,8 +627,8 @@ void EK_vTickHandler(void)
                 continue;
             }
 
-            // 通过计算差值并转为有符号数来判断时间是否到达，这种方法可以优雅地处理Tick溢出
-            if ((int32_t)(EK_CoroKernelTick - current_tcb->TCB_WakeUpTime) < 0)
+            // 当前任务未达到唤醒时间
+            if (EK_CoroKernelTick < current_tcb->TCB_WakeUpTime)
             {
                 // 由于阻塞链表是按唤醒时间升序排列的，如果当前任务还没到期，后续任务也一定没到期
                 break;
@@ -636,6 +653,16 @@ void EK_vTickHandler(void)
             current_state_node = next_node;
         }
     }
+
+    // Tick值溢出 要交换链表了
+    if (last_tick > EK_CoroKernelTick)
+    {
+        EK_CoroList_t *temp = EK_CoroKernelCurrBlock; // 存储当前的链表
+        EK_CoroKernelCurrBlock = EK_CoroKernelNextBlock; // 交换链表到下一个tick周期的链表
+        EK_CoroKernelNextBlock = temp; // 获得新的链表
+    }
+
+    last_tick = EK_CoroKernelTick; // 上一次的时间
 
     EK_EXIT_CRITICAL();
 }

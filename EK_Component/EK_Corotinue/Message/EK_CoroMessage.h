@@ -1,3 +1,14 @@
+/**
+ * @file EK_CoroMessage.h
+ * @brief 协程消息队列模块头文件
+ * @details 实现协程任务间的消息传递机制，支持动态和静态消息队列创建。
+ *          提供消息发送、接收、队列管理等功能，包含任务阻塞和唤醒机制。
+ *          采用双节点机制实现状态-事件分离，支持汇合操作和超时控制。
+ * @author N1ntyNine99
+ * @date 2025-09-25
+ * @version v1.0
+ */
+
 #ifndef __EK_COROMESSAGE_H
 #define __EK_COROMESSAGE_H
 

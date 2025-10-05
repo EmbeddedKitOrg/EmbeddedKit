@@ -83,6 +83,7 @@ typedef enum
 typedef struct EK_CoroListNode_t
 {
     struct EK_CoroListNode_t *CoroNode_Next; /**< 指向链表中的下一个节点. */
+    struct EK_CoroListNode_t *CoroNode_Prev; /**< 指向链表中的上一个节点. */
     void *CoroNode_Owner; /**< 指向拥有该节点的的拥有者 */
     void *CoroNode_List; /**< 指向该节点所属的链表 (EK_CoroList_t *). */
 } EK_CoroListNode_t;
@@ -145,7 +146,8 @@ typedef EK_CoroTCB_t *EK_CoroStaticHandler_t; // 静态类型的指针
 /* ========================= 内核全局变量声明 ========================= */
 extern uint32_t EK_CoroKernelTick;
 extern EK_CoroList_t EK_CoroKernelReadyList[EK_CORO_PRIORITY_GROUPS];
-extern EK_CoroList_t EK_CoroKernelBlockList;
+extern EK_CoroList_t *EK_CoroKernelCurrBlock;
+extern EK_CoroList_t *EK_CoroKernelNextBlock;
 extern EK_CoroList_t EK_CoroKernelSuspendList;
 extern EK_CoroTCB_t *EK_CoroKernelCurrentTCB;
 extern EK_CoroTCB_t *EK_CoroKernelDeleteTCB;
