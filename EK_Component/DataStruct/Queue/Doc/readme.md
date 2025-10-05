@@ -42,7 +42,7 @@ typedef struct EK_Queue_t
 
 #### 动态队列创建
 ```c
-EK_Queue_t *EK_pQueueCreate_Dynamic(EK_Size_t capacity);
+EK_Queue_t *EK_pQueueCreate(EK_Size_t capacity);
 ```
 - **功能**：动态分配内存创建队列
 - **参数**：`capacity` - 队列容量（字节数）
@@ -51,7 +51,7 @@ EK_Queue_t *EK_pQueueCreate_Dynamic(EK_Size_t capacity);
 
 #### 静态队列创建
 ```c
-EK_Result_t EK_rQueueCreate_Static(EK_Queue_t *queue_handler, void *buffer, const EK_Size_t capacity);
+EK_Result_t EK_pQueueCreateStatic(EK_Queue_t *queue_handler, void *buffer, const EK_Size_t capacity);
 ```
 - **功能**：使用用户提供的内存初始化队列
 - **参数**：
@@ -155,7 +155,7 @@ EK_Result_t EK_rQueuePeekFront(EK_Queue_t *queue, void *data_buffer, EK_Size_t d
 ### 1. 串口数据缓冲
 ```c
 // 创建串口接收队列
-EK_Queue_t *uart_rx_queue = EK_pQueueCreate_Dynamic(1024);
+EK_Queue_t *uart_rx_queue = EK_pQueueCreate(1024);
 
 // 中断接收数据
 void UART_IRQ_Handler(void) {
@@ -184,7 +184,7 @@ typedef struct {
     uint8_t data[256];
 } Packet_t;
 
-EK_Queue_t *packet_queue = EK_pQueueCreate_Dynamic(4096);
+EK_Queue_t *packet_queue = EK_pQueueCreate(4096);
 
 // 接收数据包
 void receive_packet(Packet_t *packet) {
@@ -226,7 +226,7 @@ EK_Queue_t audio_queue;
 
 // 静态创建音频队列
 void audio_init(void) {
-    EK_rQueueCreate_Static(&audio_queue, audio_buffer, AUDIO_BUFFER_SIZE);
+    EK_pQueueCreateStatic(&audio_queue, audio_buffer, AUDIO_BUFFER_SIZE);
 }
 
 // DMA 中断填充数据
@@ -263,7 +263,7 @@ typedef struct {
     void (*callback)(uint32_t);
 } Command_t;
 
-EK_Queue_t *cmd_queue = EK_pQueueCreate_Dynamic(sizeof(Command_t) * 16);
+EK_Queue_t *cmd_queue = EK_pQueueCreate(sizeof(Command_t) * 16);
 
 // 添加命令
 void add_command(uint8_t id, uint32_t param, void (*cb)(uint32_t)) {
@@ -289,7 +289,7 @@ void execute_commands(void) {
 ### 5. 数据流量控制
 ```c
 // 网络数据发送队列
-EK_Queue_t *tx_queue = EK_pQueueCreate_Dynamic(4096);
+EK_Queue_t *tx_queue = EK_pQueueCreate(4096);
 
 void network_send_data(uint8_t *data, EK_Size_t len) {
     // 检查队列剩余空间
@@ -326,7 +326,7 @@ static uint8_t sensor_buffer[1024];
 EK_Queue_t sensor_queue;
 
 void sensor_init(void) {
-    EK_rQueueCreate_Static(&sensor_queue, sensor_buffer, sizeof(sensor_buffer));
+    EK_pQueueCreateStatic(&sensor_queue, sensor_buffer, sizeof(sensor_buffer));
 }
 
 // 定时采集传感器数据
@@ -365,7 +365,7 @@ static char log_buffer[LOG_BUFFER_SIZE];
 EK_Queue_t log_queue;
 
 void log_init(void) {
-    EK_rQueueCreate_Static(&log_queue, log_buffer, LOG_BUFFER_SIZE);
+    EK_pQueueCreateStatic(&log_queue, log_buffer, LOG_BUFFER_SIZE);
 }
 
 void log_message(const char *message) {

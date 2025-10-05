@@ -6,7 +6,7 @@
 #ifdef __cplusplus
 extern "C"
 {
-#endif
+#endif /* __cplusplus */
 
 /* ========================= 类型定义区 ========================= */
 
@@ -19,8 +19,8 @@ typedef struct
 } EK_Stack_t;
 
 /* ========================= 函数声明区 ========================= */
-EK_Result_t EK_rStackCreate_Static(EK_Stack_t *stack, void *mem_ptr, EK_Size_t capacity);
-EK_Stack_t *EK_pStackCreate_Dynamic(EK_Size_t capacity);
+EK_Result_t EK_rStackCreateStatic(EK_Stack_t *stack, void *mem_ptr, EK_Size_t capacity);
+EK_Stack_t *EK_pStackCreate(EK_Size_t capacity);
 EK_Result_t EK_rStackDelete(EK_Stack_t *stack);
 bool EK_bStackIsFull(EK_Stack_t *stack);
 bool EK_bStackIsEmpty(EK_Stack_t *stack);
@@ -30,6 +30,6 @@ EK_Result_t EK_rStackPop(EK_Stack_t *stack, void *data_buffer, EK_Size_t data_si
 
 #ifdef __cplusplus
 }
-#endif
+#endif /* __cplusplus */
 
-#endif
+#endif /* __EK_STACK_H */

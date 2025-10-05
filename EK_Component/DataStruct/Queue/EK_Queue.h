@@ -15,7 +15,7 @@
 #ifdef __cplusplus
 extern "C"
 {
-#endif
+#endif /* __cplusplus */
 
 /* ========================= 类型定义区 ========================= */
 typedef struct EK_Queue_t
@@ -33,8 +33,8 @@ bool EK_bQueueIsEmpty(EK_Queue_t *queue);
 bool EK_bQueueIsFull(EK_Queue_t *queue);
 EK_Size_t EK_sQueueGetSize(EK_Queue_t *queue);
 EK_Size_t EK_sQueueGetRemain(EK_Queue_t *queue);
-EK_Queue_t *EK_pQueueCreate_Dynamic(EK_Size_t capacity);
-EK_Result_t EK_rQueueCreate_Static(EK_Queue_t *queue_handler, void *buffer, const EK_Size_t capacity);
+EK_Queue_t *EK_pQueueCreate(EK_Size_t capacity);
+EK_Result_t EK_pQueueCreateStatic(EK_Queue_t *queue_handler, void *buffer, const EK_Size_t capacity);
 EK_Result_t EK_rQueueClean(EK_Queue_t *queue);
 EK_Result_t EK_rQueueDelete(EK_Queue_t *queue);
 EK_Result_t EK_rQueueEnqueue(EK_Queue_t *queue, void *data, EK_Size_t data_size);
@@ -43,6 +43,6 @@ EK_Result_t EK_rQueuePeekFront(EK_Queue_t *queue, void *data_buffer, EK_Size_t d
 
 #ifdef __cplusplus
 }
-#endif
+#endif /* __cplusplus */
 
-#endif
+#endif /* __EK_QUEUE_H */

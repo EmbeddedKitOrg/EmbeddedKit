@@ -18,7 +18,7 @@
  */
 #ifndef MEMPOOL_SIZE
 #define MEMPOOL_SIZE (4096)
-#endif
+#endif /* MEMPOOL_SIZE */
 
 /**
  * @brief 内存对齐大小 (字节)
@@ -26,7 +26,7 @@
  */
 #ifndef MEMPOOL_ALIGNMENT
 #define MEMPOOL_ALIGNMENT (8)
-#endif
+#endif /* MEMPOOL_ALIGNMENT */
 
 /** @brief 已分配标记位(最高位) */
 #define ALLOCATED_MASK (0x80000000UL)
@@ -269,7 +269,7 @@ static inline void v_merge_blocks(void *ptr)
             // 合并到前驱块
             current->MemPool_BlockSize += MemPool_BlockSize;
             block = current; // 更新块指针为合并后的块
-            break;           // 找到后即可退出循环
+            break; // 找到后即可退出循环
         }
     }
 
@@ -427,7 +427,8 @@ bool EK_bMemPool_CheckIntegrity(void)
     }
 
     // 遍历空闲链表
-    for (current = free_list_head.MemPool_NextFree; current != free_list_end && block_count < 10000; current = current->MemPool_NextFree)
+    for (current = free_list_head.MemPool_NextFree; current != free_list_end && block_count < 10000;
+         current = current->MemPool_NextFree)
     { // 防止死循环
         // 检查块大小
         if (GET_SIZE(current->MemPool_BlockSize) < MIN_BLOCK_SIZE)

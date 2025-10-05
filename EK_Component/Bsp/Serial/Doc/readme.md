@@ -78,7 +78,7 @@ EK_Result_t EK_rSerialInit_Static(void);
 
 #### 动态创建串口队列
 ```c
-EK_Result_t EK_rSerialCreateQueue_Dyanmic(EK_pSeiralQueue_t *serial_fifo,
+EK_Result_t EK_rSerialCreateQueue(EK_pSeiralQueue_t *serial_fifo,
                                           void (*send_func)(void *, EK_Size_t),
                                           uint16_t priority,
                                           EK_Size_t capacity);
@@ -93,7 +93,7 @@ EK_Result_t EK_rSerialCreateQueue_Dyanmic(EK_pSeiralQueue_t *serial_fifo,
 
 #### 静态创建串口队列
 ```c
-EK_Result_t EK_rSerialCreateQueue_Static(EK_pSeiralQueue_t serial_fifo, 
+EK_Result_t EK_rSerialCreateQueueStatic(EK_pSeiralQueue_t serial_fifo, 
                                         void *buffer, 
                                         void (*send_func)(void *, EK_Size_t), 
                                         uint16_t priority, 
@@ -165,9 +165,9 @@ void cmd_uart_send(void *data, EK_Size_t len) {
 }
 
 // 创建串口实例
-EK_rSerialCreateQueue_Dyanmic(&debug_uart, debug_uart_send, 10, 512);  // 低优先级
-EK_rSerialCreateQueue_Dyanmic(&log_uart, log_uart_send, 5, 1024);      // 中优先级
-EK_rSerialCreateQueue_Dyanmic(&cmd_uart, cmd_uart_send, 1, 256);       // 高优先级
+EK_rSerialCreateQueue(&debug_uart, debug_uart_send, 10, 512);  // 低优先级
+EK_rSerialCreateQueue(&log_uart, log_uart_send, 5, 1024);      // 中优先级
+EK_rSerialCreateQueue(&cmd_uart, cmd_uart_send, 1, 256);       // 高优先级
 
 // 发送数据
 EK_rSerialPrintf(debug_uart, "Debug: sensor value = %d\n", sensor_val);
@@ -195,9 +195,9 @@ void system_init(void) {
     EK_rSerialInit_Static();
     
     // 创建静态串口实例
-    EK_rSerialCreateQueue_Static(&uart1_instance, uart1_buffer, 
+    EK_rSerialCreateQueueStatic(&uart1_instance, uart1_buffer, 
                                 uart1_send_callback, 1, sizeof(uart1_buffer));
-    EK_rSerialCreateQueue_Static(&uart2_instance, uart2_buffer, 
+    EK_rSerialCreateQueueStatic(&uart2_instance, uart2_buffer, 
                                 uart2_send_callback, 2, sizeof(uart2_buffer));
 }
 
@@ -225,7 +225,7 @@ EK_pSeiralQueue_t monitor_uart;
 // 创建监控串口
 void monitor_init(void) {
     EK_rSerialInit_Dynamic();
-    EK_rSerialCreateQueue_Dyanmic(&monitor_uart, monitor_send, 1, 2048);
+    EK_rSerialCreateQueue(&monitor_uart, monitor_send, 1, 2048);
 }
 
 // 发送传感器数据
@@ -257,7 +257,7 @@ EK_pSeiralQueue_t cli_uart;
 
 // CLI初始化
 void cli_init(void) {
-    EK_rSerialCreateQueue_Dyanmic(&cli_uart, cli_send, 1, 1024);
+    EK_rSerialCreateQueue(&cli_uart, cli_send, 1, 1024);
     
     // 发送欢迎信息
     EK_rSerialPrintf(cli_uart, "\n=== System CLI v1.0 ===\n");
@@ -296,7 +296,7 @@ EK_pSeiralQueue_t data_logger;
 
 // 数据记录器初始化
 void logger_init(void) {
-    EK_rSerialCreateQueue_Dyanmic(&data_logger, logger_send, 3, 4096);
+    EK_rSerialCreateQueue(&data_logger, logger_send, 3, 4096);
 }
 
 // 记录系统事件

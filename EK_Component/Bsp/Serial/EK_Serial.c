@@ -20,7 +20,7 @@
  */
 #ifndef SERIAL_TX_BUFFER
 #define SERIAL_TX_BUFFER (256)
-#endif
+#endif /* SERIAL_TX_BUFFER */
 
 /**
  * @brief 串口轮询发送的默认间隔时间（单位：ms）
@@ -28,7 +28,7 @@
  */
 #ifndef SERIAL_OVER_TIME
 #define SERIAL_OVER_TIME (50)
-#endif
+#endif /* SERIAL_OVER_TIME */
 
 /**
  * @brief 串口轮询的间隔（单位：ms）
@@ -36,7 +36,7 @@
  */
 #ifndef SERIAL_POLL_INTERVAL
 #define SERIAL_POLL_INTERVAL (5)
-#endif
+#endif /* SERIAL_POLL_INTERVAL */
 
 /**
  * @brief 每次轮询发送的最大字节数
@@ -44,7 +44,7 @@
  */
 #ifndef SERIAL_MAX_SEND_SIZE
 #define SERIAL_MAX_SEND_SIZE (128)
-#endif
+#endif /* SERIAL_MAX_SEND_SIZE */
 
 /**
  * @brief 队列满时的处理策略
@@ -52,7 +52,7 @@
  */
 #ifndef SERIAL_FULL_STRATEGY
 #define SERIAL_FULL_STRATEGY (1)
-#endif
+#endif /* SERIAL_FULL_STRATEGY */
 
 /* ========================= 内部变量区 ========================= */
 
@@ -76,7 +76,7 @@ EK_Result_t EK_rSerialInit_Dynamic(void)
     if (SerialIsInit == true) return EK_ERROR;
 
     // 使用动态创建一个链表
-    SerialManageList = EK_pListCreate_Dynamic();
+    SerialManageList = EK_pListCreate();
     if (SerialManageList == NULL) return EK_ERROR;
 
     // 初始化标志位置位
@@ -101,7 +101,7 @@ EK_Result_t EK_rSerialInit_Static(void)
     // 使用静态创建一个链表
     static EK_Node_t *SerialDummyNode;
     EK_Result_t res = EK_OK;
-    res = EK_rListCreate_Static(SerialManageList, SerialDummyNode);
+    res = EK_pListCreateStatic(SerialManageList, SerialDummyNode);
     // 初始化标志位置位
     if (res == EK_OK) SerialIsInit = true;
     return res;
@@ -119,10 +119,10 @@ EK_Result_t EK_rSerialInit_Static(void)
  * @param capacity 队列的容量（可以存储的字节数）。
  * @return EK_Result_t 操作结果
  */
-EK_Result_t EK_rSerialCreateQueue_Dyanmic(EK_pSeiralQueue_t *serial_fifo,
-                                          void (*send_func)(void *, EK_Size_t),
-                                          uint16_t priority,
-                                          EK_Size_t capacity)
+EK_Result_t EK_rSerialCreateQueue(EK_pSeiralQueue_t *serial_fifo,
+                                  void (*send_func)(void *, EK_Size_t),
+                                  uint16_t priority,
+                                  EK_Size_t capacity)
 {
     // 判断有无初始化
     if (SerialIsInit == false) return EK_NOT_INITIALIZED;
@@ -138,7 +138,7 @@ EK_Result_t EK_rSerialCreateQueue_Dyanmic(EK_pSeiralQueue_t *serial_fifo,
     }
 
     // 分配队列空间
-    (*serial_fifo)->Serial_Queue = EK_pQueueCreate_Dynamic(capacity);
+    (*serial_fifo)->Serial_Queue = EK_pQueueCreate(capacity);
     if ((*serial_fifo)->Serial_Queue == NULL)
     {
         EK_FREE(*serial_fifo);
@@ -148,7 +148,7 @@ EK_Result_t EK_rSerialCreateQueue_Dyanmic(EK_pSeiralQueue_t *serial_fifo,
 
     // 分配链表节点空间
     // 让节点的Data指向当前的EK_SeiralQueue_t结构体
-    (*serial_fifo)->Serial_Owner = EK_pNodeCreate_Dynamic(*serial_fifo, priority);
+    (*serial_fifo)->Serial_Owner = EK_pNodeCreate(*serial_fifo, priority);
     if ((*serial_fifo)->Serial_Owner == NULL)
     {
         // 需要释放之前分配的队列内存
@@ -196,11 +196,11 @@ EK_Result_t EK_rSerialCreateQueue_Dyanmic(EK_pSeiralQueue_t *serial_fifo,
  * @param capacity 队列的容量（`buffer` 的大小）。
  * @return EK_Result_t 操作结果
  */
-EK_Result_t EK_rSerialCreateQueue_Static(EK_pSeiralQueue_t serial_fifo,
-                                         void *buffer,
-                                         void (*send_func)(void *, EK_Size_t),
-                                         uint16_t priority,
-                                         EK_Size_t capacity)
+EK_Result_t EK_rSerialCreateQueueStatic(EK_pSeiralQueue_t serial_fifo,
+                                        void *buffer,
+                                        void (*send_func)(void *, EK_Size_t),
+                                        uint16_t priority,
+                                        EK_Size_t capacity)
 {
     // 判断有无初始化
     if (SerialIsInit == false) return EK_NOT_INITIALIZED;
@@ -209,12 +209,12 @@ EK_Result_t EK_rSerialCreateQueue_Static(EK_pSeiralQueue_t serial_fifo,
     if (serial_fifo == NULL || send_func == NULL) return EK_NULL_POINTER;
 
     // 初始化队列
-    EK_Result_t res = EK_rQueueCreate_Static(serial_fifo->Serial_Queue, buffer, capacity);
+    EK_Result_t res = EK_pQueueCreateStatic(serial_fifo->Serial_Queue, buffer, capacity);
     if (res != EK_OK) return res;
 
     // 初始化节点
     // 让节点的Data指向当前的EK_SeiralQueue_t结构体
-    res = EK_rNodeCreate_Static(serial_fifo->Serial_Owner, serial_fifo, priority);
+    res = EK_pNodeCreateStatic(serial_fifo->Serial_Owner, serial_fifo, priority);
     if (res != EK_OK) return res;
 
     // 设置回调
@@ -305,7 +305,7 @@ EK_Result_t EK_rSerialPrintf(EK_pSeiralQueue_t serial_fifo, const char *format, 
         // 策略0: 直接丢弃新数据
         EK_FREE(buffer);
         return EK_INSUFFICIENT_SPACE;
-#endif
+#endif /* SERIAL_FULL_STRATEGY == 1 */
     }
 
     // 将数据写入队列

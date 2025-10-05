@@ -104,7 +104,7 @@ void EK_vTaskStart(uint32_t (*tick_get)(void));
 
 #### 静态任务创建
 ```c
-EK_pTaskHandler_t EK_pTaskCreate_Static(EK_TaskEK_Node_t *node, EK_TaskHandler_t *static_handler);
+EK_pTaskHandler_t EK_pTaskCreateStatic(EK_TaskEK_Node_t *node, EK_TaskHandler_t *static_handler);
 ```
 - **功能**：使用用户提供的内存创建任务
 - **参数**：
@@ -115,7 +115,7 @@ EK_pTaskHandler_t EK_pTaskCreate_Static(EK_TaskEK_Node_t *node, EK_TaskHandler_t
 
 #### 动态任务创建
 ```c
-EK_Result_t EK_rTaskCreate_Dynamic(void (*pfunc)(void), uint8_t Priority, EK_pTaskHandler_t *task_handler);
+EK_Result_t EK_rTaskCreate(void (*pfunc)(void), uint8_t Priority, EK_pTaskHandler_t *task_handler);
 ```
 - **功能**：使用内存池动态创建任务
 - **参数**：
@@ -220,7 +220,7 @@ void sensor_monitor_task(void) {
 
 void create_monitor_tasks(void) {
     EK_pTaskHandler_t sensor_task;
-    EK_rTaskCreate_Dynamic(sensor_monitor_task, 1, &sensor_task);
+    EK_rTaskCreate(sensor_monitor_task, 1, &sensor_task);
 }
 ```
 
@@ -270,9 +270,9 @@ void setup_application_tasks(void) {
     EK_pTaskHandler_t led_task, key_task, comm_task;
     
     // 创建不同优先级的任务
-    EK_rTaskCreate_Dynamic(led_blink_task, 3, &led_task);      // 低优先级
-    EK_rTaskCreate_Dynamic(key_scan_task, 1, &key_task);       // 高优先级
-    EK_rTaskCreate_Dynamic(comm_process_task, 2, &comm_task);  // 中优先级
+    EK_rTaskCreate(led_blink_task, 3, &led_task);      // 低优先级
+    EK_rTaskCreate(key_scan_task, 1, &key_task);       // 高优先级
+    EK_rTaskCreate(comm_process_task, 2, &comm_task);  // 中优先级
 }
 ```
 
@@ -292,7 +292,7 @@ int create_named_task(void (*func)(void), uint8_t priority, const char *name) {
     if (task_count >= 10) return -1;
     
     EK_pTaskHandler_t handler;
-    if (EK_rTaskCreate_Dynamic(func, priority, &handler) == EK_OK) {
+    if (EK_rTaskCreate(func, priority, &handler) == EK_OK) {
         task_pool[task_count].task_handler = handler;
         task_pool[task_count].is_running = true;
         strncpy(task_pool[task_count].name, name, 15);
@@ -371,9 +371,9 @@ void setup_realtime_system(void) {
     EK_pTaskHandler_t rt_task, proc_task, bg_task;
     
     // 按实时性要求分配优先级
-    EK_rTaskCreate_Dynamic(realtime_control_task, 0, &rt_task);   // 最高优先级
-    EK_rTaskCreate_Dynamic(data_process_task, 5, &proc_task);     // 中优先级  
-    EK_rTaskCreate_Dynamic(background_task, 10, &bg_task);        // 最低优先级
+    EK_rTaskCreate(realtime_control_task, 0, &rt_task);   // 最高优先级
+    EK_rTaskCreate(data_process_task, 5, &proc_task);     // 中优先级  
+    EK_rTaskCreate(background_task, 10, &bg_task);        // 最低优先级
 }
 ```
 
@@ -390,7 +390,7 @@ void setup_static_tasks(void) {
     led_handler.TaskCallBack.StaticCallBack = led_blink_task;
     led_handler.Task_Priority = 2;
     led_handler.Task_MaxUsed = 0;
-    EK_pTaskCreate_Static(&led_node, &led_handler);
+    EK_pTaskCreateStatic(&led_node, &led_handler);
     
     // 配置UART任务
     uart_handler.Task_TrigTime = 0;
@@ -398,7 +398,7 @@ void setup_static_tasks(void) {
     uart_handler.TaskCallBack.StaticCallBack = uart_process_task;
     uart_handler.Task_Priority = 1;
     uart_handler.Task_MaxUsed = 0;
-    EK_pTaskCreate_Static(&uart_node, &uart_handler);
+    EK_pTaskCreateStatic(&uart_node, &uart_handler);
     
     // 配置定时器任务
     timer_handler.Task_TrigTime = 0;
@@ -406,7 +406,7 @@ void setup_static_tasks(void) {
     timer_handler.TaskCallBack.StaticCallBack = timer_service_task;
     timer_handler.Task_Priority = 3;
     timer_handler.Task_MaxUsed = 0;
-    EK_pTaskCreate_Static(&timer_node, &timer_handler);
+    EK_pTaskCreateStatic(&timer_node, &timer_handler);
     
     printf("Static task system initialized\n");
 }
