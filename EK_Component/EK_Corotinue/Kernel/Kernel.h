@@ -62,6 +62,12 @@ typedef uint32_t EK_BitMap_t;
  */
 #define EK_EXIT_CRITICAL() __set_PRIMASK(primask_status);
 
+/**
+ * @brief 协程任务栈填充值
+ * @details 用于检测栈使用高水位
+ */
+#define EK_STACK_FILL_PATTERN (0xA5)
+
 /* ========================= 数据结构 ========================= */
 typedef void (*EK_CoroFunction_t)(void *arg); //协程任务的入口函数指针类型
 typedef uint32_t EK_CoroStack_t; // 堆栈元素类型
@@ -122,14 +128,16 @@ struct EK_CoroMsg_t; // 前向声明消息结构体
 
 typedef struct EK_CoroTCB_t
 {
-    EK_CoroStack_t *TCB_SP; /**< 协程的栈顶指针 (Stack Pointer). */
+    EK_CoroStack_t *TCB_StackPointer; /**< 协程的栈顶指针. */
     void *TCB_Arg; /**< 协程入口函数的参数. */
     void *TCB_StackBase; /**< 协程栈的起始(低)地址. */
+    void *TCB_StackEnd; /**< 协程栈的结束(高)地址，用于高水位检测. */
     uint16_t TCB_Priority; /**< 协程的优先级 (数值越小，优先级越高). */
     bool TCB_isDynamic; /**< 标记协程是否为动态创建 (用于内存管理). */
     uint32_t TCB_WakeUpTime; /**< 要被唤醒的tick */
     uint32_t TCB_LastWakeUpTime; /**< 上次唤醒的tick，用于delayUntil功能 */
     EK_Size_t TCB_StackSize; /**< 协程栈的总大小 (以字节为单位). */
+    EK_Size_t TCB_StackHighWaterMark; /**< 协程栈的高水位标记 (历史最大使用量). */
     EK_CoroState_t TCB_State; /**< 协程的当前状态. */
     EK_CoroFunction_t TCB_Entry; /**< 协程的入口函数地址. */
     EK_CoroListNode_t TCB_StateNode; /**< 用于将此TCB链入状态管理链表的节点. */

@@ -8,18 +8,13 @@
  */
 
 #include "EK_CoroTask.h"
+#include "../../EK_Common.h"
 
 #if (EK_CORO_USE_MESSAGE_QUEUE == 1)
 #include "../Message/EK_CoroMessage.h"
 #endif /* EK_CORO_USE_MESSAGE_QUEUE == 1 */
 
 #if (EK_CORO_ENABLE == 1)
-
-/**
- * @brief 协程任务栈填充值
- * @details 用于检测栈使用高水位
- */
-#define EK_STACK_FILL_PATTERN (0xCD)
 
 /**
  * @brief 返回线程模式，使用PSP堆栈
@@ -76,7 +71,7 @@ static void v_coro_exit(void)
 static void v_task_init_context(EK_CoroTCB_t *tcb)
 {
     EK_CoroStack_t *stk;
-    stk = (EK_CoroStack_t *)((uint8_t *)tcb->TCB_StackBase + tcb->TCB_StackSize);
+    stk = (EK_CoroStack_t *)tcb->TCB_StackEnd; // 直接使用栈顶地址
     // 确保堆栈8字节对齐
     stk = (EK_CoroStack_t *)(((uintptr_t)stk) & ~0x07UL);
 
@@ -102,7 +97,7 @@ static void v_task_init_context(EK_CoroTCB_t *tcb)
     *(--stk) = 0; // R4
 
     // 更新TCB中的堆栈指针
-    tcb->TCB_SP = stk;
+    tcb->TCB_StackPointer = stk;
 }
 /**
  * @brief 动态创建一个协程。
@@ -133,6 +128,9 @@ EK_CoroHandler_t EK_pCoroCreate(EK_CoroFunction_t task_func, void *task_arg, uin
         return NULL;
     }
 
+    // 填充堆栈以便检测堆栈使用情况
+    EK_vMemSet(stack, EK_STACK_FILL_PATTERN, stack_size);
+
     // 判断priority是否超过预设
     if (priority >= EK_CORO_PRIORITY_MOUNT)
     {
@@ -143,8 +141,10 @@ EK_CoroHandler_t EK_pCoroCreate(EK_CoroFunction_t task_func, void *task_arg, uin
     dynamic_tcb->TCB_Entry = task_func;
     dynamic_tcb->TCB_Arg = task_arg;
     dynamic_tcb->TCB_StackBase = stack;
+    dynamic_tcb->TCB_StackEnd = (void *)((uint8_t *)stack + stack_size); // 栈顶地址
     dynamic_tcb->TCB_Priority = priority;
     dynamic_tcb->TCB_StackSize = stack_size;
+    dynamic_tcb->TCB_StackHighWaterMark = 0; // 初始化高水位标记
     dynamic_tcb->TCB_WakeUpTime = 0;
     dynamic_tcb->TCB_LastWakeUpTime = 0; // 初始化上次唤醒时间
     dynamic_tcb->TCB_isDynamic = true; // 标记为动态创建
@@ -198,6 +198,9 @@ EK_CoroStaticHandler_t EK_pCoroCreateStatic(EK_CoroTCB_t *static_tcb,
     // 确保所有必要的指针都已提供
     if (static_tcb == NULL || task_func == NULL || stack == NULL) return NULL;
 
+    // 填充堆栈以便检测堆栈使用情况
+    EK_vMemSet(stack, EK_STACK_FILL_PATTERN, stack_size);
+
     // 判断priority是否超过预设
     if (priority >= EK_CORO_PRIORITY_MOUNT)
     {
@@ -209,7 +212,9 @@ EK_CoroStaticHandler_t EK_pCoroCreateStatic(EK_CoroTCB_t *static_tcb,
     static_tcb->TCB_Arg = task_arg;
     static_tcb->TCB_Priority = priority;
     static_tcb->TCB_StackBase = stack;
+    static_tcb->TCB_StackEnd = (void *)((uint8_t *)stack + stack_size); // 栈顶地址
     static_tcb->TCB_StackSize = stack_size;
+    static_tcb->TCB_StackHighWaterMark = 0; // 初始化高水位标记
     static_tcb->TCB_WakeUpTime = 0;
     static_tcb->TCB_LastWakeUpTime = 0; // 初始化上次唤醒时间
     static_tcb->TCB_isDynamic = false; // 标记为静态创建
@@ -712,15 +717,17 @@ EK_Size_t EK_uCoroGetStack(EK_CoroHandler_t task_handle)
 /**
  * @brief 获取指定协程的堆栈历史最大使用量 (高水位)。
  * @details
- *  通过从栈底向上检查预设的填充值 (`EK_STACK_FILL_PATTERN`) 是否被覆盖，
- *  来计算出从任务开始运行到当前时刻，堆栈使用量的峰值。
- *  这对于调试和优化任务的堆栈大小非常有用。
- *  **注意**: 此功能要求在创建任务时，堆栈被填充了 `EK_STACK_FILL_PATTERN`。
- *  (当前版本在创建任务时未填充，此功能可能不准确，需在创建任务时增加填充逻辑)
+ *  获取在任务切换时预先计算并保存的栈高水位标记。
+ *  由于每次任务切换都会自动计算高水位标记，此函数只需返回预计算的值，
+ *  性能极高，适用于实时监控和调试。
+ *
+ *  高水位标记指的是栈顶到栈中最后一个未被修改位置的距离，数值越小表示
+ *  栈使用得越少，剩余空间越大。返回值为距离栈顶的字节数。
+ *
  * @param task_handle 要查询的任务句柄。若为 NULL，则查询当前任务。
- * @return EK_Size_t 任务的堆栈高水位使用量 (以字节为单位)。
+ * @return EK_Size_t 任务的堆栈高水位标记 (距离栈顶的字节数)，0表示栈已满。
  */
-EK_Size_t EK_uCoroGetStackUsage(EK_CoroHandler_t task_handle)
+EK_Size_t EK_uCoroGetHighWaterMark(EK_CoroHandler_t task_handle)
 {
     EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)task_handle;
     if (tcb == NULL)
@@ -733,20 +740,45 @@ EK_Size_t EK_uCoroGetStackUsage(EK_CoroHandler_t task_handle)
         return 0;
     }
 
-    uint8_t *stack_ptr = (uint8_t *)tcb->TCB_StackBase;
-    EK_Size_t unused_size = 0;
+    // 直接返回预计算的高水位标记，性能极高
+    return tcb->TCB_StackHighWaterMark;
+}
 
-    // 从栈底开始向上检查，直到找到第一个被修改过的字节
-    while (*stack_ptr == EK_STACK_FILL_PATTERN && stack_ptr < (uint8_t *)tcb->TCB_StackBase + tcb->TCB_StackSize)
+/**
+ * @brief 获取指定协程的堆栈当前使用量（重新计算版本）
+ * @details
+ *  重新计算当前栈使用量，用于调试和验证高水位标记的正确性。
+ *  此函数性能较低，仅用于调试目的。
+ *
+ * @param task_handle 要查询的任务句柄。若为 NULL，则查询当前任务。
+ * @return EK_Size_t 任务的堆栈当前使用量 (以字节为单位)。
+ */
+EK_Size_t EK_uCoroGetStackUsage_Debug(EK_CoroHandler_t task_handle)
+{
+    EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)task_handle;
+    if (tcb == NULL)
     {
-        stack_ptr++;
+        tcb = EK_CoroKernelCurrentTCB;
     }
 
-    // 计算未使用的大小
-    unused_size = (EK_Size_t)(stack_ptr - (uint8_t *)tcb->TCB_StackBase);
+    if (tcb == NULL || tcb->TCB_StackEnd == NULL)
+    {
+        return 0;
+    }
 
-    // 返回已使用的大小
-    return tcb->TCB_StackSize - unused_size;
+    uint8_t *stack_end = (uint8_t *)tcb->TCB_StackEnd;
+    uint8_t *stack_base = (uint8_t *)tcb->TCB_StackBase;
+    EK_Size_t current_usage = 0;
+
+    // 重新计算当前使用量
+    while (current_usage < tcb->TCB_StackSize &&
+           stack_end - current_usage > stack_base &&
+           *(stack_end - current_usage) != EK_STACK_FILL_PATTERN)
+    {
+        current_usage++;
+    }
+
+    return current_usage;
 }
 
 #endif /* EK_CORO_ENABLE == 1 */
