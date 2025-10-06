@@ -523,6 +523,12 @@ void EK_vKernelInit(void)
                                                     Kernel_IdleTaskStack,
                                                     EK_CORO_IDLE_TASK_STACK_SIZE);
 
+    // 设置SysTick中断优先级为最低
+    NVIC_SetPriority(SysTick_IRQn, 0xFF);
+
+    // 开启SysTick中断
+    SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk;
+
     // 开启SysTick
     while (SysTick_Config(EK_CORO_SYSTEM_FREQ / EK_CORO_TICK_RATE_HZ));
 
@@ -643,6 +649,8 @@ void EK_vTickHandler(void)
 
             // 任务延时已到，将其唤醒
             current_tcb->TCB_State = EK_CORO_READY;
+            // 更新任务的最后唤醒时间
+            current_tcb->TCB_LastWakeUpTime = EK_CoroKernelTick;
             EK_rKernelMove_Tail(&EK_CoroKernelReadyList[current_tcb->TCB_Priority], &current_tcb->TCB_StateNode);
 
             // 如果当前CPU正处于空闲状态，并且我们唤醒了一个任务，那么就需要请求一次调度

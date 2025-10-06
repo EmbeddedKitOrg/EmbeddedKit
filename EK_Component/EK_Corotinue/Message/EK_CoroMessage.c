@@ -5,7 +5,7 @@
  *          发送和接收功能。支持任务阻塞与唤醒机制，提供汇合操作和超时控制。
  *          使用双链表管理等待队列，实现高效的任务调度和资源管理。
  * @author N1ntyNine99
- * @date 2025-09-25
+ * @date 2025-09-30
  * @version v1.0
  */
 
@@ -31,6 +31,7 @@ static inline void v_msg_delay(EK_CoroMsg_t *msg, EK_CoroTCB_t *tcb, uint32_t ti
 
     EK_ENTER_CRITICAL();
 
+    // 原子化操作：将任务状态设置和事件节点添加在同一临界区内完成
     // 将TCB的状态设置为阻塞态
     tcb->TCB_State = EK_CORO_BLOCKED;
 
@@ -105,10 +106,17 @@ EK_pMsgCreateStatic(EK_CoroMsg_t *msg, void *buffer, EK_Size_t item_size, EK_Siz
     if (msg == NULL || buffer == NULL) return NULL;
     if (item_size == 0 || item_amount == 0) return NULL;
 
+    // 为静态队列结构体分配内存（消息队列控制块中需要包含队列结构体）
+    msg->Msg_Queue = (EK_Queue_t *)EK_MALLOC(sizeof(EK_Queue_t));
+    if (msg->Msg_Queue == NULL) return NULL;
+
     // 创建静态队列
-    msg->Msg_Queue = (void *)1; // 避免NULL导致创建队列失败
-    EK_Result_t op_res = EK_pQueueCreateStatic(&msg->Msg_Queue, buffer, item_amount * item_size);
-    if (op_res != EK_OK) return NULL;
+    EK_Result_t op_res = EK_pQueueCreateStatic(msg->Msg_Queue, buffer, item_amount * item_size);
+    if (op_res != EK_OK)
+    {
+        EK_FREE(msg->Msg_Queue);
+        return NULL;
+    }
 
     msg->Msg_ItemSize = item_size; // 每条消息的字节大小
     msg->Msg_ItemCapacity = item_amount; // 计算最大可用的消息数目
@@ -178,11 +186,17 @@ EK_Result_t EK_rMsgDelete(EK_CoroMsg_t *msg)
         EK_rKernelMove_Tail(&EK_CoroKernelReadyList[tcb->TCB_Priority], &tcb->TCB_StateNode);
     }
 
-    // 如果是动态创建的，释放内存
+    // 释放队列结构体内存
     if (msg->Msg_isDynamic)
     {
+        // 动态创建：释放底层队列和消息队列控制块
         EK_rQueueDelete(msg->Msg_Queue); // 释放底层队列
         EK_FREE(msg); // 释放消息队列控制块
+    }
+    else
+    {
+        // 静态创建：只需释放队列结构体（用户缓冲区由用户自己管理）
+        EK_FREE(msg->Msg_Queue); // 释放队列结构体
     }
 
     EK_EXIT_CRITICAL();
@@ -270,7 +284,9 @@ EK_Result_t EK_rMsgSend(EK_CoroMsgHanler_t msg, void *tx_buffer, uint32_t timeou
         // 仅在超时情况下，任务才需要自己清理事件节点
         if (current_tcb->TCB_EventResult == EK_CORO_EVENT_TIMEOUT)
         {
+            EK_ENTER_CRITICAL();
             EK_rKernelRemove(&msg->Msg_SendWaitList, &current_tcb->TCB_EventNode);
+            EK_EXIT_CRITICAL();
         }
         // 如果是 EK_CORO_EVENT_DELETED，表示删除函数已经处理了节点，此处无需操作
         // 统一返回超时或错误
@@ -374,7 +390,9 @@ EK_Result_t EK_rMsgReceive(EK_CoroMsgHanler_t msg, void *rx_buffer, uint32_t tim
         // 仅在超时情况下，任务才需要自己清理事件节点
         if (current_tcb->TCB_EventResult == EK_CORO_EVENT_TIMEOUT)
         {
+            EK_ENTER_CRITICAL();
             EK_rKernelRemove(&msg->Msg_RecvWaitList, &current_tcb->TCB_EventNode);
+            EK_EXIT_CRITICAL();
         }
         // 如果是 EK_CORO_EVENT_DELETED，表示删除函数已经处理了节点，此处无需操作
         // 统一返回超时或错误

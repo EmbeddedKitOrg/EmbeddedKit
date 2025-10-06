@@ -5,7 +5,7 @@
  *          提供消息发送、接收、队列管理等功能，包含任务阻塞和唤醒机制。
  *          采用双节点机制实现状态-事件分离，支持汇合操作和超时控制。
  * @author N1ntyNine99
- * @date 2025-09-25
+ * @date 2025-09-30
  * @version v1.0
  */
 
@@ -31,6 +31,7 @@ extern "C"
 typedef struct EK_CoroMsg_t
 {
     EK_Queue_t *Msg_Queue; /**< 底层数据队列(EK_Queue.h) */
+
     EK_Size_t Msg_ItemSize; /**< 队列中每个消息的大小（字节） */
     EK_Size_t Msg_ItemCapacity; /**< 总共可容纳多少个消息 */
     bool Msg_isDynamic; /**< 是否来源于动态创建 */
