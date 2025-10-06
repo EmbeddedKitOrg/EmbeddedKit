@@ -66,7 +66,7 @@ static inline uint8_t v_kernel_find_msb_index(EK_BitMap_t val)
 
 /**
  * @brief 协程空闲任务堆栈大小
- * 
+ *
  */
 #ifndef EK_CORO_IDLE_TASK_STACK_SIZE
 #if (EK_CORO_FPU_USED == 0)
@@ -75,6 +75,144 @@ static inline uint8_t v_kernel_find_msb_index(EK_BitMap_t val)
 #define EK_CORO_IDLE_TASK_STACK_SIZE (512) // 定义空闲任务的堆栈大小
 #endif /* EK_CORO_FPU_USED == 0 */
 #endif /* EK_CORO_IDLE_TASK_STACK_SIZE */
+
+/* ========================= 栈溢出检测实现区 ========================= */
+#if (EK_CORO_STACK_OVERFLOW_CHECK > 0)
+/**
+ * @brief 弱定义的栈溢出钩子函数
+ * @details
+ *  当检测到栈溢出时调用此函数。用户可以重写此函数以实现自定义的
+ *  错误处理逻辑，如记录错误日志、重启系统等。
+ *  默认实现为空函数，用户可根据需要重写。
+ * @param overflow_tcb 发生栈溢出的任务控制块
+ */
+__weak void EK_vStackOverflowHook(EK_CoroTCB_t *overflow_tcb)
+{
+    /* 用户可以重写此函数来处理栈溢出错误 */
+    /* 默认实现为空，防止链接错误 */
+
+    /* 示例处理代码（用户可根据需求实现）：
+     * 1. 记录错误信息
+     * 2. 挂起或删除溢出任务
+     * 3. 系统重启或进入安全模式
+     * 4. 触发看门狗复位等
+     */
+
+    /* 防止未使用变量警告 */
+    UNUSED_VAR(overflow_tcb);
+
+    /* 空实现 - 等待用户重写 */
+    while (1)
+    {
+        /* 用户可选择在此处实现错误处理逻辑 */
+        /* 如不重写，系统将继续运行但可能不稳定 */
+    }
+}
+
+/**
+ * @brief 栈溢出检测函数
+ * @details
+ *  仿照 FreeRTOS 的 taskCHECK_FOR_STACK_OVERFLOW 实现栈溢出检测。
+ *  支持两种检测方法：
+ *  方法1：检测栈底填充值是否被覆盖（性能较好）
+ *  方法2：检测栈指针是否超出栈范围（更全面）
+ * @param tcb 要检测的任务控制块
+ */
+static inline void v_check_stack_overflow(EK_CoroTCB_t *tcb)
+{
+    if (tcb == NULL || tcb->TCB_StackBase == NULL)
+    {
+        return;
+    }
+
+#if (EK_CORO_STACK_OVERFLOW_CHECK == 1)
+    /* 方法1：检测栈底填充值是否被覆盖 */
+    uint8_t *stack_bottom = (uint8_t *)tcb->TCB_StackBase;
+
+    // 检查栈底的几个字节是否仍为填充值
+    if (stack_bottom[0] != EK_STACK_FILL_PATTERN || stack_bottom[1] != EK_STACK_FILL_PATTERN ||
+        stack_bottom[2] != EK_STACK_FILL_PATTERN || stack_bottom[3] != EK_STACK_FILL_PATTERN)
+    {
+        // 栈溢出，调用钩子函数
+        EK_vStackOverflowHook(tcb);
+    }
+
+#elif (EK_CORO_STACK_OVERFLOW_CHECK == 2)
+    /* 方法2：检测栈指针是否超出栈范围 */
+    if (tcb->TCB_StackPointer != NULL)
+    {
+        uint8_t *stack_ptr = (uint8_t *)tcb->TCB_StackPointer;
+        uint8_t *stack_bottom = (uint8_t *)tcb->TCB_StackBase;
+        uint8_t *stack_top = (uint8_t *)tcb->TCB_StackEnd;
+
+        // 检查栈指针是否超出栈范围
+        if (stack_ptr < stack_bottom || stack_ptr >= stack_top)
+        {
+            // 栈溢出，调用钩子函数
+            EK_vStackOverflowHook(tcb);
+        }
+    }
+#endif /* EK_CORO_STACK_OVERFLOW_CHECK */
+}
+#endif /* (EK_CORO_STACK_OVERFLOW_CHECK > 0) */
+
+/* ========================= 高水位标记计算区（始终可用） ========================= */
+
+/**
+ * @brief 独立的高水位标记计算函数
+ * @details
+ *  计算栈的高水位标记（历史最大使用量）并保存到 TCB 中。
+ *  此函数专门用于高水位计算，不包含栈溢出检测逻辑。
+ *
+ *  注意：ARM Cortex-M 的栈是向下增长的，从栈底向上查找
+ *  第一个被修改的字节，计算栈使用量。
+ * @param tcb 要检测的任务控制块
+ */
+static inline void v_calculate_stack_high_water_mark(EK_CoroTCB_t *tcb)
+{
+    // 参数有效性检查
+    if (tcb == NULL || tcb->TCB_StackBase == NULL || tcb->TCB_StackEnd == NULL)
+    {
+        return;
+    }
+
+    // 获取栈的起始和结束地址
+    uint8_t *stack_base = (uint8_t *)tcb->TCB_StackBase; // 栈底（低地址）
+    uint8_t *stack_limit = (uint8_t *)tcb->TCB_StackEnd; // 栈顶（高地址）
+    EK_Size_t used_bytes = 0;
+
+    // 栈地址有效性检查
+    if (stack_limit <= stack_base)
+    {
+        return;
+    }
+
+    // 从栈底向上查找第一个被修改的字节
+    uint8_t *check_ptr = stack_base;
+    while (check_ptr < stack_limit)
+    {
+        // 如果当前字节不是填充值，说明这里被使用过
+        if (*check_ptr != EK_STACK_FILL_PATTERN)
+        {
+            // 计算从栈顶到这里的使用量
+            used_bytes = (stack_limit - check_ptr);
+            break;
+        }
+        check_ptr++;
+    }
+
+    // 如果整个栈都是填充值，使用保守估计（上下文帧大小）
+    if (used_bytes == 0)
+    {
+        used_bytes = sizeof(EK_CoroTCB_t);
+    }
+
+    // 更新高水位标记（只有在当前使用量更大时才更新）
+    if (used_bytes > tcb->TCB_StackHighWaterMark)
+    {
+        tcb->TCB_StackHighWaterMark = used_bytes;
+    }
+}
 
 /* ========================= 全局变量(公开)定义区 ========================= */
 uint32_t EK_CoroKernelTick; //时基
@@ -575,6 +713,8 @@ void EK_vKernelStart(void)
  *  此函数用于触发一次任务调度。它会从就绪位图中找到当前最高优先级的就绪任务，
  *  将其设置为下一个要运行的任务 (`KernelNextTCB`)，然后通过触发 PendSV 异常来进行上下文切换。
  *  当前正在运行的任务在调用此函数之前，应该已经被放回了某个链表（如就绪链表或阻塞链表）。
+ *
+ *  在任务切换之前，会执行栈溢出检测以确保系统稳定性。
  */
 void EK_vKernelYield(void)
 {
@@ -589,6 +729,15 @@ void EK_vKernelYield(void)
 
     // 将TCB移除
     EK_rKernelRemove(&EK_CoroKernelReadyList[highest_prio], &KernelNextTCB->TCB_StateNode);
+
+    // 在任务切换前检查下一个任务的栈溢出情况并计算高水位标记
+    // 注意：这里检查的是即将运行的任务，确保它在运行前栈是安全的
+    // 执行栈溢出检测（如果启用）
+#if (EK_CORO_STACK_OVERFLOW_CHECK > 0)
+    v_check_stack_overflow(KernelNextTCB);
+#endif
+    // 始终执行高水位标记计算
+    v_calculate_stack_high_water_mark(KernelNextTCB);
 
     EK_EXIT_CRITICAL();
 

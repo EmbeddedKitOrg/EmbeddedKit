@@ -107,6 +107,15 @@
 #endif /*EK_CORO_TICK_RATE_HZ*/
 
 /**
+ * @brief 栈溢出检测方法
+ * @details 0: 禁用栈溢出检测; 1: 方法1(检测栈底填充值); 2: 方法2(检测栈指针是否超出范围)
+ * @note 方法1性能较好但检测范围有限; 方法2检测更全面但性能开销稍大
+ */
+#ifndef EK_CORO_STACK_OVERFLOW_CHECK
+#define EK_CORO_STACK_OVERFLOW_CHECK (0) // 0:禁用 1:方法1 2:方法2
+#endif /*EK_CORO_STACK_OVERFLOW_CHECK*/
+
+/**
  * @brief 协程空闲任务堆栈大小
  * 
  */
