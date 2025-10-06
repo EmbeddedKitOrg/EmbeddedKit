@@ -33,6 +33,7 @@ void EK_vCoroSuspend(EK_CoroHandler_t task_handle, EK_Result_t *result);
 void EK_vCoroResume(EK_CoroHandler_t task_handle, EK_Result_t *result);
 void EK_vCoroDelete(EK_CoroHandler_t task_handle, EK_Result_t *result);
 void EK_vCoroDelay(uint32_t xticks);
+void EK_vCoroDelayUntil(uint32_t xticks);
 void EK_vCoroYield(void);
 EK_Result_t EK_rCoroWakeup(EK_CoroHandler_t task_handle);
 void EK_vCoroSetPriority(EK_CoroHandler_t task_handle, uint16_t priority, EK_Result_t *result);

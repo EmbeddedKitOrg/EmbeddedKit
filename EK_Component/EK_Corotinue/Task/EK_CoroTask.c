@@ -146,6 +146,7 @@ EK_CoroHandler_t EK_pCoroCreate(EK_CoroFunction_t task_func, void *task_arg, uin
     dynamic_tcb->TCB_Priority = priority;
     dynamic_tcb->TCB_StackSize = stack_size;
     dynamic_tcb->TCB_WakeUpTime = 0;
+    dynamic_tcb->TCB_LastWakeUpTime = 0; // 初始化上次唤醒时间
     dynamic_tcb->TCB_isDynamic = true; // 标记为动态创建
     dynamic_tcb->TCB_State = EK_CORO_READY;
     dynamic_tcb->TCB_StateNode.CoroNode_Owner = dynamic_tcb;
@@ -210,6 +211,7 @@ EK_CoroStaticHandler_t EK_pCoroCreateStatic(EK_CoroTCB_t *static_tcb,
     static_tcb->TCB_StackBase = stack;
     static_tcb->TCB_StackSize = stack_size;
     static_tcb->TCB_WakeUpTime = 0;
+    static_tcb->TCB_LastWakeUpTime = 0; // 初始化上次唤醒时间
     static_tcb->TCB_isDynamic = false; // 标记为静态创建
     static_tcb->TCB_State = EK_CORO_READY;
     static_tcb->TCB_StateNode.CoroNode_Owner = static_tcb;
@@ -473,6 +475,94 @@ void EK_vCoroDelay(uint32_t xticks)
 
     EK_EXIT_CRITICAL();
     // 请求一次调度
+    EK_vKernelYield(); // 此调用不会返回
+}
+
+/**
+ * @brief 将当前协程延时直到指定的绝对时间点。
+ * @details
+ *  此函数实现了精确定时的周期性延时功能。与 EK_vCoroDelay 的相对延时不同，
+ *  delayUntil 使用绝对时间来计算唤醒时间，确保任务执行的周期性不受任务执行时间的影响。
+ *  函数会：
+ *  1. 检查TCB中上次唤醒时间是否已初始化
+ *  2. 计算下一次唤醒的绝对时间点
+ *  3. 更新TCB中的上次唤醒时间记录
+ *  4. 执行与 EK_vCoroDelay 类似的阻塞逻辑
+ * @param xticks 期望的执行周期（以tick为单位）
+ */
+void EK_vCoroDelayUntil(uint32_t xticks)
+{
+    // 参数检查
+    if (xticks == 0)
+    {
+        return;
+    }
+
+    EK_ENTER_CRITICAL();
+
+    // 获取当前的TCB
+    EK_CoroTCB_t *current = EK_CoroKernelCurrentTCB;
+    if (current == NULL)
+    {
+        EK_EXIT_CRITICAL();
+        return;
+    }
+
+    // 禁止操作空闲任务
+    if (current == EK_CoroKernelIdleHandler)
+    {
+        EK_EXIT_CRITICAL();
+        return;
+    }
+
+    uint32_t current_tick = EK_CoroKernelTick;
+    uint32_t next_wake_time;
+
+    // 如果是第一次调用，初始化TCB_LastWakeUpTime
+    if (current->TCB_LastWakeUpTime == 0)
+    {
+        current->TCB_LastWakeUpTime = current_tick;
+    }
+
+    // 计算下一次唤醒时间
+    next_wake_time = current->TCB_LastWakeUpTime + xticks;
+
+    // 更新TCB_LastWakeUpTime为下一次唤醒时间
+    current->TCB_LastWakeUpTime = next_wake_time;
+
+    // 计算延时时间
+    if (next_wake_time > current_tick)
+    {
+        // 正常情况：未来时间点
+        current->TCB_WakeUpTime = next_wake_time;
+
+        // 根据唤醒时间选择阻塞链表
+        if (current->TCB_WakeUpTime < EK_CoroKernelTick)
+        {
+            // 唤醒时间小于当前时基，说明是溢出后的链表
+            EK_rKernelMove_WakeUpTime(EK_CoroKernelNextBlock, &current->TCB_StateNode);
+        }
+        else
+        {
+            // 唤醒时间大于等于当前时基，说明是当前周期链表
+            EK_rKernelMove_WakeUpTime(EK_CoroKernelCurrBlock, &current->TCB_StateNode);
+        }
+    }
+    else
+    {
+        // 如果错过了时间点，立即执行（不阻塞）
+        // 将任务重新放回就绪链表
+        current->TCB_State = EK_CORO_READY;
+        EK_rKernelMove_Tail(&EK_CoroKernelReadyList[current->TCB_Priority], &current->TCB_StateNode);
+        EK_EXIT_CRITICAL();
+        return;
+    }
+
+    // 设置当前TCB状态为阻塞
+    current->TCB_State = EK_CORO_BLOCKED;
+
+    EK_EXIT_CRITICAL();
+    // 请求调度
     EK_vKernelYield(); // 此调用不会返回
 }
 

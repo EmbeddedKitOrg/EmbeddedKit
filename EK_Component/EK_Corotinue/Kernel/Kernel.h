@@ -128,6 +128,7 @@ typedef struct EK_CoroTCB_t
     uint16_t TCB_Priority; /**< 协程的优先级 (数值越小，优先级越高). */
     bool TCB_isDynamic; /**< 标记协程是否为动态创建 (用于内存管理). */
     uint32_t TCB_WakeUpTime; /**< 要被唤醒的tick */
+    uint32_t TCB_LastWakeUpTime; /**< 上次唤醒的tick，用于delayUntil功能 */
     EK_Size_t TCB_StackSize; /**< 协程栈的总大小 (以字节为单位). */
     EK_CoroState_t TCB_State; /**< 协程的当前状态. */
     EK_CoroFunction_t TCB_Entry; /**< 协程的入口函数地址. */
