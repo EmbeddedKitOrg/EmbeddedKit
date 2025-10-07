@@ -231,8 +231,59 @@ static EK_CoroTCB_t *EK_CoroKernelIdleTCB; // 空闲任务TCB指针
 static bool KernelIdleYield = false; // 调度请求标志位, 由TickHandler在唤醒任务时设置
 static bool KernelIsInited = false; // 内核初始化状态标志
 static volatile EK_BitMap_t KernelReadyBitMap; // 就绪链表位图
+static volatile uint32_t KernelCriticalNesting = 0U; // 临界区嵌套计数
+static uint32_t KernelSavedPrimask = 0U; // 临界区退出时恢复的 PRIMASK
 
-/* ========================= 内部函数定义区 ========================= */
+/* ========================= 临界区管理实现区 ========================= */
+
+/**
+ * @brief 进入内核临界区，禁止中断
+ * @details
+ *  此函数实现嵌套临界区保护机制：
+ *  1. 保存当前中断状态(PRIMASK)
+ *  2. 禁止所有中断
+ *  3. 首次进入时保存原始中断状态
+ *  4. 增加嵌套计数器
+ *  5. 添加数据内存屏障确保操作顺序
+ * @note 支持嵌套调用，只有最外层调用时才保存中断状态
+ */
+void EK_vEnterCritical(void)
+{
+    uint32_t primask = __get_PRIMASK(); // 获取当前中断状态
+    __disable_irq(); // 禁止所有中断
+    if (KernelCriticalNesting == 0U) // 首次进入临界区
+    {
+        KernelSavedPrimask = primask; // 保存原始中断状态，用于退出时恢复
+    }
+    KernelCriticalNesting++; // 增加嵌套计数
+    __DMB(); // 数据内存屏障，确保操作完成
+}
+
+/**
+ * @brief 退出内核临界区，恢复中断状态
+ * @details
+ *  此函数实现嵌套临界区的安全退出机制：
+ *  1. 检查嵌套计数器，防止过度退出
+ *  2. 减少嵌套计数器
+ *  3. 最外层退出时恢复原始中断状态
+ *  4. 添加数据内存屏障确保操作顺序
+ * @note 只有当嵌套计数归零时才真正恢复中断状态，支持嵌套调用
+ */
+void EK_vExitCritical(void)
+{
+    if (KernelCriticalNesting == 0U) // 检查是否过度退出
+    {
+        return; // 过度退出，直接返回
+    }
+    KernelCriticalNesting--; // 减少嵌套计数
+    if (KernelCriticalNesting == 0U) // 最外层退出
+    {
+        __DMB(); // 数据内存屏障，确保操作完成
+        __set_PRIMASK(KernelSavedPrimask); // 恢复原始中断状态
+    }
+}
+
+/* ========================= 链表函数控制区 ========================= */
 /**
  * @brief 从一个链表中移除一个指定的协程节点。
  * @details
@@ -558,8 +609,8 @@ static void Kernel_CoroIdleFunction(void *arg)
         {
             if (EK_CoroKernelDeleteTCB->TCB_isDynamic)
             {
-                EK_FREE(EK_CoroKernelDeleteTCB->TCB_StackBase);
-                EK_FREE(EK_CoroKernelDeleteTCB);
+                EK_CORO_FREE(EK_CoroKernelDeleteTCB->TCB_StackBase);
+                EK_CORO_FREE(EK_CoroKernelDeleteTCB);
             }
             EK_CoroKernelDeleteTCB = NULL;
         }

@@ -102,7 +102,7 @@ static void v_task_init_context(EK_CoroTCB_t *tcb)
 /**
  * @brief 动态创建一个协程。
  * @details
- *  此函数使用 `EK_MALLOC` 动态分配任务控制块 (TCB) 和任务堆栈。
+ *  此函数使用 `EK_CORO_MALLOC` 动态分配任务控制块 (TCB) 和任务堆栈。
  *  创建成功后，任务被置于就绪状态，并根据其优先级插入到相应的就绪链表中，等待调度器执行。
  * @param task_func 任务的入口函数指针。
  * @param task_arg 传递给任务入口函数的参数。
@@ -116,15 +116,15 @@ EK_CoroHandler_t EK_pCoroCreate(EK_CoroFunction_t task_func, void *task_arg, uin
     if (task_func == NULL) return NULL;
 
     // 为任务控制块 (TCB) 分配内存
-    EK_CoroTCB_t *dynamic_tcb = (EK_CoroTCB_t *)EK_MALLOC(sizeof(EK_CoroTCB_t));
+    EK_CoroTCB_t *dynamic_tcb = (EK_CoroTCB_t *)EK_CORO_MALLOC(sizeof(EK_CoroTCB_t));
     if (dynamic_tcb == NULL) return NULL;
 
     // 为任务堆栈分配内存
-    void *stack = EK_MALLOC(stack_size);
+    void *stack = EK_CORO_MALLOC(stack_size);
     if (stack == NULL)
     {
         // 如果堆栈分配失败，则释放已分配的TCB内存，防止内存泄漏
-        EK_FREE(dynamic_tcb);
+        EK_CORO_FREE(dynamic_tcb);
         return NULL;
     }
 
@@ -415,8 +415,8 @@ void EK_vCoroDelete(EK_CoroHandler_t task_handle, EK_Result_t *result)
         op_res = EK_rKernelRemove(target_tcb->TCB_StateNode.CoroNode_List, &target_tcb->TCB_StateNode);
         if (op_res == EK_OK)
         {
-            EK_FREE(target_tcb->TCB_StackBase);
-            EK_FREE(target_tcb);
+            EK_CORO_FREE(target_tcb->TCB_StackBase);
+            EK_CORO_FREE(target_tcb);
         }
         if (result) *result = op_res;
         EK_EXIT_CRITICAL();
@@ -771,8 +771,7 @@ EK_Size_t EK_uCoroGetStackUsage_Debug(EK_CoroHandler_t task_handle)
     EK_Size_t current_usage = 0;
 
     // 重新计算当前使用量
-    while (current_usage < tcb->TCB_StackSize &&
-           stack_end - current_usage > stack_base &&
+    while (current_usage < tcb->TCB_StackSize && stack_end - current_usage > stack_base &&
            *(stack_end - current_usage) != EK_STACK_FILL_PATTERN)
     {
         current_usage++;

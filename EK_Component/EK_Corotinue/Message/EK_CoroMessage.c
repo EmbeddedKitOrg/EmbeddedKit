@@ -60,14 +60,14 @@ EK_CoroMsgHanler_t EK_pMsgCreate(EK_Size_t item_size, EK_Size_t item_amount)
     if (item_size == 0 || item_amount == 0) return NULL;
 
     // 为结构体分配内存
-    EK_CoroMsg_t *msg = (EK_CoroMsg_t *)EK_MALLOC(sizeof(EK_CoroMsg_t));
+    EK_CoroMsg_t *msg = (EK_CoroMsg_t *)EK_CORO_MALLOC(sizeof(EK_CoroMsg_t));
     if (msg == NULL) return NULL;
 
     // 为消息队列分配内存
     msg->Msg_Queue = EK_pQueueCreate(item_size * item_amount);
     if (msg->Msg_Queue == NULL)
     {
-        EK_FREE(msg);
+        EK_CORO_FREE(msg);
         return NULL;
     }
 
@@ -107,14 +107,14 @@ EK_pMsgCreateStatic(EK_CoroMsg_t *msg, void *buffer, EK_Size_t item_size, EK_Siz
     if (item_size == 0 || item_amount == 0) return NULL;
 
     // 为静态队列结构体分配内存（消息队列控制块中需要包含队列结构体）
-    msg->Msg_Queue = (EK_Queue_t *)EK_MALLOC(sizeof(EK_Queue_t));
+    msg->Msg_Queue = (EK_Queue_t *)EK_CORO_MALLOC(sizeof(EK_Queue_t));
     if (msg->Msg_Queue == NULL) return NULL;
 
     // 创建静态队列
     EK_Result_t op_res = EK_pQueueCreateStatic(msg->Msg_Queue, buffer, item_amount * item_size);
     if (op_res != EK_OK)
     {
-        EK_FREE(msg->Msg_Queue);
+        EK_CORO_FREE(msg->Msg_Queue);
         return NULL;
     }
 
@@ -191,12 +191,12 @@ EK_Result_t EK_rMsgDelete(EK_CoroMsg_t *msg)
     {
         // 动态创建：释放底层队列和消息队列控制块
         EK_rQueueDelete(msg->Msg_Queue); // 释放底层队列
-        EK_FREE(msg); // 释放消息队列控制块
+        EK_CORO_FREE(msg); // 释放消息队列控制块
     }
     else
     {
         // 静态创建：只需释放队列结构体（用户缓冲区由用户自己管理）
-        EK_FREE(msg->Msg_Queue); // 释放队列结构体
+        EK_CORO_FREE(msg->Msg_Queue); // 释放队列结构体
     }
 
     EK_EXIT_CRITICAL();
