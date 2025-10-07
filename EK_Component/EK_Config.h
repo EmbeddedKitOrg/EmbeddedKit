@@ -119,9 +119,16 @@ extern bool EK_bMemPool_Free(void *ptr);
 
 /**
  * @brief 是否使能消息队列
- * 
+ *
  */
 #define EK_CORO_USE_MESSAGE_QUEUE (1) // 1:使能 0:失能
+
+/**
+ * @brief 栈溢出检测方法
+ * @details 0: 禁用栈溢出检测; 1: 方法1(检测栈底填充值); 2: 方法2(检测栈指针是否超出范围)
+ * @note 方法1性能较好但检测范围有限; 方法2检测更全面但性能开销稍大
+ */
+#define EK_CORO_STACK_OVERFLOW_CHECK (0) // 0:禁用 1:方法1 2:方法2
 
 #else
 

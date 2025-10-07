@@ -8,18 +8,13 @@
  */
 
 #include "EK_CoroTask.h"
+#include "../../EK_Common.h"
 
 #if (EK_CORO_USE_MESSAGE_QUEUE == 1)
 #include "../Message/EK_CoroMessage.h"
 #endif /* EK_CORO_USE_MESSAGE_QUEUE == 1 */
 
 #if (EK_CORO_ENABLE == 1)
-
-/**
- * @brief 协程任务栈填充值
- * @details 用于检测栈使用高水位
- */
-#define EK_STACK_FILL_PATTERN (0xCD)
 
 /**
  * @brief 返回线程模式，使用PSP堆栈
@@ -76,7 +71,7 @@ static void v_coro_exit(void)
 static void v_task_init_context(EK_CoroTCB_t *tcb)
 {
     EK_CoroStack_t *stk;
-    stk = (EK_CoroStack_t *)((uint8_t *)tcb->TCB_StackBase + tcb->TCB_StackSize);
+    stk = (EK_CoroStack_t *)tcb->TCB_StackEnd; // 直接使用栈顶地址
     // 确保堆栈8字节对齐
     stk = (EK_CoroStack_t *)(((uintptr_t)stk) & ~0x07UL);
 
@@ -102,12 +97,12 @@ static void v_task_init_context(EK_CoroTCB_t *tcb)
     *(--stk) = 0; // R4
 
     // 更新TCB中的堆栈指针
-    tcb->TCB_SP = stk;
+    tcb->TCB_StackPointer = stk;
 }
 /**
  * @brief 动态创建一个协程。
  * @details
- *  此函数使用 `EK_MALLOC` 动态分配任务控制块 (TCB) 和任务堆栈。
+ *  此函数使用 `EK_CORO_MALLOC` 动态分配任务控制块 (TCB) 和任务堆栈。
  *  创建成功后，任务被置于就绪状态，并根据其优先级插入到相应的就绪链表中，等待调度器执行。
  * @param task_func 任务的入口函数指针。
  * @param task_arg 传递给任务入口函数的参数。
@@ -121,17 +116,20 @@ EK_CoroHandler_t EK_pCoroCreate(EK_CoroFunction_t task_func, void *task_arg, uin
     if (task_func == NULL) return NULL;
 
     // 为任务控制块 (TCB) 分配内存
-    EK_CoroTCB_t *dynamic_tcb = (EK_CoroTCB_t *)EK_MALLOC(sizeof(EK_CoroTCB_t));
+    EK_CoroTCB_t *dynamic_tcb = (EK_CoroTCB_t *)EK_CORO_MALLOC(sizeof(EK_CoroTCB_t));
     if (dynamic_tcb == NULL) return NULL;
 
     // 为任务堆栈分配内存
-    void *stack = EK_MALLOC(stack_size);
+    void *stack = EK_CORO_MALLOC(stack_size);
     if (stack == NULL)
     {
         // 如果堆栈分配失败，则释放已分配的TCB内存，防止内存泄漏
-        EK_FREE(dynamic_tcb);
+        EK_CORO_FREE(dynamic_tcb);
         return NULL;
     }
+
+    // 填充堆栈以便检测堆栈使用情况
+    EK_vMemSet(stack, EK_STACK_FILL_PATTERN, stack_size);
 
     // 判断priority是否超过预设
     if (priority >= EK_CORO_PRIORITY_MOUNT)
@@ -143,9 +141,12 @@ EK_CoroHandler_t EK_pCoroCreate(EK_CoroFunction_t task_func, void *task_arg, uin
     dynamic_tcb->TCB_Entry = task_func;
     dynamic_tcb->TCB_Arg = task_arg;
     dynamic_tcb->TCB_StackBase = stack;
+    dynamic_tcb->TCB_StackEnd = (void *)((uint8_t *)stack + stack_size); // 栈顶地址
     dynamic_tcb->TCB_Priority = priority;
     dynamic_tcb->TCB_StackSize = stack_size;
+    dynamic_tcb->TCB_StackHighWaterMark = 0; // 初始化高水位标记
     dynamic_tcb->TCB_WakeUpTime = 0;
+    dynamic_tcb->TCB_LastWakeUpTime = 0; // 初始化上次唤醒时间
     dynamic_tcb->TCB_isDynamic = true; // 标记为动态创建
     dynamic_tcb->TCB_State = EK_CORO_READY;
     dynamic_tcb->TCB_StateNode.CoroNode_Owner = dynamic_tcb;
@@ -197,6 +198,9 @@ EK_CoroStaticHandler_t EK_pCoroCreateStatic(EK_CoroTCB_t *static_tcb,
     // 确保所有必要的指针都已提供
     if (static_tcb == NULL || task_func == NULL || stack == NULL) return NULL;
 
+    // 填充堆栈以便检测堆栈使用情况
+    EK_vMemSet(stack, EK_STACK_FILL_PATTERN, stack_size);
+
     // 判断priority是否超过预设
     if (priority >= EK_CORO_PRIORITY_MOUNT)
     {
@@ -208,8 +212,11 @@ EK_CoroStaticHandler_t EK_pCoroCreateStatic(EK_CoroTCB_t *static_tcb,
     static_tcb->TCB_Arg = task_arg;
     static_tcb->TCB_Priority = priority;
     static_tcb->TCB_StackBase = stack;
+    static_tcb->TCB_StackEnd = (void *)((uint8_t *)stack + stack_size); // 栈顶地址
     static_tcb->TCB_StackSize = stack_size;
+    static_tcb->TCB_StackHighWaterMark = 0; // 初始化高水位标记
     static_tcb->TCB_WakeUpTime = 0;
+    static_tcb->TCB_LastWakeUpTime = 0; // 初始化上次唤醒时间
     static_tcb->TCB_isDynamic = false; // 标记为静态创建
     static_tcb->TCB_State = EK_CORO_READY;
     static_tcb->TCB_StateNode.CoroNode_Owner = static_tcb;
@@ -408,8 +415,8 @@ void EK_vCoroDelete(EK_CoroHandler_t task_handle, EK_Result_t *result)
         op_res = EK_rKernelRemove(target_tcb->TCB_StateNode.CoroNode_List, &target_tcb->TCB_StateNode);
         if (op_res == EK_OK)
         {
-            EK_FREE(target_tcb->TCB_StackBase);
-            EK_FREE(target_tcb);
+            EK_CORO_FREE(target_tcb->TCB_StackBase);
+            EK_CORO_FREE(target_tcb);
         }
         if (result) *result = op_res;
         EK_EXIT_CRITICAL();
@@ -473,6 +480,94 @@ void EK_vCoroDelay(uint32_t xticks)
 
     EK_EXIT_CRITICAL();
     // 请求一次调度
+    EK_vKernelYield(); // 此调用不会返回
+}
+
+/**
+ * @brief 将当前协程延时直到指定的绝对时间点。
+ * @details
+ *  此函数实现了精确定时的周期性延时功能。与 EK_vCoroDelay 的相对延时不同，
+ *  delayUntil 使用绝对时间来计算唤醒时间，确保任务执行的周期性不受任务执行时间的影响。
+ *  函数会：
+ *  1. 检查TCB中上次唤醒时间是否已初始化
+ *  2. 计算下一次唤醒的绝对时间点
+ *  3. 更新TCB中的上次唤醒时间记录
+ *  4. 执行与 EK_vCoroDelay 类似的阻塞逻辑
+ * @param xticks 期望的执行周期（以tick为单位）
+ */
+void EK_vCoroDelayUntil(uint32_t xticks)
+{
+    // 参数检查
+    if (xticks == 0)
+    {
+        return;
+    }
+
+    EK_ENTER_CRITICAL();
+
+    // 获取当前的TCB
+    EK_CoroTCB_t *current = EK_CoroKernelCurrentTCB;
+    if (current == NULL)
+    {
+        EK_EXIT_CRITICAL();
+        return;
+    }
+
+    // 禁止操作空闲任务
+    if (current == EK_CoroKernelIdleHandler)
+    {
+        EK_EXIT_CRITICAL();
+        return;
+    }
+
+    uint32_t current_tick = EK_CoroKernelTick;
+    uint32_t next_wake_time;
+
+    // 如果是第一次调用，初始化TCB_LastWakeUpTime
+    if (current->TCB_LastWakeUpTime == 0)
+    {
+        current->TCB_LastWakeUpTime = current_tick;
+    }
+
+    // 计算下一次唤醒时间
+    next_wake_time = current->TCB_LastWakeUpTime + xticks;
+
+    // 更新TCB_LastWakeUpTime为下一次唤醒时间
+    current->TCB_LastWakeUpTime = next_wake_time;
+
+    // 计算延时时间
+    if (next_wake_time > current_tick)
+    {
+        // 正常情况：未来时间点
+        current->TCB_WakeUpTime = next_wake_time;
+
+        // 根据唤醒时间选择阻塞链表
+        if (current->TCB_WakeUpTime < EK_CoroKernelTick)
+        {
+            // 唤醒时间小于当前时基，说明是溢出后的链表
+            EK_rKernelMove_WakeUpTime(EK_CoroKernelNextBlock, &current->TCB_StateNode);
+        }
+        else
+        {
+            // 唤醒时间大于等于当前时基，说明是当前周期链表
+            EK_rKernelMove_WakeUpTime(EK_CoroKernelCurrBlock, &current->TCB_StateNode);
+        }
+    }
+    else
+    {
+        // 如果错过了时间点，立即执行（不阻塞）
+        // 将任务重新放回就绪链表
+        current->TCB_State = EK_CORO_READY;
+        EK_rKernelMove_Tail(&EK_CoroKernelReadyList[current->TCB_Priority], &current->TCB_StateNode);
+        EK_EXIT_CRITICAL();
+        return;
+    }
+
+    // 设置当前TCB状态为阻塞
+    current->TCB_State = EK_CORO_BLOCKED;
+
+    EK_EXIT_CRITICAL();
+    // 请求调度
     EK_vKernelYield(); // 此调用不会返回
 }
 
@@ -622,15 +717,17 @@ EK_Size_t EK_uCoroGetStack(EK_CoroHandler_t task_handle)
 /**
  * @brief 获取指定协程的堆栈历史最大使用量 (高水位)。
  * @details
- *  通过从栈底向上检查预设的填充值 (`EK_STACK_FILL_PATTERN`) 是否被覆盖，
- *  来计算出从任务开始运行到当前时刻，堆栈使用量的峰值。
- *  这对于调试和优化任务的堆栈大小非常有用。
- *  **注意**: 此功能要求在创建任务时，堆栈被填充了 `EK_STACK_FILL_PATTERN`。
- *  (当前版本在创建任务时未填充，此功能可能不准确，需在创建任务时增加填充逻辑)
+ *  获取在任务切换时预先计算并保存的栈高水位标记。
+ *  由于每次任务切换都会自动计算高水位标记，此函数只需返回预计算的值，
+ *  性能极高，适用于实时监控和调试。
+ *
+ *  高水位标记指的是栈顶到栈中最后一个未被修改位置的距离，数值越小表示
+ *  栈使用得越少，剩余空间越大。返回值为距离栈顶的字节数。
+ *
  * @param task_handle 要查询的任务句柄。若为 NULL，则查询当前任务。
- * @return EK_Size_t 任务的堆栈高水位使用量 (以字节为单位)。
+ * @return EK_Size_t 任务的堆栈高水位标记 (距离栈顶的字节数)，0表示栈已满。
  */
-EK_Size_t EK_uCoroGetStackUsage(EK_CoroHandler_t task_handle)
+EK_Size_t EK_uCoroGetHighWaterMark(EK_CoroHandler_t task_handle)
 {
     EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)task_handle;
     if (tcb == NULL)
@@ -643,20 +740,44 @@ EK_Size_t EK_uCoroGetStackUsage(EK_CoroHandler_t task_handle)
         return 0;
     }
 
-    uint8_t *stack_ptr = (uint8_t *)tcb->TCB_StackBase;
-    EK_Size_t unused_size = 0;
+    // 直接返回预计算的高水位标记，性能极高
+    return tcb->TCB_StackHighWaterMark;
+}
 
-    // 从栈底开始向上检查，直到找到第一个被修改过的字节
-    while (*stack_ptr == EK_STACK_FILL_PATTERN && stack_ptr < (uint8_t *)tcb->TCB_StackBase + tcb->TCB_StackSize)
+/**
+ * @brief 获取指定协程的堆栈当前使用量（重新计算版本）
+ * @details
+ *  重新计算当前栈使用量，用于调试和验证高水位标记的正确性。
+ *  此函数性能较低，仅用于调试目的。
+ *
+ * @param task_handle 要查询的任务句柄。若为 NULL，则查询当前任务。
+ * @return EK_Size_t 任务的堆栈当前使用量 (以字节为单位)。
+ */
+EK_Size_t EK_uCoroGetStackUsage_Debug(EK_CoroHandler_t task_handle)
+{
+    EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)task_handle;
+    if (tcb == NULL)
     {
-        stack_ptr++;
+        tcb = EK_CoroKernelCurrentTCB;
     }
 
-    // 计算未使用的大小
-    unused_size = (EK_Size_t)(stack_ptr - (uint8_t *)tcb->TCB_StackBase);
+    if (tcb == NULL || tcb->TCB_StackEnd == NULL)
+    {
+        return 0;
+    }
 
-    // 返回已使用的大小
-    return tcb->TCB_StackSize - unused_size;
+    uint8_t *stack_end = (uint8_t *)tcb->TCB_StackEnd;
+    uint8_t *stack_base = (uint8_t *)tcb->TCB_StackBase;
+    EK_Size_t current_usage = 0;
+
+    // 重新计算当前使用量
+    while (current_usage < tcb->TCB_StackSize && stack_end - current_usage > stack_base &&
+           *(stack_end - current_usage) != EK_STACK_FILL_PATTERN)
+    {
+        current_usage++;
+    }
+
+    return current_usage;
 }
 
 #endif /* EK_CORO_ENABLE == 1 */
