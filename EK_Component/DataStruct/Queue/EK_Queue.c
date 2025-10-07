@@ -103,7 +103,7 @@ EK_Queue_t *EK_pQueueCreate(EK_Size_t capacity)
  * @return EK_Result_t 创建成功返回EK_OK，失败返回对应错误码
  * @note 适用于静态分配场景，队列结构体和缓冲区内存都由用户管理
  */
-EK_Result_t EK_pQueueCreateStatic(EK_Queue_t *queue_handler, void *buffer, const EK_Size_t capacity)
+EK_Result_t EK_rQueueCreateStatic(EK_Queue_t *queue_handler, void *buffer, const EK_Size_t capacity)
 {
     // 判断入参是否无效
     if (queue_handler == NULL || capacity == 0) return EK_INVALID_PARAM;

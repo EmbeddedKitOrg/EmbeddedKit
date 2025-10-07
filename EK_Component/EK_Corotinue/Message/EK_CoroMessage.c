@@ -11,10 +11,17 @@
 
 /* ========================= 头文件包含区 ========================= */
 #include "EK_CoroMessage.h"
-#include "../Task/EK_CoroTask.h"
 
 #if (EK_CORO_ENABLE == 1)
 #if (EK_CORO_USE_MESSAGE_QUEUE == 1)
+
+#include "../Task/EK_CoroTask.h"
+/* ========================= 内部辅助宏 ========================= */
+/**
+ * @brief 安全获取消息队列的队列指针
+ * @details 根据创建类型返回正确的队列指针
+ */
+#define EK_MSG_GET_QUEUE(msg) ((msg)->Msg_isDynamic ? (msg)->Msg_Queue : &(msg)->Msg_QueueStatic)
 
 /* ========================= 内部函数 ========================= */
 /**
@@ -63,13 +70,14 @@ EK_CoroMsgHanler_t EK_pMsgCreate(EK_Size_t item_size, EK_Size_t item_amount)
     EK_CoroMsg_t *msg = (EK_CoroMsg_t *)EK_CORO_MALLOC(sizeof(EK_CoroMsg_t));
     if (msg == NULL) return NULL;
 
-    // 为消息队列分配内存
-    msg->Msg_Queue = EK_pQueueCreate(item_size * item_amount);
-    if (msg->Msg_Queue == NULL)
+    // 为消息队列分配内存（动态创建时使用指针成员）
+    EK_Queue_t *dynamic_queue = EK_pQueueCreate(item_size * item_amount);
+    if (dynamic_queue == NULL)
     {
         EK_CORO_FREE(msg);
         return NULL;
     }
+    msg->Msg_Queue = dynamic_queue; // 设置指针成员
 
     msg->Msg_ItemSize = item_size; // 每条消息的字节大小
     msg->Msg_ItemCapacity = item_amount; // 计算最大可用的消息数目
@@ -91,13 +99,14 @@ EK_CoroMsgHanler_t EK_pMsgCreate(EK_Size_t item_size, EK_Size_t item_amount)
 
 /**
  * @brief 使用静态分配的内存来初始化一个消息队列。
- * @details 此函数使用用户提供的缓冲区和消息队列控制块进行初始化，避免了动态内存分配。
- * 
+ * @details 此函数使用用户提供的缓冲区和消息队列控制块进行初始化，完全避免了动态内存分配。
+ *          使用内嵌的队列结构体，确保真正的静态创建。
+ *
  * @param msg 指向静态消息队列结构体 `EK_CoroMsg_t` 的指针。
  * @param buffer 指向用于消息存储的静态缓冲区的指针。
  * @param item_size 队列中单个消息项的大小（以字节为单位）。
  * @param item_amount 队列中单个消息项的个数。
- * 
+ *
  * @return EK_CoroMsgStaticHanler_t 成功时返回消息队列的句柄，如果参数无效则返回 NULL。
  */
 EK_CoroMsgStaticHanler_t
@@ -106,18 +115,18 @@ EK_pMsgCreateStatic(EK_CoroMsg_t *msg, void *buffer, EK_Size_t item_size, EK_Siz
     if (msg == NULL || buffer == NULL) return NULL;
     if (item_size == 0 || item_amount == 0) return NULL;
 
-    // 为静态队列结构体分配内存（消息队列控制块中需要包含队列结构体）
-    msg->Msg_Queue = (EK_Queue_t *)EK_CORO_MALLOC(sizeof(EK_Queue_t));
-    if (msg->Msg_Queue == NULL) return NULL;
+    // 直接使用内嵌的队列结构体，完全避免动态分配
+    EK_Queue_t *queue = &msg->Msg_QueueStatic;
 
-    // 创建静态队列
-    EK_Result_t op_res = EK_pQueueCreateStatic(msg->Msg_Queue, buffer, item_amount * item_size);
+    // 创建静态队列，完全使用静态内存
+    EK_Result_t op_res = EK_rQueueCreateStatic(queue, buffer, item_amount * item_size);
     if (op_res != EK_OK)
     {
-        EK_CORO_FREE(msg->Msg_Queue);
-        return NULL;
+        return NULL; // 静态创建失败，无需释放内存
     }
 
+    // 设置消息队列属性
+    msg->Msg_Queue = queue; // 指向内嵌的队列结构体
     msg->Msg_ItemSize = item_size; // 每条消息的字节大小
     msg->Msg_ItemCapacity = item_amount; // 计算最大可用的消息数目
 
@@ -190,13 +199,16 @@ EK_Result_t EK_rMsgDelete(EK_CoroMsg_t *msg)
     if (msg->Msg_isDynamic)
     {
         // 动态创建：释放底层队列和消息队列控制块
-        EK_rQueueDelete(msg->Msg_Queue); // 释放底层队列
+        EK_Queue_t *queue = EK_MSG_GET_QUEUE(msg); // 安全获取队列指针
+        EK_rQueueDelete(queue); // 释放底层队列
         EK_CORO_FREE(msg); // 释放消息队列控制块
     }
     else
     {
-        // 静态创建：只需释放队列结构体（用户缓冲区由用户自己管理）
-        EK_CORO_FREE(msg->Msg_Queue); // 释放队列结构体
+        // 静态创建：不需要释放任何内存
+        // 内嵌的队列结构体是消息队列结构体的一部分，由用户管理其生命周期
+        // 用户缓冲区也由用户自己管理
+        // 所以这里什么都不用做
     }
 
     EK_EXIT_CRITICAL();
@@ -250,10 +262,11 @@ EK_Result_t EK_rMsgSend(EK_CoroMsgHanler_t msg, void *tx_buffer, uint32_t timeou
     }
 
     // 如果没有任务等待接收，则尝试将消息放入队列
-    if (EK_sQueueGetRemain(msg->Msg_Queue) >= msg->Msg_ItemSize)
+    EK_Queue_t *queue = EK_MSG_GET_QUEUE(msg); // 安全获取队列指针
+    if (EK_sQueueGetRemain(queue) >= msg->Msg_ItemSize)
     {
         // 队列有空间，直接入队
-        EK_rQueueEnqueue(msg->Msg_Queue, tx_buffer, msg->Msg_ItemSize);
+        EK_rQueueEnqueue(queue, tx_buffer, msg->Msg_ItemSize);
         EK_EXIT_CRITICAL();
         return EK_OK;
     }
@@ -318,11 +331,14 @@ EK_Result_t EK_rMsgReceive(EK_CoroMsgHanler_t msg, void *rx_buffer, uint32_t tim
 
     EK_CoroTCB_t *current_tcb = EK_CoroKernelCurrentTCB;
 
+    // 安全获取队列指针
+    EK_Queue_t *queue = EK_MSG_GET_QUEUE(msg);
+
     // 检查队列中是否有消息
-    if (EK_sQueueGetSize(msg->Msg_Queue) >= msg->Msg_ItemSize)
+    if (EK_sQueueGetSize(queue) >= msg->Msg_ItemSize)
     {
         // 队列有数据，直接出队
-        EK_rQueueDequeue(msg->Msg_Queue, rx_buffer, msg->Msg_ItemSize);
+        EK_rQueueDequeue(queue, rx_buffer, msg->Msg_ItemSize);
 
         // 检查是否有任务在等待发送 (队列腾出了空间)
         if (msg->Msg_SendWaitList.List_Count > 0)
@@ -332,7 +348,7 @@ EK_Result_t EK_rMsgReceive(EK_CoroMsgHanler_t msg, void *rx_buffer, uint32_t tim
             EK_rKernelRemove(&msg->Msg_SendWaitList, &tcb_wait_to_send->TCB_EventNode);
 
             // 将等待发送的数据放入队列
-            EK_rQueueEnqueue(msg->Msg_Queue, tcb_wait_to_send->TCB_MsgData, msg->Msg_ItemSize);
+            EK_rQueueEnqueue(queue, tcb_wait_to_send->TCB_MsgData, msg->Msg_ItemSize);
 
             // 设置事件结果并唤醒发送者
             tcb_wait_to_send->TCB_EventResult = EK_CORO_EVENT_OK;

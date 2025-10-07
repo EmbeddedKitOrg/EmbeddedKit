@@ -209,7 +209,7 @@ EK_Result_t EK_rSerialCreateQueueStatic(EK_pSeiralQueue_t serial_fifo,
     if (serial_fifo == NULL || send_func == NULL) return EK_NULL_POINTER;
 
     // 初始化队列
-    EK_Result_t res = EK_pQueueCreateStatic(serial_fifo->Serial_Queue, buffer, capacity);
+    EK_Result_t res = EK_rQueueCreateStatic(serial_fifo->Serial_Queue, buffer, capacity);
     if (res != EK_OK) return res;
 
     // 初始化节点

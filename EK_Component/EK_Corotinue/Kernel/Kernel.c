@@ -76,6 +76,26 @@ static inline uint8_t v_kernel_find_msb_index(EK_BitMap_t val)
 #endif /* EK_CORO_FPU_USED == 0 */
 #endif /* EK_CORO_IDLE_TASK_STACK_SIZE */
 
+/* ========================= 全局变量(公开)定义区 ========================= */
+uint32_t EK_CoroKernelTick; //时基
+EK_CoroList_t EK_CoroKernelReadyList[EK_CORO_PRIORITY_GROUPS]; // 就绪任务列表
+EK_CoroList_t *EK_CoroKernelCurrBlock; // 用于指向当前就绪的阻塞链表
+EK_CoroList_t *EK_CoroKernelNextBlock; // 用于指向溢出的就绪的阻塞链表
+EK_CoroList_t EK_CoroKernelSuspendList; // 挂起任务列表
+EK_CoroTCB_t *EK_CoroKernelCurrentTCB; // 当前正在运行的任务TCB指针
+EK_CoroTCB_t *EK_CoroKernelDeleteTCB; // 等待被删除的任务TCB指针
+
+/* ========================= 全局变量(内部)定义区 ========================= */
+static EK_CoroList_t KernelBlockList1; // 阻塞任务列表 1
+static EK_CoroList_t KernelBlockList2; // 阻塞任务列表 2
+static EK_CoroTCB_t *KernelNextTCB; // 下一个任务TCB
+static EK_CoroTCB_t *EK_CoroKernelIdleTCB; // 空闲任务TCB指针
+static bool KernelIdleYield = false; // 调度请求标志位, 由TickHandler在唤醒任务时设置
+static bool KernelIsInited = false; // 内核初始化状态标志
+static volatile EK_BitMap_t KernelReadyBitMap; // 就绪链表位图
+static volatile uint32_t KernelCriticalNesting = 0U; // 临界区嵌套计数
+static uint32_t KernelSavedPrimask = 0U; // 临界区退出时恢复的 PRIMASK
+
 /* ========================= 栈溢出检测实现区 ========================= */
 #if (EK_CORO_STACK_OVERFLOW_CHECK > 0)
 /**
@@ -213,26 +233,6 @@ static inline void v_calculate_stack_high_water_mark(EK_CoroTCB_t *tcb)
         tcb->TCB_StackHighWaterMark = used_bytes;
     }
 }
-
-/* ========================= 全局变量(公开)定义区 ========================= */
-uint32_t EK_CoroKernelTick; //时基
-EK_CoroList_t EK_CoroKernelReadyList[EK_CORO_PRIORITY_GROUPS]; // 就绪任务列表
-EK_CoroList_t *EK_CoroKernelCurrBlock; // 用于指向当前就绪的阻塞链表
-EK_CoroList_t *EK_CoroKernelNextBlock; // 用于指向溢出的就绪的阻塞链表
-EK_CoroList_t EK_CoroKernelSuspendList; // 挂起任务列表
-EK_CoroTCB_t *EK_CoroKernelCurrentTCB; // 当前正在运行的任务TCB指针
-EK_CoroTCB_t *EK_CoroKernelDeleteTCB; // 等待被删除的任务TCB指针
-
-/* ========================= 全局变量(内部)定义区 ========================= */
-static EK_CoroList_t KernelBlockList1; // 阻塞任务列表 1
-static EK_CoroList_t KernelBlockList2; // 阻塞任务列表 2
-static EK_CoroTCB_t *KernelNextTCB; // 下一个任务TCB
-static EK_CoroTCB_t *EK_CoroKernelIdleTCB; // 空闲任务TCB指针
-static bool KernelIdleYield = false; // 调度请求标志位, 由TickHandler在唤醒任务时设置
-static bool KernelIsInited = false; // 内核初始化状态标志
-static volatile EK_BitMap_t KernelReadyBitMap; // 就绪链表位图
-static volatile uint32_t KernelCriticalNesting = 0U; // 临界区嵌套计数
-static uint32_t KernelSavedPrimask = 0U; // 临界区退出时恢复的 PRIMASK
 
 /* ========================= 临界区管理实现区 ========================= */
 

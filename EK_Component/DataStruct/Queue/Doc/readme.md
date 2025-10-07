@@ -51,7 +51,7 @@ EK_Queue_t *EK_pQueueCreate(EK_Size_t capacity);
 
 #### 静态队列创建
 ```c
-EK_Result_t EK_pQueueCreateStatic(EK_Queue_t *queue_handler, void *buffer, const EK_Size_t capacity);
+EK_Result_t EK_rQueueCreateStatic(EK_Queue_t *queue_handler, void *buffer, const EK_Size_t capacity);
 ```
 - **功能**：使用用户提供的内存初始化队列
 - **参数**：
@@ -226,7 +226,7 @@ EK_Queue_t audio_queue;
 
 // 静态创建音频队列
 void audio_init(void) {
-    EK_pQueueCreateStatic(&audio_queue, audio_buffer, AUDIO_BUFFER_SIZE);
+    EK_rQueueCreateStatic(&audio_queue, audio_buffer, AUDIO_BUFFER_SIZE);
 }
 
 // DMA 中断填充数据
@@ -326,7 +326,7 @@ static uint8_t sensor_buffer[1024];
 EK_Queue_t sensor_queue;
 
 void sensor_init(void) {
-    EK_pQueueCreateStatic(&sensor_queue, sensor_buffer, sizeof(sensor_buffer));
+    EK_rQueueCreateStatic(&sensor_queue, sensor_buffer, sizeof(sensor_buffer));
 }
 
 // 定时采集传感器数据
@@ -365,7 +365,7 @@ static char log_buffer[LOG_BUFFER_SIZE];
 EK_Queue_t log_queue;
 
 void log_init(void) {
-    EK_pQueueCreateStatic(&log_queue, log_buffer, LOG_BUFFER_SIZE);
+    EK_rQueueCreateStatic(&log_queue, log_buffer, LOG_BUFFER_SIZE);
 }
 
 void log_message(const char *message) {

@@ -135,6 +135,14 @@
 #define EK_CORO_USE_MESSAGE_QUEUE (1) // 1:使能 0:失能
 #endif /* EK_CORO_USE_MESSAGE_QUEUE */
 
+/**
+ * @brief 是否使能信号量
+ *
+ */
+#ifndef EK_CORO_USE_SEMAPHORE
+#define EK_CORO_USE_SEMAPHORE (0) // 1:使能 0:失能
+#endif /* EK_CORO_USE_SEMAPHORE */
+
 #endif /* EK_CORO_ENABLE == 1 */
 
 #endif /* __EK_COROCONFIG_H */

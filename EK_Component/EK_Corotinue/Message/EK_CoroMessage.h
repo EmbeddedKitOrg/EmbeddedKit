@@ -27,10 +27,15 @@ extern "C"
 /**
  * @brief 消息队列结构体
  * @details 用于管理一组消息队列。
+ *          支持动态和静态创建，静态创建时内嵌队列结构体避免动态分配。
  */
 typedef struct EK_CoroMsg_t
 {
-    EK_Queue_t *Msg_Queue; /**< 底层数据队列(EK_Queue.h) */
+    union
+    {
+        EK_Queue_t *Msg_Queue; /**< 动态创建时的队列指针 */
+        EK_Queue_t Msg_QueueStatic; /**< 静态创建时的内嵌队列结构体 */
+    };
 
     EK_Size_t Msg_ItemSize; /**< 队列中每个消息的大小（字节） */
     EK_Size_t Msg_ItemCapacity; /**< 总共可容纳多少个消息 */
