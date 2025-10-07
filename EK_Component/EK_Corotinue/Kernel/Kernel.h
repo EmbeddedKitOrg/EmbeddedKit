@@ -50,17 +50,37 @@ typedef uint32_t EK_BitMap_t;
  */
 #define EK_MAX_DELAY (UINT32_MAX)
 
-/**
- * @brief 进入临界区宏 (支持嵌套, CMSIS版)
- */
-#define EK_ENTER_CRITICAL()                    \
-    uint32_t primask_status = __get_PRIMASK(); \
-    __disable_irq();
+// 临界区函数声明
+void EK_vEnterCritical(void);
+void EK_vExitCritical(void);
 
 /**
- * @brief 退出临界区宏 (支持嵌套, CMSIS版)
+ * @brief 可嵌套进入临界区
+ * 
  */
-#define EK_EXIT_CRITICAL() __set_PRIMASK(primask_status);
+#define EK_ENTER_CRITICAL() EK_vEnterCritical()
+
+/**
+ * @brief 退出临界区
+ * 
+ */
+#define EK_EXIT_CRITICAL() EK_vExitCritical()
+
+// 内存 申请/释放 函数
+extern void *EK_Coro_Malloc(EK_Size_t size);
+extern void EK_Coro_Free(void *ptr);
+
+/**
+ * @brief 线程安全动态分配函数
+ * 
+ */
+#define EK_CORO_MALLOC(X) EK_Coro_Malloc(X)
+
+/**
+ * @brief 线程安全动态释放函数
+ * 
+ */
+#define EK_CORO_FREE(X) EK_Coro_Free(X)
 
 /**
  * @brief 协程任务栈填充值

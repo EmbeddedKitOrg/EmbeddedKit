@@ -49,15 +49,15 @@
 EK_CoroHandler_t task = EK_pCoroCreate(TaskFunc, arg, priority, stack_size);
 
 // 删除任务
-EK_rCoroDelete(task, &result);
+EK_vCoroDelete(task, &result);
 
 // 延时操作
 EK_vCoroDelay(ticks);
 EK_vCoroDelayUntil(wake_time);
 
 // 任务控制
-EK_rCoroSuspend(task, &result);
-EK_rCoroResume(task, &result);
+EK_vCoroSuspend(task, &result);
+EK_vCoroResume(task, &result);
 EK_vCoroYield();
 
 // 任务信息
@@ -71,7 +71,7 @@ EK_Size_t water_mark = EK_uCoroGetHighWaterMark(task);
 EK_CoroMsgHanler_t queue = EK_pMsgCreate(item_size, item_amount);
 
 // 消息操作
-EK_rMsgSendToBack(queue, &data, timeout);
+EK_rMsgSend(queue, &data, timeout);
 EK_rMsgReceive(queue, &buffer, timeout);
 EK_rMsgDelete(queue);
 ```
@@ -104,14 +104,14 @@ void PendSV_Handler(void) { EK_vPendSVHandler(); }
 #define MEMPOOL_SIZE (10240)                  // 内存池大小
 #define EK_CORO_PRIORITY_GROUPS (16)           // 优先级组数量
 #define EK_CORO_TICK_RATE_HZ (1000)           // 系统时钟频率
-#define EK_CORO_MESSAGE_QUEUE_ENABLE (1)         // 消息队列支持
+#define EK_CORO_USE_MESSAGE_QUEUE (1)         // 消息队列支持
 ```
 
-### 协程配置 (EK_CoroMarco.h)
+### 协程配置 (EK_CoroConfig.h)
 ```c
 #include "stm32f4xx_hal.h"                   // MCU头文件
 #define EK_CORO_SYSTEM_FREQ (SystemCoreClock) // 系统时钟
-#define EK_CORO_STACK_OVERFLOW_CHECK_ENABLE (1)      // 栈溢出检测
+#define EK_CORO_STACK_OVERFLOW_CHECK (1)      // 栈溢出检测
 #define EK_CORO_IDLE_TASK_STACK_SIZE (256)    // 空闲任务栈大小
 ```
 
@@ -140,7 +140,7 @@ void PendSV_Handler(void) { EK_vPendSVHandler(); }
 ### Q: 如何调试栈溢出？
 **A**: 启用检测：
 ```c
-#define EK_CORO_STACK_OVERFLOW_CHECK_ENABLE (1)
+#define EK_CORO_STACK_OVERFLOW_CHECK (1)
 EK_Size_t water_mark = EK_uCoroGetHighWaterMark(task);
 ```
 
