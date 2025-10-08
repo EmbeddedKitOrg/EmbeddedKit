@@ -82,7 +82,7 @@ bool EK_bStackIsFull(EK_Stack_t *stack);
 
 #### 获取剩余空间
 ```c
-EK_Size_t EK_sStackGetRemain(EK_Stack_t *stack);
+EK_Size_t EK_uStackGetRemain(EK_Stack_t *stack);
 ```
 - **功能**：获取栈剩余可用空间
 - **返回值**：剩余字节数
@@ -325,7 +325,7 @@ void context_stack_init(void) {
 
 // 中断发生时保存上下文
 void save_context(CPU_Context_t *context) {
-    if (EK_sStackGetRemain(&context_stack) >= sizeof(CPU_Context_t)) {
+    if (EK_uStackGetRemain(&context_stack) >= sizeof(CPU_Context_t)) {
         EK_rStackPush(&context_stack, context, sizeof(CPU_Context_t));
     } else {
         // 栈溢出处理

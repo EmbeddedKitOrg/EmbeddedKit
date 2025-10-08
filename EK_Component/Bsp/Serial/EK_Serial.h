@@ -41,8 +41,8 @@ typedef struct
 typedef EK_SeiralQueue_t *EK_pSeiralQueue_t; // EK_SeiralQueue_t的句柄(aka *EK_SeiralQueue_t)
 
 /* ========================= 函数声明区 ========================= */
-EK_Result_t EK_rSerialInit_Dynamic(void);
-EK_Result_t EK_rSerialInit_Static(void);
+EK_Result_t EK_rSerialInit(void);
+EK_Result_t EK_rSerialInitStatic(void);
 EK_Result_t EK_rSerialCreateQueue(EK_pSeiralQueue_t *serial_fifo,
                                   void (*send_func)(void *, EK_Size_t),
                                   uint16_t priority,

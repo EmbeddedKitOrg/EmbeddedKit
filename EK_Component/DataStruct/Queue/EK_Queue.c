@@ -44,7 +44,7 @@ bool EK_bQueueIsFull(EK_Queue_t *queue)
  * @return EK_Size_t 返回队列中数据的字节数，队列指针无效时返回0
  * @note 返回值表示队列中实际存储的数据量，不是队列容量
  */
-EK_Size_t EK_sQueueGetSize(EK_Queue_t *queue)
+EK_Size_t EK_uQueueGetSize(EK_Queue_t *queue)
 {
     if (queue == NULL) return 0;
     return queue->Queue_Size;
@@ -56,7 +56,7 @@ EK_Size_t EK_sQueueGetSize(EK_Queue_t *queue)
  * @return EK_Size_t 返回队列剩余可用的字节数，队列指针无效时返回0
  * @note 返回值表示还可以向队列中写入多少字节的数据
  */
-EK_Size_t EK_sQueueGetRemain(EK_Queue_t *queue)
+EK_Size_t EK_uQueueGetRemain(EK_Queue_t *queue)
 {
     if (queue == NULL) return 0;
     return queue->Queue_Capacity - queue->Queue_Size;
@@ -103,7 +103,7 @@ EK_Queue_t *EK_pQueueCreate(EK_Size_t capacity)
  * @return EK_Result_t 创建成功返回EK_OK，失败返回对应错误码
  * @note 适用于静态分配场景，队列结构体和缓冲区内存都由用户管理
  */
-EK_Result_t EK_pQueueCreateStatic(EK_Queue_t *queue_handler, void *buffer, const EK_Size_t capacity)
+EK_Result_t EK_rQueueCreateStatic(EK_Queue_t *queue_handler, void *buffer, const EK_Size_t capacity)
 {
     // 判断入参是否无效
     if (queue_handler == NULL || capacity == 0) return EK_INVALID_PARAM;
@@ -200,7 +200,7 @@ EK_Result_t EK_rQueueEnqueue(EK_Queue_t *queue, void *data, EK_Size_t data_size)
     if (EK_bQueueIsFull(queue)) return EK_FULL;
 
     // 检测剩余空间是否足够
-    if (EK_sQueueGetRemain(queue) < data_size) return EK_INSUFFICIENT_SPACE;
+    if (EK_uQueueGetRemain(queue) < data_size) return EK_INSUFFICIENT_SPACE;
 
     // 计算写入缓冲区的起始位置
     uint8_t *start_addr = (uint8_t *)queue->Queue_Buf + queue->Queue_Rear;
@@ -247,7 +247,7 @@ EK_Result_t EK_rQueueDequeue(EK_Queue_t *queue, void *data_buffer, EK_Size_t dat
     if (EK_bQueueIsEmpty(queue)) return EK_EMPTY;
 
     // 检查队列是否有所需求的数据数目
-    if (EK_sQueueGetSize(queue) < data_size) return EK_INSUFFICIENT_SPACE;
+    if (EK_uQueueGetSize(queue) < data_size) return EK_INSUFFICIENT_SPACE;
 
     // 计算读取位置
     uint8_t *read_addr = (uint8_t *)queue->Queue_Buf + queue->Queue_Front;
@@ -294,7 +294,7 @@ EK_Result_t EK_rQueuePeekFront(EK_Queue_t *queue, void *data_buffer, EK_Size_t d
     if (EK_bQueueIsEmpty(queue)) return EK_EMPTY;
 
     // 检查队列是否有所需求的数据数目
-    if (EK_sQueueGetSize(queue) < data_size) return EK_INSUFFICIENT_SPACE;
+    if (EK_uQueueGetSize(queue) < data_size) return EK_INSUFFICIENT_SPACE;
 
     // 计算读取位置
     uint8_t *read_addr = (uint8_t *)queue->Queue_Buf + queue->Queue_Front;

@@ -62,9 +62,17 @@ void EK_vExitCritical(void);
 
 /**
  * @brief 退出临界区
- * 
+ *
  */
 #define EK_EXIT_CRITICAL() EK_vExitCritical()
+
+/**
+ * @brief 判断当前是否在中断函数中
+ * @details 通过读取 Cortex-M 的中断控制状态寄存器 (ICSR) 来判断
+ *          返回值为 true 表示在中断上下文中，false 表示在任务上下文中
+ * @note 适用于 Cortex-M3/M4/M7 架构
+ */
+#define EK_IS_IN_INTERRUPT() (__get_IPSR() != 0U)
 
 // 内存 申请/释放 函数
 extern void *EK_Coro_Malloc(EK_Size_t size);
@@ -142,45 +150,53 @@ typedef enum
  * @brief 协程任务控制块 (Task Control Block).
  * @details 这是内核管理协程的核心数据结构，包含了协程运行所需的所有信息。
  */
-#if (EK_CORO_USE_MESSAGE_QUEUE == 1)
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
 struct EK_CoroMsg_t; // 前向声明消息结构体
-#endif /* EK_CORO_USE_MESSAGE_QUEUE == 1 */
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
 
 typedef struct EK_CoroTCB_t
 {
     EK_CoroStack_t *TCB_StackPointer; /**< 协程的栈顶指针. */
     void *TCB_Arg; /**< 协程入口函数的参数. */
-    void *TCB_StackBase; /**< 协程栈的起始(低)地址. */
-    void *TCB_StackEnd; /**< 协程栈的结束(高)地址，用于高水位检测. */
+    void *TCB_StackStart; /**< 协程栈的起始(低)地址. */
+    EK_Size_t TCB_StackSize; /**< 协程栈的总大小 (以字节为单位). */
+    EK_CoroState_t TCB_State; /**< 协程的当前状态. */
+    EK_CoroFunction_t TCB_Entry; /**< 协程的入口函数地址. */
     uint16_t TCB_Priority; /**< 协程的优先级 (数值越小，优先级越高). */
     bool TCB_isDynamic; /**< 标记协程是否为动态创建 (用于内存管理). */
     uint32_t TCB_WakeUpTime; /**< 要被唤醒的tick */
     uint32_t TCB_LastWakeUpTime; /**< 上次唤醒的tick，用于delayUntil功能 */
-    EK_Size_t TCB_StackSize; /**< 协程栈的总大小 (以字节为单位). */
-    EK_Size_t TCB_StackHighWaterMark; /**< 协程栈的高水位标记 (历史最大使用量). */
-    EK_CoroState_t TCB_State; /**< 协程的当前状态. */
-    EK_CoroFunction_t TCB_Entry; /**< 协程的入口函数地址. */
     EK_CoroListNode_t TCB_StateNode; /**< 用于将此TCB链入状态管理链表的节点. */
-    EK_CoroListNode_t TCB_EventNode; /**< 用于将此TCB链入事件管理链表的节点. */
 
-#if (EK_CORO_USE_MESSAGE_QUEUE == 1)
+#if (EK_HIGH_WATER_MARK_ENABLE == 1)
+    void *TCB_StackEnd; /**< 协程栈的结束(高)地址，用于高水位检测. */
+    EK_Size_t TCB_StackHighWaterMark; /**< 协程栈的高水位标记 (历史最大使用量). */
+#endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
+
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1)
+    EK_CoroListNode_t TCB_EventNode; /**< 用于将此TCB链入事件管理链表的节点. */
     EK_CoroEventResult_t TCB_EventResult; /**< 最近一次唤醒的原因 */
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 */
+
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
     void *TCB_MsgData; /**< 用于消息队列，指向等待任务的数据缓冲区 */
-#endif /* EK_CORO_USE_MESSAGE_QUEUE == 1 */
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
+
 } EK_CoroTCB_t;
 
 typedef EK_CoroTCB_t *EK_CoroHandler_t; // 动态类型的指针
 typedef EK_CoroTCB_t *EK_CoroStaticHandler_t; // 静态类型的指针
 
-/* ========================= 内核全局变量声明 ========================= */
-extern uint32_t EK_CoroKernelTick;
-extern EK_CoroList_t EK_CoroKernelReadyList[EK_CORO_PRIORITY_GROUPS];
-extern EK_CoroList_t *EK_CoroKernelCurrBlock;
-extern EK_CoroList_t *EK_CoroKernelNextBlock;
-extern EK_CoroList_t EK_CoroKernelSuspendList;
-extern EK_CoroTCB_t *EK_CoroKernelCurrentTCB;
-extern EK_CoroTCB_t *EK_CoroKernelDeleteTCB;
-extern EK_CoroStaticHandler_t EK_CoroKernelIdleHandler;
+/* ========================= 内核状态访问函数 ========================= */
+uint32_t EK_uKernelGetTick(void);
+EK_CoroList_t *EK_pKernelGetReadyList(uint8_t priority);
+EK_CoroList_t *EK_pKernelGetSuspendList(void);
+EK_CoroList_t *EK_pKernelGetCurrentBlockList(void);
+EK_CoroList_t *EK_pKernelGetNextBlockList(void);
+EK_CoroTCB_t *EK_pKernelGetCurrentTCB(void);
+EK_CoroStaticHandler_t EK_pKernelGetIdleHandler(void);
+EK_CoroTCB_t *EK_pKernelGetDeleteTCB(void);
+void EK_vKernelSetDeleteTCB(EK_CoroTCB_t *tcb);
 
 /* ========================= 内核核心API函数 ========================= */
 void EK_vKernelYield(void);

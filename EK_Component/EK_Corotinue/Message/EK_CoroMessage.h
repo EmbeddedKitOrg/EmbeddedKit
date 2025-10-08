@@ -16,7 +16,7 @@
 #include "../../DataStruct/Queue/EK_Queue.h"
 
 #if (EK_CORO_ENABLE == 1)
-#if (EK_CORO_USE_MESSAGE_QUEUE == 1)
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
 
 #ifdef __cplusplus
 extern "C"
@@ -27,13 +27,17 @@ extern "C"
 /**
  * @brief 消息队列结构体
  * @details 用于管理一组消息队列。
+ *          支持动态和静态创建，静态创建时内嵌队列结构体避免动态分配。
  */
 typedef struct EK_CoroMsg_t
 {
-    EK_Queue_t *Msg_Queue; /**< 底层数据队列(EK_Queue.h) */
+    union
+    {
+        EK_Queue_t *Msg_Queue; /**< 动态创建时的队列指针 */
+        EK_Queue_t Msg_QueueStatic; /**< 静态创建时的内嵌队列结构体 */
+    };
 
     EK_Size_t Msg_ItemSize; /**< 队列中每个消息的大小（字节） */
-    EK_Size_t Msg_ItemCapacity; /**< 总共可容纳多少个消息 */
     bool Msg_isDynamic; /**< 是否来源于动态创建 */
 
     EK_CoroList_t Msg_SendWaitList; /**< 因队列满而等待发送的任务列表 */
@@ -51,11 +55,20 @@ EK_Result_t EK_rMsgDelete(EK_CoroMsg_t *msg);
 EK_Result_t EK_rMsgSend(EK_CoroMsgHanler_t msg, void *tx_buffer, uint32_t timeout);
 EK_Result_t EK_rMsgReceive(EK_CoroMsgHanler_t msg, void *rx_buffer, uint32_t timeout);
 
+/* ========================= 消息队列状态查询函数 ========================= */
+bool EK_bMsgIsFull(EK_CoroMsgHanler_t msg);
+bool EK_bMsgIsEmpty(EK_CoroMsgHanler_t msg);
+EK_Result_t EK_rMsgPeek(EK_CoroMsgHanler_t msg, void *rx_buffer);
+EK_Size_t EK_uMsgGetCount(EK_CoroMsgHanler_t msg);
+EK_Size_t EK_uMsgGetFree(EK_CoroMsgHanler_t msg);
+EK_Size_t EK_uMsgGetCapacity(EK_CoroMsgHanler_t msg);
+EK_Result_t EK_rMsgClean(EK_CoroMsgHanler_t msg);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
 
-#endif /* EK_CORO_USE_MESSAGE_QUEUE == 1 */
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
 
 #endif /* EK_CORO_ENABLE == 1 */
 

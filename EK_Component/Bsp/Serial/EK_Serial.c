@@ -70,7 +70,7 @@ static bool SerialIsInit = false; // 是否初始化
  * @retval EK_OK 初始化成功
  * @retval EK_ERROR 已经初始化过，或链表创建失败
  */
-EK_Result_t EK_rSerialInit_Dynamic(void)
+EK_Result_t EK_rSerialInit(void)
 {
     // 全局只能初始化一次
     if (SerialIsInit == true) return EK_ERROR;
@@ -93,7 +93,7 @@ EK_Result_t EK_rSerialInit_Dynamic(void)
  * @retval EK_OK 初始化成功
  * @retval EK_ERROR 已经初始化过，或链表创建失败
  */
-EK_Result_t EK_rSerialInit_Static(void)
+EK_Result_t EK_rSerialInitStatic(void)
 {
     // 全局只能初始化一次
     if (SerialIsInit == true) return EK_ERROR;
@@ -209,7 +209,7 @@ EK_Result_t EK_rSerialCreateQueueStatic(EK_pSeiralQueue_t serial_fifo,
     if (serial_fifo == NULL || send_func == NULL) return EK_NULL_POINTER;
 
     // 初始化队列
-    EK_Result_t res = EK_pQueueCreateStatic(serial_fifo->Serial_Queue, buffer, capacity);
+    EK_Result_t res = EK_rQueueCreateStatic(serial_fifo->Serial_Queue, buffer, capacity);
     if (res != EK_OK) return res;
 
     // 初始化节点
@@ -268,11 +268,11 @@ EK_Result_t EK_rSerialPrintf(EK_pSeiralQueue_t serial_fifo, const char *format, 
     EK_Size_t enqueue_len = (len >= SERIAL_TX_BUFFER) ? (SERIAL_TX_BUFFER - 1) : len;
 
     // 检测剩余空间是否足够
-    if (EK_sQueueGetRemain(serial_fifo->Serial_Queue) < enqueue_len)
+    if (EK_uQueueGetRemain(serial_fifo->Serial_Queue) < enqueue_len)
     {
 #if SERIAL_FULL_STRATEGY == 1
         // 策略1: 丢弃最老的数据腾出空间
-        EK_Size_t need_space = enqueue_len - EK_sQueueGetRemain(serial_fifo->Serial_Queue);
+        EK_Size_t need_space = enqueue_len - EK_uQueueGetRemain(serial_fifo->Serial_Queue);
         char temp_buffer[64]; // 临时缓冲区用于丢弃数据
 
         // 逐步丢弃老数据直到有足够空间
@@ -296,7 +296,7 @@ EK_Result_t EK_rSerialPrintf(EK_pSeiralQueue_t serial_fifo, const char *format, 
         }
 
         // 重新检查空间是否足够
-        if (EK_sQueueGetRemain(serial_fifo->Serial_Queue) < enqueue_len)
+        if (EK_uQueueGetRemain(serial_fifo->Serial_Queue) < enqueue_len)
         {
             EK_FREE(buffer);
             return EK_INSUFFICIENT_SPACE;
@@ -440,7 +440,7 @@ EK_Result_t EK_rSerialPoll(uint32_t (*get_tick)(void))
             else //倒计时被清空
             {
                 // 获取队列中实际存储的数据大小
-                EK_Size_t queue_used_size = EK_sQueueGetSize(curr_data->Serial_Queue);
+                EK_Size_t queue_used_size = EK_uQueueGetSize(curr_data->Serial_Queue);
 
                 // 限制单次发送的最大数据量，确保消息顺序和实时性
                 EK_Size_t send_size = (queue_used_size > SERIAL_MAX_SEND_SIZE) ? SERIAL_MAX_SEND_SIZE : queue_used_size;

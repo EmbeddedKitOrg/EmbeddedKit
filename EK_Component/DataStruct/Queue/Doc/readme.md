@@ -51,7 +51,7 @@ EK_Queue_t *EK_pQueueCreate(EK_Size_t capacity);
 
 #### 静态队列创建
 ```c
-EK_Result_t EK_pQueueCreateStatic(EK_Queue_t *queue_handler, void *buffer, const EK_Size_t capacity);
+EK_Result_t EK_rQueueCreateStatic(EK_Queue_t *queue_handler, void *buffer, const EK_Size_t capacity);
 ```
 - **功能**：使用用户提供的内存初始化队列
 - **参数**：
@@ -99,14 +99,14 @@ bool EK_bQueueIsFull(EK_Queue_t *queue);
 
 #### 获取队列大小
 ```c
-EK_Size_t EK_sQueueGetSize(EK_Queue_t *queue);
+EK_Size_t EK_uQueueGetSize(EK_Queue_t *queue);
 ```
 - **功能**：获取当前存储的数据量
 - **返回值**：当前数据字节数
 
 #### 获取剩余空间
 ```c
-EK_Size_t EK_sQueueGetRemain(EK_Queue_t *queue);
+EK_Size_t EK_uQueueGetRemain(EK_Queue_t *queue);
 ```
 - **功能**：获取剩余可用空间
 - **返回值**：剩余字节数
@@ -167,7 +167,7 @@ void UART_IRQ_Handler(void) {
 void uart_process_task(void) {
     uint8_t buffer[64];
     if (!EK_bQueueIsEmpty(uart_rx_queue)) {
-        EK_Size_t available = EK_sQueueGetSize(uart_rx_queue);
+        EK_Size_t available = EK_uQueueGetSize(uart_rx_queue);
         EK_Size_t read_size = (available > 64) ? 64 : available;
         EK_rQueueDequeue(uart_rx_queue, buffer, read_size);
         // 处理接收到的数据
@@ -193,7 +193,7 @@ void receive_packet(Packet_t *packet) {
 
 // 预览数据包头
 void check_next_packet(void) {
-    if (EK_sQueueGetSize(packet_queue) >= sizeof(uint16_t)) {
+    if (EK_uQueueGetSize(packet_queue) >= sizeof(uint16_t)) {
         uint16_t length;
         EK_rQueuePeekFront(packet_queue, &length, sizeof(length));
         printf("Next packet length: %d\n", length);
@@ -202,12 +202,12 @@ void check_next_packet(void) {
 
 // 处理完整数据包
 void process_packets(void) {
-    while (EK_sQueueGetSize(packet_queue) >= sizeof(uint16_t)) {
+    while (EK_uQueueGetSize(packet_queue) >= sizeof(uint16_t)) {
         uint16_t length;
         EK_rQueuePeekFront(packet_queue, &length, sizeof(length));
         
         // 检查是否有完整数据包
-        if (EK_sQueueGetSize(packet_queue) >= sizeof(Packet_t)) {
+        if (EK_uQueueGetSize(packet_queue) >= sizeof(Packet_t)) {
             Packet_t packet;
             EK_rQueueDequeue(packet_queue, &packet, sizeof(packet));
             handle_packet(&packet);
@@ -226,7 +226,7 @@ EK_Queue_t audio_queue;
 
 // 静态创建音频队列
 void audio_init(void) {
-    EK_pQueueCreateStatic(&audio_queue, audio_buffer, AUDIO_BUFFER_SIZE);
+    EK_rQueueCreateStatic(&audio_queue, audio_buffer, AUDIO_BUFFER_SIZE);
 }
 
 // DMA 中断填充数据
@@ -235,7 +235,7 @@ void Audio_DMA_Handler(void) {
     audio_capture(samples, 128);
     
     // 检查空间是否足够
-    if (EK_sQueueGetRemain(&audio_queue) >= sizeof(samples)) {
+    if (EK_uQueueGetRemain(&audio_queue) >= sizeof(samples)) {
         EK_rQueueEnqueue(&audio_queue, samples, sizeof(samples));
     } else {
         // 缓冲区满，丢弃旧数据
@@ -247,7 +247,7 @@ void Audio_DMA_Handler(void) {
 
 // 播放任务
 void audio_play_task(void) {
-    if (EK_sQueueGetSize(&audio_queue) >= 256) { // 确保有足够数据
+    if (EK_uQueueGetSize(&audio_queue) >= 256) { // 确保有足够数据
         int16_t play_buffer[128];
         EK_rQueueDequeue(&audio_queue, play_buffer, sizeof(play_buffer));
         audio_play(play_buffer, 128);
@@ -293,7 +293,7 @@ EK_Queue_t *tx_queue = EK_pQueueCreate(4096);
 
 void network_send_data(uint8_t *data, EK_Size_t len) {
     // 检查队列剩余空间
-    if (EK_sQueueGetRemain(tx_queue) < len) {
+    if (EK_uQueueGetRemain(tx_queue) < len) {
         printf("Send buffer full, applying flow control\n");
         return; // 或等待空间释放
     }
@@ -304,7 +304,7 @@ void network_send_data(uint8_t *data, EK_Size_t len) {
 void network_tx_task(void) {
     if (!EK_bQueueIsEmpty(tx_queue)) {
         uint8_t tx_buffer[128];
-        EK_Size_t send_size = EK_sQueueGetSize(tx_queue);
+        EK_Size_t send_size = EK_uQueueGetSize(tx_queue);
         if (send_size > 128) send_size = 128;
         
         EK_rQueueDequeue(tx_queue, tx_buffer, send_size);
@@ -326,7 +326,7 @@ static uint8_t sensor_buffer[1024];
 EK_Queue_t sensor_queue;
 
 void sensor_init(void) {
-    EK_pQueueCreateStatic(&sensor_queue, sensor_buffer, sizeof(sensor_buffer));
+    EK_rQueueCreateStatic(&sensor_queue, sensor_buffer, sizeof(sensor_buffer));
 }
 
 // 定时采集传感器数据
@@ -338,7 +338,7 @@ void sensor_sample_task(void) {
     reading.pressure = read_pressure();
     
     // 如果队列满了，丢弃最老的数据
-    if (EK_sQueueGetRemain(&sensor_queue) < sizeof(reading)) {
+    if (EK_uQueueGetRemain(&sensor_queue) < sizeof(reading)) {
         SensorReading_t old_reading;
         EK_rQueueDequeue(&sensor_queue, &old_reading, sizeof(old_reading));
     }
@@ -365,7 +365,7 @@ static char log_buffer[LOG_BUFFER_SIZE];
 EK_Queue_t log_queue;
 
 void log_init(void) {
-    EK_pQueueCreateStatic(&log_queue, log_buffer, LOG_BUFFER_SIZE);
+    EK_rQueueCreateStatic(&log_queue, log_buffer, LOG_BUFFER_SIZE);
 }
 
 void log_message(const char *message) {
@@ -377,9 +377,9 @@ void log_message(const char *message) {
     }
     
     // 确保有足够空间，必要时丢弃旧日志
-    while (EK_sQueueGetRemain(&log_queue) < msg_len) {
+    while (EK_uQueueGetRemain(&log_queue) < msg_len) {
         char temp[64];
-        EK_Size_t discard_size = (EK_sQueueGetSize(&log_queue) > 64) ? 64 : EK_sQueueGetSize(&log_queue);
+        EK_Size_t discard_size = (EK_uQueueGetSize(&log_queue) > 64) ? 64 : EK_uQueueGetSize(&log_queue);
         EK_rQueueDequeue(&log_queue, temp, discard_size);
     }
     
@@ -389,7 +389,7 @@ void log_message(const char *message) {
 void log_dump(void) {
     char buffer[256];
     while (!EK_bQueueIsEmpty(&log_queue)) {
-        EK_Size_t read_size = EK_sQueueGetSize(&log_queue);
+        EK_Size_t read_size = EK_uQueueGetSize(&log_queue);
         if (read_size > sizeof(buffer)) read_size = sizeof(buffer);
         
         EK_rQueueDequeue(&log_queue, buffer, read_size);

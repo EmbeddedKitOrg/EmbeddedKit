@@ -28,7 +28,7 @@ static const uint32_t __DUMMY__ = 0xABCD1234;
  * @param list 想要获取节点的链表
  * @return EK_Node_t* 第一个有效节点
  */
-static inline EK_Node_t *p_list_get_head(EK_List_t *list)
+STATIC_INLINE EK_Node_t *p_list_get_head(EK_List_t *list)
 {
     if (list == NULL) return NULL;
 
@@ -44,7 +44,7 @@ static inline EK_Node_t *p_list_get_head(EK_List_t *list)
  * @param list 想要获取节点的链表
  * @return EK_Node_t* 最后一个有效节点
  */
-static inline EK_Node_t *p_list_get_end(EK_List_t *list)
+STATIC_INLINE EK_Node_t *p_list_get_end(EK_List_t *list)
 {
     if (list == NULL) return NULL;
 

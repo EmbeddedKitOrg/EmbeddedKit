@@ -13,6 +13,8 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+/* ========================= 函数属性宏 ========================= */
+
 /*弱定义宏*/
 #ifndef __weak
 #if defined(__GNUC__) || defined(__clang__)
@@ -41,6 +43,51 @@
 #endif /* __unused implementation */
 #endif /* __unused */
 
+/*内部内联宏*/
+#ifndef STATIC_INLINE
+#if defined(__GNUC__) || defined(__clang__)
+#define STATIC_INLINE static inline
+#elif defined(_MSC_VER)
+#define STATIC_INLINE static __inline
+#elif defined(__IAR_SYSTEMS_ICC__)
+#define STATIC_INLINE STATIC_INLINE
+#elif defined(__CC_ARM) || defined(__ARMCC_VERSION)
+#define STATIC_INLINE static __inline
+#else
+#define STATIC_INLINE STATIC_INLINE
+#endif /* STATIC_INLINE implementation */
+#endif /* STATIC_INLINE */
+
+/*强内联宏*/
+#ifndef ALWAYS_INLINE
+#if defined(__GNUC__) || defined(__clang__)
+#define ALWAYS_INLINE STATIC_INLINE __attribute__((always_inline))
+#elif defined(_MSC_VER)
+#define ALWAYS_INLINE __forceinline
+#elif defined(__IAR_SYSTEMS_ICC__)
+#define ALWAYS_INLINE _Pragma("inline=forced") STATIC_INLINE
+#elif defined(__CC_ARM) || defined(__ARMCC_VERSION)
+#define ALWAYS_INLINE __forceinline
+#else
+#define ALWAYS_INLINE STATIC_INLINE
+#endif /* ALWAYS_INLINE implementation */
+#endif /* ALWAYS_INLINE */
+
+/*强制内部内联宏*/
+#ifndef ALWAYS_STATIC_INLINE
+#if defined(__GNUC__) || defined(__clang__)
+#define ALWAYS_STATIC_INLINE STATIC_INLINE __attribute__((always_inline))
+#elif defined(_MSC_VER)
+#define ALWAYS_STATIC_INLINE static __forceinline
+#elif defined(__IAR_SYSTEMS_ICC__)
+#define ALWAYS_STATIC_INLINE _Pragma("inline=forced") STATIC_INLINE
+#elif defined(__CC_ARM) || defined(__ARMCC_VERSION)
+#define ALWAYS_STATIC_INLINE static __forceinline
+#else
+#define ALWAYS_STATIC_INLINE STATIC_INLINE
+#endif /* ALWAYS_STATIC_INLINE implementation */
+#endif /* ALWAYS_STATIC_INLINE */
+
 /*未使用变量宏*/
 #if defined(__GNUC__) || defined(__clang__)
 #define UNUSED_VAR(x) ((void)(x))
@@ -49,6 +96,8 @@
 #else
 #define UNUSED_VAR(X) ((void)(x))
 #endif /* UNUSED_VAR macro */
+
+/* ========================= 数据类型宏 ========================= */
 
 /* 空指针定义 */
 #ifndef NULL
@@ -105,10 +154,31 @@ typedef uint32_t uintptr_t; /*!< 用于指针和整数转换. */
 #endif /* _STDINT_H */
 #endif /* __STDINT_H */
 
+/* ========================= 工具宏 ========================= */
+/**
+ * @brief 获取结构体成员中的偏移量
+ * @param __type__ 结构体数据类型
+ * @param __mem__ 成员名
+ * 
+ */
+#define EK_GET_OFFSET_OF(__type__, __mem__) ((size_t)&((__type__ *)0)->__mem__)
+
+/**
+ * @brief 通过一个结构体成员的地址反推得到整个结构体的地址
+ * @param __ptr__ 获取地址的指针
+ * @param __type__ 结构体数据类型
+ * @param __mem__ 成员名 
+ * 
+ */
+#define EK_GET_OWNER_OF(__ptr__, __type__, __mem__) \
+    ((__type__ *)(char *)(__ptr__) - EK_GET_OFFSET_OF(__type__, __mem__))
+
 #ifdef __cpluscplus
 extern "C"
 {
 #endif /* __cpluscplus */
+
+/* ========================= 通用数据类型声明区 ========================= */
 
 /**
  * @brief EmbeddedKit 全局统一状态枚举

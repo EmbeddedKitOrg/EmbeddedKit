@@ -10,9 +10,9 @@
 #include "EK_CoroTask.h"
 #include "../../EK_Common.h"
 
-#if (EK_CORO_USE_MESSAGE_QUEUE == 1)
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
 #include "../Message/EK_CoroMessage.h"
-#endif /* EK_CORO_USE_MESSAGE_QUEUE == 1 */
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
 
 #if (EK_CORO_ENABLE == 1)
 
@@ -32,7 +32,7 @@
  */
 static void v_coro_exit(void)
 {
-    if (EK_CoroKernelCurrentTCB == NULL)
+    if (EK_pKernelGetCurrentTCB() == NULL)
     {
         while (1)
         {
@@ -68,10 +68,14 @@ static void v_coro_exit(void)
  *  --- 以上由软件(PendSV_Handler)手动压栈 ---
  * @param tcb 指向要初始化上下文的任务控制块 (TCB)。
  */
-static void v_task_init_context(EK_CoroTCB_t *tcb)
+ALWAYS_STATIC_INLINE void v_task_init_context(EK_CoroTCB_t *tcb)
 {
     EK_CoroStack_t *stk;
+#if (EK_HIGH_WATER_MARK_ENABLE == 1)
     stk = (EK_CoroStack_t *)tcb->TCB_StackEnd; // 直接使用栈顶地址
+#else
+    stk = (EK_CoroStack_t *)((uint8_t *)tcb->TCB_StackStart + tcb->TCB_StackSize); // 计算栈顶地址
+#endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
     // 确保堆栈8字节对齐
     stk = (EK_CoroStack_t *)(((uintptr_t)stk) & ~0x07UL);
 
@@ -140,11 +144,15 @@ EK_CoroHandler_t EK_pCoroCreate(EK_CoroFunction_t task_func, void *task_arg, uin
     // 初始化TCB中的各个成员
     dynamic_tcb->TCB_Entry = task_func;
     dynamic_tcb->TCB_Arg = task_arg;
-    dynamic_tcb->TCB_StackBase = stack;
-    dynamic_tcb->TCB_StackEnd = (void *)((uint8_t *)stack + stack_size); // 栈顶地址
+    dynamic_tcb->TCB_StackStart = stack;
     dynamic_tcb->TCB_Priority = priority;
     dynamic_tcb->TCB_StackSize = stack_size;
+
+#if (EK_HIGH_WATER_MARK_ENABLE == 1)
+    dynamic_tcb->TCB_StackEnd = (void *)((uint8_t *)stack + stack_size); // 栈顶地址
     dynamic_tcb->TCB_StackHighWaterMark = 0; // 初始化高水位标记
+#endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
+
     dynamic_tcb->TCB_WakeUpTime = 0;
     dynamic_tcb->TCB_LastWakeUpTime = 0; // 初始化上次唤醒时间
     dynamic_tcb->TCB_isDynamic = true; // 标记为动态创建
@@ -153,22 +161,25 @@ EK_CoroHandler_t EK_pCoroCreate(EK_CoroFunction_t task_func, void *task_arg, uin
     dynamic_tcb->TCB_StateNode.CoroNode_Next = NULL;
     dynamic_tcb->TCB_StateNode.CoroNode_Prev = NULL;
     dynamic_tcb->TCB_StateNode.CoroNode_List = NULL;
+
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1)
     dynamic_tcb->TCB_EventNode.CoroNode_Owner = dynamic_tcb;
     dynamic_tcb->TCB_EventNode.CoroNode_Next = NULL;
     dynamic_tcb->TCB_EventNode.CoroNode_Prev = NULL;
     dynamic_tcb->TCB_EventNode.CoroNode_List = NULL;
-
-#if (EK_CORO_USE_MESSAGE_QUEUE == 1)
     dynamic_tcb->TCB_EventResult = EK_CORO_EVENT_NONE;
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 */
+
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
     dynamic_tcb->TCB_MsgData = NULL;
-#endif /* EK_CORO_USE_MESSAGE_QUEUE == 1 */
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
 
     // 初始化任务的上下文（模拟CPU寄存器入栈）
     v_task_init_context(dynamic_tcb);
 
     EK_ENTER_CRITICAL();
     // 将新创建的任务插入到就绪链表中
-    EK_rKernelInsert_Tail(&EK_CoroKernelReadyList[priority], &dynamic_tcb->TCB_StateNode);
+    EK_rKernelInsert_Tail(EK_pKernelGetReadyList(priority), &dynamic_tcb->TCB_StateNode);
     EK_EXIT_CRITICAL();
 
     // 返回任务句柄
@@ -211,10 +222,14 @@ EK_CoroStaticHandler_t EK_pCoroCreateStatic(EK_CoroTCB_t *static_tcb,
     static_tcb->TCB_Entry = task_func;
     static_tcb->TCB_Arg = task_arg;
     static_tcb->TCB_Priority = priority;
-    static_tcb->TCB_StackBase = stack;
-    static_tcb->TCB_StackEnd = (void *)((uint8_t *)stack + stack_size); // 栈顶地址
+    static_tcb->TCB_StackStart = stack;
     static_tcb->TCB_StackSize = stack_size;
+
+#if (EK_HIGH_WATER_MARK_ENABLE == 1)
+    static_tcb->TCB_StackEnd = (void *)((uint8_t *)stack + stack_size); // 栈顶地址
     static_tcb->TCB_StackHighWaterMark = 0; // 初始化高水位标记
+#endif /* EK_HIGH_WATER_MARK_ENABLE */
+
     static_tcb->TCB_WakeUpTime = 0;
     static_tcb->TCB_LastWakeUpTime = 0; // 初始化上次唤醒时间
     static_tcb->TCB_isDynamic = false; // 标记为静态创建
@@ -223,22 +238,25 @@ EK_CoroStaticHandler_t EK_pCoroCreateStatic(EK_CoroTCB_t *static_tcb,
     static_tcb->TCB_StateNode.CoroNode_Next = NULL;
     static_tcb->TCB_StateNode.CoroNode_Prev = NULL;
     static_tcb->TCB_StateNode.CoroNode_List = NULL;
+
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1)
     static_tcb->TCB_EventNode.CoroNode_Owner = static_tcb;
     static_tcb->TCB_EventNode.CoroNode_Next = NULL;
     static_tcb->TCB_EventNode.CoroNode_Prev = NULL;
     static_tcb->TCB_EventNode.CoroNode_List = NULL;
-
-#if (EK_CORO_USE_MESSAGE_QUEUE == 1)
     static_tcb->TCB_EventResult = EK_CORO_EVENT_NONE;
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 */
+
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
     static_tcb->TCB_MsgData = NULL;
-#endif /* EK_CORO_USE_MESSAGE_QUEUE == 1 */
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
 
     // 初始化任务的上下文
     v_task_init_context(static_tcb);
 
     EK_ENTER_CRITICAL();
     // 将任务插入到就绪链表
-    EK_rKernelInsert_Tail(&EK_CoroKernelReadyList[priority], &static_tcb->TCB_StateNode);
+    EK_rKernelInsert_Tail(EK_pKernelGetReadyList(priority), &static_tcb->TCB_StateNode);
     EK_EXIT_CRITICAL();
 
     // 返回任务句柄
@@ -263,7 +281,7 @@ void EK_vCoroSuspend(EK_CoroHandler_t task_handle, EK_Result_t *result)
 
     EK_ENTER_CRITICAL();
     // 禁止操作空闲任务
-    if (target_tcb == EK_CoroKernelIdleHandler)
+    if (target_tcb == EK_pKernelGetIdleHandler())
     {
         if (result) *result = EK_INVALID_PARAM;
         EK_EXIT_CRITICAL();
@@ -273,7 +291,7 @@ void EK_vCoroSuspend(EK_CoroHandler_t task_handle, EK_Result_t *result)
     // 空指针处理
     if (target_tcb == NULL)
     {
-        target_tcb = EK_CoroKernelCurrentTCB;
+        target_tcb = EK_pKernelGetCurrentTCB();
         if (target_tcb == NULL)
         {
             if (result) *result = EK_ERROR;
@@ -287,7 +305,7 @@ void EK_vCoroSuspend(EK_CoroHandler_t task_handle, EK_Result_t *result)
     target_tcb->TCB_State = EK_CORO_SUSPENDED;
 
     // 移动节点到挂起链表
-    op_res = EK_rKernelMove_Tail(&EK_CoroKernelSuspendList, &target_tcb->TCB_StateNode);
+    op_res = EK_rKernelMove_Tail(EK_pKernelGetSuspendList(), &target_tcb->TCB_StateNode);
 
     if (result) *result = op_res;
 
@@ -295,6 +313,14 @@ void EK_vCoroSuspend(EK_CoroHandler_t task_handle, EK_Result_t *result)
     if (self_suspend && op_res == EK_OK)
     {
         EK_EXIT_CRITICAL();
+
+        // 判断是不是在中断中
+        if (EK_IS_IN_INTERRUPT() == true)
+        {
+            *result = EK_ERROR;
+            return;
+        }
+
         EK_vKernelYield();
     }
     else
@@ -318,7 +344,7 @@ void EK_vCoroResume(EK_CoroHandler_t task_handle, EK_Result_t *result)
 
     EK_ENTER_CRITICAL();
     // 禁止操作空闲任务
-    if (target_tcb == EK_CoroKernelIdleHandler)
+    if (target_tcb == EK_pKernelGetIdleHandler())
     {
         if (result) *result = EK_INVALID_PARAM;
         EK_EXIT_CRITICAL();
@@ -338,11 +364,12 @@ void EK_vCoroResume(EK_CoroHandler_t task_handle, EK_Result_t *result)
 
     // 移动到就绪链表
     EK_Result_t op_res =
-        EK_rKernelMove_Tail(&EK_CoroKernelReadyList[target_tcb->TCB_Priority], &target_tcb->TCB_StateNode);
+        EK_rKernelMove_Tail(EK_pKernelGetReadyList(target_tcb->TCB_Priority), &target_tcb->TCB_StateNode);
     if (result) *result = op_res;
 
     // 如果唤醒的任务比当前任务优先级更高，则请求调度
-    if (target_tcb->TCB_Priority < EK_CoroKernelCurrentTCB->TCB_Priority)
+    EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB();
+    if (current_tcb != NULL && target_tcb->TCB_Priority < current_tcb->TCB_Priority)
     {
         EK_EXIT_CRITICAL();
         EK_vKernelYield();
@@ -371,7 +398,7 @@ void EK_vCoroDelete(EK_CoroHandler_t task_handle, EK_Result_t *result)
 
     EK_ENTER_CRITICAL();
     // 禁止操作空闲任务
-    if (target_tcb == EK_CoroKernelIdleHandler)
+    if (target_tcb == EK_pKernelGetIdleHandler())
     {
         if (result) *result = EK_INVALID_PARAM;
         EK_EXIT_CRITICAL();
@@ -381,7 +408,7 @@ void EK_vCoroDelete(EK_CoroHandler_t task_handle, EK_Result_t *result)
     // 空指针处理
     if (target_tcb == NULL)
     {
-        target_tcb = EK_CoroKernelCurrentTCB;
+        target_tcb = EK_pKernelGetCurrentTCB();
         if (target_tcb == NULL)
         {
             if (result) *result = EK_ERROR;
@@ -402,8 +429,16 @@ void EK_vCoroDelete(EK_CoroHandler_t task_handle, EK_Result_t *result)
     // 对于动态任务
     if (self_delete)
     {
+        // 判断是不是在中断中
+        if (EK_IS_IN_INTERRUPT() == true)
+        {
+            EK_EXIT_CRITICAL();
+            *result = EK_ERROR;
+            return;
+        }
+
         // 标记等待删除，然后请求调度
-        EK_CoroKernelDeleteTCB = target_tcb;
+        EK_vKernelSetDeleteTCB(target_tcb);
         op_res = EK_rKernelRemove(target_tcb->TCB_StateNode.CoroNode_List, &target_tcb->TCB_StateNode);
         if (result) *result = op_res;
         EK_EXIT_CRITICAL();
@@ -415,7 +450,7 @@ void EK_vCoroDelete(EK_CoroHandler_t task_handle, EK_Result_t *result)
         op_res = EK_rKernelRemove(target_tcb->TCB_StateNode.CoroNode_List, &target_tcb->TCB_StateNode);
         if (op_res == EK_OK)
         {
-            EK_CORO_FREE(target_tcb->TCB_StackBase);
+            EK_CORO_FREE(target_tcb->TCB_StackStart);
             EK_CORO_FREE(target_tcb);
         }
         if (result) *result = op_res;
@@ -434,9 +469,13 @@ void EK_vCoroDelete(EK_CoroHandler_t task_handle, EK_Result_t *result)
  */
 void EK_vCoroDelay(uint32_t xticks)
 {
+    // 判断是不是在中断中
+    if (EK_IS_IN_INTERRUPT() == true) return;
+
     EK_ENTER_CRITICAL();
+
     // 获取当前的TCB
-    EK_CoroTCB_t *current = EK_CoroKernelCurrentTCB;
+    EK_CoroTCB_t *current = EK_pKernelGetCurrentTCB();
     if (current == NULL)
     {
         EK_EXIT_CRITICAL();
@@ -444,7 +483,7 @@ void EK_vCoroDelay(uint32_t xticks)
     }
 
     // 禁止操作空闲任务
-    if (current == EK_CoroKernelIdleHandler)
+    if (current == EK_pKernelGetIdleHandler())
     {
         EK_EXIT_CRITICAL();
         return;
@@ -458,20 +497,21 @@ void EK_vCoroDelay(uint32_t xticks)
     else // 否则就是普通延时
     {
         // 计算唤醒时间
-        uint32_t temp = xticks + EK_CoroKernelTick;
+        uint32_t kernel_tick = EK_uKernelGetTick();
+        uint32_t temp = xticks + kernel_tick;
 
         // 设置当前TCB的唤醒时间
         current->TCB_WakeUpTime = (temp == EK_MAX_DELAY ? EK_MAX_DELAY + 1 : temp);
 
-        if (current->TCB_WakeUpTime < EK_CoroKernelTick)
+        if (current->TCB_WakeUpTime < kernel_tick)
         {
             // 唤醒时间小于当前时基，说明是溢出后的链表
-            EK_rKernelMove_WakeUpTime(EK_CoroKernelNextBlock, &current->TCB_StateNode);
+            EK_rKernelMove_WakeUpTime(EK_pKernelGetNextBlockList(), &current->TCB_StateNode);
         }
         else
         {
             // 唤醒时间大于等于当前时基，说明是当前周期链表
-            EK_rKernelMove_WakeUpTime(EK_CoroKernelCurrBlock, &current->TCB_StateNode);
+            EK_rKernelMove_WakeUpTime(EK_pKernelGetCurrentBlockList(), &current->TCB_StateNode);
         }
     }
 
@@ -497,6 +537,9 @@ void EK_vCoroDelay(uint32_t xticks)
  */
 void EK_vCoroDelayUntil(uint32_t xticks)
 {
+    // 判断是不是在中断中
+    if (EK_IS_IN_INTERRUPT() == true) return;
+
     // 参数检查
     if (xticks == 0)
     {
@@ -506,7 +549,7 @@ void EK_vCoroDelayUntil(uint32_t xticks)
     EK_ENTER_CRITICAL();
 
     // 获取当前的TCB
-    EK_CoroTCB_t *current = EK_CoroKernelCurrentTCB;
+    EK_CoroTCB_t *current = EK_pKernelGetCurrentTCB();
     if (current == NULL)
     {
         EK_EXIT_CRITICAL();
@@ -514,13 +557,13 @@ void EK_vCoroDelayUntil(uint32_t xticks)
     }
 
     // 禁止操作空闲任务
-    if (current == EK_CoroKernelIdleHandler)
+    if (current == EK_pKernelGetIdleHandler())
     {
         EK_EXIT_CRITICAL();
         return;
     }
 
-    uint32_t current_tick = EK_CoroKernelTick;
+    uint32_t current_tick = EK_uKernelGetTick();
     uint32_t next_wake_time;
 
     // 如果是第一次调用，初始化TCB_LastWakeUpTime
@@ -542,15 +585,15 @@ void EK_vCoroDelayUntil(uint32_t xticks)
         current->TCB_WakeUpTime = next_wake_time;
 
         // 根据唤醒时间选择阻塞链表
-        if (current->TCB_WakeUpTime < EK_CoroKernelTick)
+        if (current->TCB_WakeUpTime < current_tick)
         {
             // 唤醒时间小于当前时基，说明是溢出后的链表
-            EK_rKernelMove_WakeUpTime(EK_CoroKernelNextBlock, &current->TCB_StateNode);
+            EK_rKernelMove_WakeUpTime(EK_pKernelGetNextBlockList(), &current->TCB_StateNode);
         }
         else
         {
             // 唤醒时间大于等于当前时基，说明是当前周期链表
-            EK_rKernelMove_WakeUpTime(EK_CoroKernelCurrBlock, &current->TCB_StateNode);
+            EK_rKernelMove_WakeUpTime(EK_pKernelGetCurrentBlockList(), &current->TCB_StateNode);
         }
     }
     else
@@ -558,7 +601,7 @@ void EK_vCoroDelayUntil(uint32_t xticks)
         // 如果错过了时间点，立即执行（不阻塞）
         // 将任务重新放回就绪链表
         current->TCB_State = EK_CORO_READY;
-        EK_rKernelMove_Tail(&EK_CoroKernelReadyList[current->TCB_Priority], &current->TCB_StateNode);
+        EK_rKernelMove_Tail(EK_pKernelGetReadyList(current->TCB_Priority), &current->TCB_StateNode);
         EK_EXIT_CRITICAL();
         return;
     }
@@ -590,8 +633,10 @@ EK_Result_t EK_rCoroWakeup(EK_CoroHandler_t task_handle)
     EK_ENTER_CRITICAL();
 
     // 检查任务是否在阻塞链表中（可能是当前链表或溢出链表），并且是永久阻塞状态
-    if ((target_tcb->TCB_StateNode.CoroNode_List != EK_CoroKernelCurrBlock &&
-         target_tcb->TCB_StateNode.CoroNode_List != EK_CoroKernelNextBlock) ||
+    EK_CoroList_t *curr_block = EK_pKernelGetCurrentBlockList();
+    EK_CoroList_t *next_block = EK_pKernelGetNextBlockList();
+    if ((target_tcb->TCB_StateNode.CoroNode_List != curr_block &&
+         target_tcb->TCB_StateNode.CoroNode_List != next_block) ||
         target_tcb->TCB_WakeUpTime != EK_MAX_DELAY)
     {
         EK_EXIT_CRITICAL();
@@ -601,12 +646,13 @@ EK_Result_t EK_rCoroWakeup(EK_CoroHandler_t task_handle)
     // 将任务移动到就绪链表
     target_tcb->TCB_State = EK_CORO_READY;
     EK_Result_t result =
-        EK_rKernelMove_Tail(&EK_CoroKernelReadyList[target_tcb->TCB_Priority], &target_tcb->TCB_StateNode);
+        EK_rKernelMove_Tail(EK_pKernelGetReadyList(target_tcb->TCB_Priority), &target_tcb->TCB_StateNode);
 
     if (result == EK_OK)
     {
         // 如果唤醒的任务比当前任务优先级更高，则请求调度
-        if (target_tcb->TCB_Priority < EK_CoroKernelCurrentTCB->TCB_Priority)
+        EK_CoroTCB_t *current = EK_pKernelGetCurrentTCB();
+        if (current != NULL && target_tcb->TCB_Priority < current->TCB_Priority)
         {
             EK_EXIT_CRITICAL();
             EK_vKernelYield();
@@ -627,9 +673,12 @@ EK_Result_t EK_rCoroWakeup(EK_CoroHandler_t task_handle)
  */
 void EK_vCoroYield(void)
 {
+    // 判断是不是在中断中
+    if (EK_IS_IN_INTERRUPT() == true) return;
+
     EK_ENTER_CRITICAL();
     // 获取当前的TCB
-    EK_CoroTCB_t *current = EK_CoroKernelCurrentTCB;
+    EK_CoroTCB_t *current = EK_pKernelGetCurrentTCB();
     if (current == NULL)
     {
         EK_EXIT_CRITICAL();
@@ -639,7 +688,7 @@ void EK_vCoroYield(void)
     // 设置当前的TCB状态为就绪
     current->TCB_State = EK_CORO_READY;
     // 插入到就绪链表
-    EK_rKernelInsert_Tail(&EK_CoroKernelReadyList[current->TCB_Priority], &current->TCB_StateNode);
+    EK_rKernelInsert_Tail(EK_pKernelGetReadyList(current->TCB_Priority), &current->TCB_StateNode);
 
     EK_EXIT_CRITICAL();
     // 请求调度
@@ -662,7 +711,7 @@ void EK_vCoroSetPriority(EK_CoroHandler_t task_handle, uint16_t priority, EK_Res
 
     EK_ENTER_CRITICAL();
     // 禁止操作空闲任务
-    if (target_tcb == EK_CoroKernelIdleHandler)
+    if (target_tcb == EK_pKernelGetIdleHandler())
     {
         if (result) *result = EK_INVALID_PARAM;
         EK_EXIT_CRITICAL();
@@ -678,7 +727,7 @@ void EK_vCoroSetPriority(EK_CoroHandler_t task_handle, uint16_t priority, EK_Res
     // 空指针处理
     if (target_tcb == NULL)
     {
-        target_tcb = EK_CoroKernelCurrentTCB;
+        target_tcb = EK_pKernelGetCurrentTCB();
         if (target_tcb == NULL)
         {
             if (result) *result = EK_ERROR;
@@ -703,7 +752,7 @@ EK_Size_t EK_uCoroGetStack(EK_CoroHandler_t task_handle)
     EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)task_handle;
     if (tcb == NULL)
     {
-        tcb = EK_CoroKernelCurrentTCB;
+        tcb = EK_pKernelGetCurrentTCB();
     }
 
     if (tcb == NULL)
@@ -714,6 +763,7 @@ EK_Size_t EK_uCoroGetStack(EK_CoroHandler_t task_handle)
     return tcb->TCB_StackSize;
 }
 
+#if (EK_HIGH_WATER_MARK_ENABLE == 1)
 /**
  * @brief 获取指定协程的堆栈历史最大使用量 (高水位)。
  * @details
@@ -732,7 +782,7 @@ EK_Size_t EK_uCoroGetHighWaterMark(EK_CoroHandler_t task_handle)
     EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)task_handle;
     if (tcb == NULL)
     {
-        tcb = EK_CoroKernelCurrentTCB;
+        tcb = EK_pKernelGetCurrentTCB();
     }
 
     if (tcb == NULL)
@@ -758,7 +808,7 @@ EK_Size_t EK_uCoroGetStackUsage_Debug(EK_CoroHandler_t task_handle)
     EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)task_handle;
     if (tcb == NULL)
     {
-        tcb = EK_CoroKernelCurrentTCB;
+        tcb = EK_pKernelGetCurrentTCB();
     }
 
     if (tcb == NULL || tcb->TCB_StackEnd == NULL)
@@ -767,7 +817,7 @@ EK_Size_t EK_uCoroGetStackUsage_Debug(EK_CoroHandler_t task_handle)
     }
 
     uint8_t *stack_end = (uint8_t *)tcb->TCB_StackEnd;
-    uint8_t *stack_base = (uint8_t *)tcb->TCB_StackBase;
+    uint8_t *stack_base = (uint8_t *)tcb->TCB_StackStart;
     EK_Size_t current_usage = 0;
 
     // 重新计算当前使用量
@@ -779,5 +829,6 @@ EK_Size_t EK_uCoroGetStackUsage_Debug(EK_CoroHandler_t task_handle)
 
     return current_usage;
 }
+#endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
 
 #endif /* EK_CORO_ENABLE == 1 */

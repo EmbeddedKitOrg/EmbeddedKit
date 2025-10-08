@@ -60,7 +60,7 @@ typedef struct
 
 #### 动态初始化
 ```c
-EK_Result_t EK_rSerialInit_Dynamic(void);
+EK_Result_t EK_rSerialInit(void);
 ```
 - **功能**：动态分配内存初始化串口管理系统
 - **返回值**：操作结果状态码
@@ -68,7 +68,7 @@ EK_Result_t EK_rSerialInit_Dynamic(void);
 
 #### 静态初始化
 ```c
-EK_Result_t EK_rSerialInit_Static(void);
+EK_Result_t EK_rSerialInitStatic(void);
 ```
 - **功能**：使用静态内存初始化串口管理系统
 - **返回值**：操作结果状态码
@@ -144,7 +144,7 @@ EK_Result_t EK_rSerialPoll(uint32_t (*get_tick)(void));
 ### 1. 多串口调试输出系统
 ```c
 // 系统初始化
-EK_rSerialInit_Dynamic();
+EK_rSerialInit();
 
 // 创建不同优先级的串口实例
 EK_pSeiralQueue_t debug_uart;    // 调试串口
@@ -192,7 +192,7 @@ static uint8_t uart2_buffer[256];
 // 系统初始化
 void system_init(void) {
     // 静态初始化串口管理系统
-    EK_rSerialInit_Static();
+    EK_rSerialInitStatic();
     
     // 创建静态串口实例
     EK_rSerialCreateQueueStatic(&uart1_instance, uart1_buffer, 
@@ -224,7 +224,7 @@ EK_pSeiralQueue_t monitor_uart;
 
 // 创建监控串口
 void monitor_init(void) {
-    EK_rSerialInit_Dynamic();
+    EK_rSerialInit();
     EK_rSerialCreateQueue(&monitor_uart, monitor_send, 1, 2048);
 }
 

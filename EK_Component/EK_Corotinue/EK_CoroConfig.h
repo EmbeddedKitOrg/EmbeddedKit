@@ -111,29 +111,59 @@
  * @details 0: 禁用栈溢出检测; 1: 方法1(检测栈底填充值); 2: 方法2(检测栈指针是否超出范围)
  * @note 方法1性能较好但检测范围有限; 方法2检测更全面但性能开销稍大
  */
-#ifndef EK_CORO_STACK_OVERFLOW_CHECK
-#define EK_CORO_STACK_OVERFLOW_CHECK (0) // 0:禁用 1:方法1 2:方法2
-#endif /*EK_CORO_STACK_OVERFLOW_CHECK*/
+#ifndef EK_CORO_STACK_OVERFLOW_CHECK_ENABLE
+#define EK_CORO_STACK_OVERFLOW_CHECK_ENABLE (0) // 0:禁用 1:方法1 2:方法2
+#endif /*EK_CORO_STACK_OVERFLOW_CHECK_ENABLE*/
 
 /**
  * @brief 协程空闲任务堆栈大小
  * 
  */
 #ifndef EK_CORO_IDLE_TASK_STACK_SIZE
-#if (EK_CORO_FPU_USED == 0)
-#define EK_CORO_IDLE_TASK_STACK_SIZE (256) // 定义空闲任务的堆栈大小
-#else
 #define EK_CORO_IDLE_TASK_STACK_SIZE (512) // 定义空闲任务的堆栈大小
-#endif /* EK_CORO_FPU_USED == 0 */
 #endif /* EK_CORO_IDLE_TASK_STACK_SIZE */
+
+/**
+ * @brief 是否开启空闲钩子函数
+ * @details 如果开启 每次进入空闲任务就会调用一次 EK_CoroIdleHook 函数 用户可以自己实现具体内容
+ */
+#ifndef EK_CORO_IDLE_HOOK_ENABLE
+#define EK_CORO_IDLE_HOOK_ENABLE (0)
+#endif /* EK_CORO_IDLE_HOOK_ENABLE */
+
+/**
+ * @brief 是否使能高水位检测功能
+ * @details 启用后会统计每个任务的栈使用历史最大值，可用于调试和优化内存使用
+ */
+#ifndef EK_HIGH_WATER_MARK_ENABLE
+#define EK_HIGH_WATER_MARK_ENABLE (0)
+#endif /* EK_HIGH_WATER_MARK_ENABLE */
 
 /**
  * @brief 是否使能消息队列
  * 
  */
-#ifndef EK_CORO_USE_MESSAGE_QUEUE
-#define EK_CORO_USE_MESSAGE_QUEUE (1) // 1:使能 0:失能
-#endif /* EK_CORO_USE_MESSAGE_QUEUE */
+#ifndef EK_CORO_MESSAGE_QUEUE_ENABLE
+#define EK_CORO_MESSAGE_QUEUE_ENABLE (1) // 1:使能 0:失能
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE */
+
+/**
+ * @brief 是否使能信号量
+ *
+ */
+#ifndef EK_CORO_SEMAPHORE_ENABLE
+#define EK_CORO_SEMAPHORE_ENABLE (0) // 1:使能 0:失能
+#endif /* EK_CORO_SEMAPHORE_ENABLE */
+
+/**
+ * @brief 使能信号量的情况下 是否使能互斥量
+ * 
+ */
+#if (EK_CORO_SEMAPHORE_ENABLE == 1)
+#define EK_CORO_MUTEX_ENABLE (1)
+#else
+#define EK_CORO_MUTEX_ENABLE (0)
+#endif /* EK_CORO_SEMAPHORE_ENABLE == 1 */
 
 #endif /* EK_CORO_ENABLE == 1 */
 
