@@ -17,7 +17,7 @@
 #include "../../DataStruct/Queue/EK_Queue.h"
 
 #if (EK_CORO_ENABLE == 1)
-#if (EK_CORO_USE_SEMAPHORE == 1)
+#if (EK_CORO_SEMAPHORE_ENABLE == 1)
 
 #ifdef __cplusplus
 extern "C"
@@ -162,7 +162,7 @@ EK_Result_t EK_rSemGive(EK_CoroSemHanlder_t sem);
 }
 #endif /* __cplusplus */
 
-#endif /* EK_CORO_USE_SEMAPHORE == 1 */
+#endif /* EK_CORO_SEMAPHORE_ENABLE == 1 */
 #endif /* EK_CORO_ENABLE == 1 */
 
 #endif /* __EK_COROSEMAPHORE_H */

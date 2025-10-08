@@ -111,9 +111,9 @@
  * @details 0: 禁用栈溢出检测; 1: 方法1(检测栈底填充值); 2: 方法2(检测栈指针是否超出范围)
  * @note 方法1性能较好但检测范围有限; 方法2检测更全面但性能开销稍大
  */
-#ifndef EK_CORO_STACK_OVERFLOW_CHECK
-#define EK_CORO_STACK_OVERFLOW_CHECK (0) // 0:禁用 1:方法1 2:方法2
-#endif /*EK_CORO_STACK_OVERFLOW_CHECK*/
+#ifndef EK_CORO_STACK_OVERFLOW_CHECK_ENABLE
+#define EK_CORO_STACK_OVERFLOW_CHECK_ENABLE (0) // 0:禁用 1:方法1 2:方法2
+#endif /*EK_CORO_STACK_OVERFLOW_CHECK_ENABLE*/
 
 /**
  * @brief 协程空闲任务堆栈大小
@@ -132,20 +132,28 @@
 #endif /* EK_CORO_IDLE_HOOK_ENABLE */
 
 /**
+ * @brief 是否使能高水位检测功能
+ * @details 启用后会统计每个任务的栈使用历史最大值，可用于调试和优化内存使用
+ */
+#ifndef EK_HIGH_WATER_MARK_ENABLE
+#define EK_HIGH_WATER_MARK_ENABLE (0)
+#endif /* EK_HIGH_WATER_MARK_ENABLE */
+
+/**
  * @brief 是否使能消息队列
  * 
  */
-#ifndef EK_CORO_USE_MESSAGE_QUEUE
-#define EK_CORO_USE_MESSAGE_QUEUE (1) // 1:使能 0:失能
-#endif /* EK_CORO_USE_MESSAGE_QUEUE */
+#ifndef EK_CORO_MESSAGE_QUEUE_ENABLE
+#define EK_CORO_MESSAGE_QUEUE_ENABLE (1) // 1:使能 0:失能
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE */
 
 /**
  * @brief 是否使能信号量
  *
  */
-#ifndef EK_CORO_USE_SEMAPHORE
-#define EK_CORO_USE_SEMAPHORE (0) // 1:使能 0:失能
-#endif /* EK_CORO_USE_SEMAPHORE */
+#ifndef EK_CORO_SEMAPHORE_ENABLE
+#define EK_CORO_SEMAPHORE_ENABLE (0) // 1:使能 0:失能
+#endif /* EK_CORO_SEMAPHORE_ENABLE */
 
 #endif /* EK_CORO_ENABLE == 1 */
 

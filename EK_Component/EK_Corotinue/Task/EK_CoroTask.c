@@ -10,9 +10,9 @@
 #include "EK_CoroTask.h"
 #include "../../EK_Common.h"
 
-#if (EK_CORO_USE_MESSAGE_QUEUE == 1)
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
 #include "../Message/EK_CoroMessage.h"
-#endif /* EK_CORO_USE_MESSAGE_QUEUE == 1 */
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
 
 #if (EK_CORO_ENABLE == 1)
 
@@ -71,7 +71,11 @@ static void v_coro_exit(void)
 static void v_task_init_context(EK_CoroTCB_t *tcb)
 {
     EK_CoroStack_t *stk;
+#if (EK_HIGH_WATER_MARK_ENABLE == 1)
     stk = (EK_CoroStack_t *)tcb->TCB_StackEnd; // 直接使用栈顶地址
+#else
+    stk = (EK_CoroStack_t *)((uint8_t *)tcb->TCB_StackStart + tcb->TCB_StackSize); // 计算栈顶地址
+#endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
     // 确保堆栈8字节对齐
     stk = (EK_CoroStack_t *)(((uintptr_t)stk) & ~0x07UL);
 
@@ -140,11 +144,15 @@ EK_CoroHandler_t EK_pCoroCreate(EK_CoroFunction_t task_func, void *task_arg, uin
     // 初始化TCB中的各个成员
     dynamic_tcb->TCB_Entry = task_func;
     dynamic_tcb->TCB_Arg = task_arg;
-    dynamic_tcb->TCB_StackBase = stack;
-    dynamic_tcb->TCB_StackEnd = (void *)((uint8_t *)stack + stack_size); // 栈顶地址
+    dynamic_tcb->TCB_StackStart = stack;
     dynamic_tcb->TCB_Priority = priority;
     dynamic_tcb->TCB_StackSize = stack_size;
+
+#if (EK_HIGH_WATER_MARK_ENABLE == 1)
+    dynamic_tcb->TCB_StackEnd = (void *)((uint8_t *)stack + stack_size); // 栈顶地址
     dynamic_tcb->TCB_StackHighWaterMark = 0; // 初始化高水位标记
+#endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
+
     dynamic_tcb->TCB_WakeUpTime = 0;
     dynamic_tcb->TCB_LastWakeUpTime = 0; // 初始化上次唤醒时间
     dynamic_tcb->TCB_isDynamic = true; // 标记为动态创建
@@ -153,15 +161,18 @@ EK_CoroHandler_t EK_pCoroCreate(EK_CoroFunction_t task_func, void *task_arg, uin
     dynamic_tcb->TCB_StateNode.CoroNode_Next = NULL;
     dynamic_tcb->TCB_StateNode.CoroNode_Prev = NULL;
     dynamic_tcb->TCB_StateNode.CoroNode_List = NULL;
+
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1)
     dynamic_tcb->TCB_EventNode.CoroNode_Owner = dynamic_tcb;
     dynamic_tcb->TCB_EventNode.CoroNode_Next = NULL;
     dynamic_tcb->TCB_EventNode.CoroNode_Prev = NULL;
     dynamic_tcb->TCB_EventNode.CoroNode_List = NULL;
-
-#if (EK_CORO_USE_MESSAGE_QUEUE == 1)
     dynamic_tcb->TCB_EventResult = EK_CORO_EVENT_NONE;
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 */
+
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
     dynamic_tcb->TCB_MsgData = NULL;
-#endif /* EK_CORO_USE_MESSAGE_QUEUE == 1 */
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
 
     // 初始化任务的上下文（模拟CPU寄存器入栈）
     v_task_init_context(dynamic_tcb);
@@ -211,10 +222,14 @@ EK_CoroStaticHandler_t EK_pCoroCreateStatic(EK_CoroTCB_t *static_tcb,
     static_tcb->TCB_Entry = task_func;
     static_tcb->TCB_Arg = task_arg;
     static_tcb->TCB_Priority = priority;
-    static_tcb->TCB_StackBase = stack;
-    static_tcb->TCB_StackEnd = (void *)((uint8_t *)stack + stack_size); // 栈顶地址
+    static_tcb->TCB_StackStart = stack;
     static_tcb->TCB_StackSize = stack_size;
+
+#if (EK_HIGH_WATER_MARK_ENABLE == 1)
+    static_tcb->TCB_StackEnd = (void *)((uint8_t *)stack + stack_size); // 栈顶地址
     static_tcb->TCB_StackHighWaterMark = 0; // 初始化高水位标记
+#endif /* EK_HIGH_WATER_MARK_ENABLE */
+
     static_tcb->TCB_WakeUpTime = 0;
     static_tcb->TCB_LastWakeUpTime = 0; // 初始化上次唤醒时间
     static_tcb->TCB_isDynamic = false; // 标记为静态创建
@@ -223,15 +238,18 @@ EK_CoroStaticHandler_t EK_pCoroCreateStatic(EK_CoroTCB_t *static_tcb,
     static_tcb->TCB_StateNode.CoroNode_Next = NULL;
     static_tcb->TCB_StateNode.CoroNode_Prev = NULL;
     static_tcb->TCB_StateNode.CoroNode_List = NULL;
+
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1)
     static_tcb->TCB_EventNode.CoroNode_Owner = static_tcb;
     static_tcb->TCB_EventNode.CoroNode_Next = NULL;
     static_tcb->TCB_EventNode.CoroNode_Prev = NULL;
     static_tcb->TCB_EventNode.CoroNode_List = NULL;
-
-#if (EK_CORO_USE_MESSAGE_QUEUE == 1)
     static_tcb->TCB_EventResult = EK_CORO_EVENT_NONE;
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 */
+
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
     static_tcb->TCB_MsgData = NULL;
-#endif /* EK_CORO_USE_MESSAGE_QUEUE == 1 */
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
 
     // 初始化任务的上下文
     v_task_init_context(static_tcb);
@@ -416,7 +434,7 @@ void EK_vCoroDelete(EK_CoroHandler_t task_handle, EK_Result_t *result)
         op_res = EK_rKernelRemove(target_tcb->TCB_StateNode.CoroNode_List, &target_tcb->TCB_StateNode);
         if (op_res == EK_OK)
         {
-            EK_CORO_FREE(target_tcb->TCB_StackBase);
+            EK_CORO_FREE(target_tcb->TCB_StackStart);
             EK_CORO_FREE(target_tcb);
         }
         if (result) *result = op_res;
@@ -719,6 +737,7 @@ EK_Size_t EK_uCoroGetStack(EK_CoroHandler_t task_handle)
     return tcb->TCB_StackSize;
 }
 
+#if (EK_HIGH_WATER_MARK_ENABLE == 1)
 /**
  * @brief 获取指定协程的堆栈历史最大使用量 (高水位)。
  * @details
@@ -772,7 +791,7 @@ EK_Size_t EK_uCoroGetStackUsage_Debug(EK_CoroHandler_t task_handle)
     }
 
     uint8_t *stack_end = (uint8_t *)tcb->TCB_StackEnd;
-    uint8_t *stack_base = (uint8_t *)tcb->TCB_StackBase;
+    uint8_t *stack_base = (uint8_t *)tcb->TCB_StackStart;
     EK_Size_t current_usage = 0;
 
     // 重新计算当前使用量
@@ -784,5 +803,6 @@ EK_Size_t EK_uCoroGetStackUsage_Debug(EK_CoroHandler_t task_handle)
 
     return current_usage;
 }
+#endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
 
 #endif /* EK_CORO_ENABLE == 1 */

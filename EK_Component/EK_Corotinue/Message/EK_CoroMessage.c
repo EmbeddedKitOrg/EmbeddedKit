@@ -13,7 +13,7 @@
 #include "EK_CoroMessage.h"
 
 #if (EK_CORO_ENABLE == 1)
-#if (EK_CORO_USE_MESSAGE_QUEUE == 1)
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
 
 #include "../Task/EK_CoroTask.h"
 /* ========================= 内部辅助宏 ========================= */
@@ -416,5 +416,5 @@ EK_Result_t EK_rMsgReceive(EK_CoroMsgHanler_t msg, void *rx_buffer, uint32_t tim
     }
 }
 
-#endif /* EK_CORO_USE_MESSAGE_QUEUE == 1 */
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
 #endif /* EK_CORO_ENABLE == 1 */
