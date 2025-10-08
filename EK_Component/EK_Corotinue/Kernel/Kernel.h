@@ -62,9 +62,17 @@ void EK_vExitCritical(void);
 
 /**
  * @brief 退出临界区
- * 
+ *
  */
 #define EK_EXIT_CRITICAL() EK_vExitCritical()
+
+/**
+ * @brief 判断当前是否在中断函数中
+ * @details 通过读取 Cortex-M 的中断控制状态寄存器 (ICSR) 来判断
+ *          返回值为 true 表示在中断上下文中，false 表示在任务上下文中
+ * @note 适用于 Cortex-M3/M4/M7 架构
+ */
+#define EK_IS_IN_INTERRUPT() (__get_IPSR() != 0U)
 
 // 内存 申请/释放 函数
 extern void *EK_Coro_Malloc(EK_Size_t size);
@@ -87,24 +95,6 @@ extern void EK_Coro_Free(void *ptr);
  * @details 用于检测栈使用高水位
  */
 #define EK_STACK_FILL_PATTERN (0xA5)
-
-/**
- * @brief 获取结构体成员中的偏移量
- * @param __type__ 结构体数据类型
- * @param __mem__ 成员名
- * 
- */
-#define EK_GET_OFFSET_OF(__type__, __mem__) ((size_t)&((__type__ *)0)->__mem__)
-
-/**
- * @brief 通过一个结构体成员的地址反推得到整个结构体的地址
- * @param __ptr__ 获取地址的指针
- * @param __type__ 结构体数据类型
- * @param __mem__ 成员名 
- * 
- */
-#define EK_GET_OWNER_OF(__ptr__, __type__, __mem__) \
-    ((__type__ *)(char *)(__ptr__) - EK_GET_OFFSET_OF(__type__, __mem__))
 
 /* ========================= 数据结构 ========================= */
 typedef void (*EK_CoroFunction_t)(void *arg); //协程任务的入口函数指针类型

@@ -24,7 +24,7 @@ EK_Stack_t *EK_pStackCreate(EK_Size_t capacity);
 EK_Result_t EK_rStackDelete(EK_Stack_t *stack);
 bool EK_bStackIsFull(EK_Stack_t *stack);
 bool EK_bStackIsEmpty(EK_Stack_t *stack);
-EK_Size_t EK_sStackGetRemain(EK_Stack_t *stack);
+EK_Size_t EK_uStackGetRemain(EK_Stack_t *stack);
 EK_Result_t EK_rStackPush(EK_Stack_t *stack, void *data, EK_Size_t data_size);
 EK_Result_t EK_rStackPop(EK_Stack_t *stack, void *data_buffer, EK_Size_t data_size);
 

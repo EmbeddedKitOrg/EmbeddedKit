@@ -120,7 +120,7 @@
  * 
  */
 #ifndef EK_CORO_IDLE_TASK_STACK_SIZE
-#define EK_CORO_IDLE_TASK_STACK_SIZE (256) // 定义空闲任务的堆栈大小
+#define EK_CORO_IDLE_TASK_STACK_SIZE (512) // 定义空闲任务的堆栈大小
 #endif /* EK_CORO_IDLE_TASK_STACK_SIZE */
 
 /**
@@ -154,6 +154,16 @@
 #ifndef EK_CORO_SEMAPHORE_ENABLE
 #define EK_CORO_SEMAPHORE_ENABLE (0) // 1:使能 0:失能
 #endif /* EK_CORO_SEMAPHORE_ENABLE */
+
+/**
+ * @brief 使能信号量的情况下 是否使能互斥量
+ * 
+ */
+#if (EK_CORO_SEMAPHORE_ENABLE == 1)
+#define EK_CORO_MUTEX_ENABLE (1)
+#else
+#define EK_CORO_MUTEX_ENABLE (0)
+#endif /* EK_CORO_SEMAPHORE_ENABLE == 1 */
 
 #endif /* EK_CORO_ENABLE == 1 */
 

@@ -162,7 +162,7 @@ void EK_vMemPool_Deinit(void)
  * @retval 无
  * @note 简单插入到链表头部
  */
-static inline void v_insert_free_block(MemBlock_t *block_to_insert)
+STATIC_INLINE void v_insert_free_block(MemBlock_t *block_to_insert)
 {
     // 插入到链表头部
     block_to_insert->MemPool_NextFree = free_list_head.MemPool_NextFree;
@@ -177,7 +177,7 @@ static inline void v_insert_free_block(MemBlock_t *block_to_insert)
  * @retval 找到的块指针，NULL表示未找到
  * @note 使用首次适应算法
  */
-static inline MemBlock_t *p_find_suitable_block(EK_Size_t wanted_size)
+STATIC_INLINE MemBlock_t *p_find_suitable_block(EK_Size_t wanted_size)
 {
     MemBlock_t *current;
 
@@ -203,7 +203,7 @@ static inline MemBlock_t *p_find_suitable_block(EK_Size_t wanted_size)
  * @retval 无
  * @note 如果剩余部分足够大，将其作为新的空闲块
  */
-static inline void v_split_block(MemBlock_t *block, EK_Size_t wanted_size)
+STATIC_INLINE void v_split_block(MemBlock_t *block, EK_Size_t wanted_size)
 {
     MemBlock_t *new_block;
     EK_Size_t MemPool_BlockSize = GET_SIZE(block->MemPool_BlockSize);
@@ -230,7 +230,7 @@ static inline void v_split_block(MemBlock_t *block, EK_Size_t wanted_size)
  * @retval 无
  * @note 检查前后相邻块并进行合并
  */
-static inline void v_merge_blocks(void *ptr)
+STATIC_INLINE void v_merge_blocks(void *ptr)
 {
     MemBlock_t *block = (MemBlock_t *)((uint8_t *)ptr - sizeof(MemBlock_t));
     MemBlock_t *current;
