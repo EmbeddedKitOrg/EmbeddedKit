@@ -76,25 +76,81 @@ static inline uint8_t v_kernel_find_msb_index(EK_BitMap_t val)
 #endif /* EK_CORO_FPU_USED == 0 */
 #endif /* EK_CORO_IDLE_TASK_STACK_SIZE */
 
-/* ========================= 全局变量(公开)定义区 ========================= */
-uint32_t EK_CoroKernelTick; //时基
-EK_CoroList_t EK_CoroKernelReadyList[EK_CORO_PRIORITY_GROUPS]; // 就绪任务列表
-EK_CoroList_t *EK_CoroKernelCurrBlock; // 用于指向当前就绪的阻塞链表
-EK_CoroList_t *EK_CoroKernelNextBlock; // 用于指向溢出的就绪的阻塞链表
-EK_CoroList_t EK_CoroKernelSuspendList; // 挂起任务列表
-EK_CoroTCB_t *EK_CoroKernelCurrentTCB; // 当前正在运行的任务TCB指针
-EK_CoroTCB_t *EK_CoroKernelDeleteTCB; // 等待被删除的任务TCB指针
-
 /* ========================= 全局变量(内部)定义区 ========================= */
+/*状态链表*/
+static EK_CoroList_t KernelReadyList[EK_CORO_PRIORITY_GROUPS]; // 就绪任务列表
 static EK_CoroList_t KernelBlockList1; // 阻塞任务列表 1
 static EK_CoroList_t KernelBlockList2; // 阻塞任务列表 2
+static EK_CoroList_t KernelSuspendList; // 挂起任务列表
+
+static EK_CoroList_t *KernelCurrentBlockPointer; // 用于指向当前就绪的阻塞链表
+static EK_CoroList_t *KernelNextBlockPointer; // 用于指向溢出的就绪的阻塞链表
+
+/*TCB 相关*/
+static EK_CoroTCB_t *KernelCurrentTCB; // 当前正在运行的任务TCB指针
+static EK_CoroTCB_t *KernelToDeleteTCB; // 等待被删除的任务TCB指针
 static EK_CoroTCB_t *KernelNextTCB; // 下一个任务TCB
-static EK_CoroTCB_t *EK_CoroKernelIdleTCB; // 空闲任务TCB指针
+static EK_CoroTCB_t *KernelIdleTCB; // 空闲任务TCB指针
+static EK_CoroStaticHandler_t KernelIdleTCB_Handler; // 空闲任务句柄
+
+/*标志位*/
 static bool KernelIdleYield = false; // 调度请求标志位, 由TickHandler在唤醒任务时设置
 static bool KernelIsInited = false; // 内核初始化状态标志
 static volatile EK_BitMap_t KernelReadyBitMap; // 就绪链表位图
+static uint32_t KernelTick; //时基
+
+/*临界区*/
 static volatile uint32_t KernelCriticalNesting = 0U; // 临界区嵌套计数
 static uint32_t KernelSavedPrimask = 0U; // 临界区退出时恢复的 PRIMASK
+
+/* ========================= 临界区管理实现区 ========================= */
+
+/**
+ * @brief 进入内核临界区，禁止中断
+ * @details
+ *  此函数实现嵌套临界区保护机制：
+ *  1. 保存当前中断状态(PRIMASK)
+ *  2. 禁止所有中断
+ *  3. 首次进入时保存原始中断状态
+ *  4. 增加嵌套计数器
+ *  5. 添加数据内存屏障确保操作顺序
+ * @note 支持嵌套调用，只有最外层调用时才保存中断状态
+ */
+void EK_vEnterCritical(void)
+{
+    uint32_t primask = __get_PRIMASK(); // 获取当前中断状态
+    __disable_irq(); // 禁止所有中断
+    if (KernelCriticalNesting == 0U) // 首次进入临界区
+    {
+        KernelSavedPrimask = primask; // 保存原始中断状态，用于退出时恢复
+    }
+    KernelCriticalNesting++; // 增加嵌套计数
+    __DMB(); // 数据内存屏障，确保操作完成
+}
+
+/**
+ * @brief 退出内核临界区，恢复中断状态
+ * @details
+ *  此函数实现嵌套临界区的安全退出机制：
+ *  1. 检查嵌套计数器，防止过度退出
+ *  2. 减少嵌套计数器
+ *  3. 最外层退出时恢复原始中断状态
+ *  4. 添加数据内存屏障确保操作顺序
+ * @note 只有当嵌套计数归零时才真正恢复中断状态，支持嵌套调用
+ */
+void EK_vExitCritical(void)
+{
+    if (KernelCriticalNesting == 0U) // 检查是否过度退出
+    {
+        return; // 过度退出，直接返回
+    }
+    KernelCriticalNesting--; // 减少嵌套计数
+    if (KernelCriticalNesting == 0U) // 最外层退出
+    {
+        __DMB(); // 数据内存屏障，确保操作完成
+        __set_PRIMASK(KernelSavedPrimask); // 恢复原始中断状态
+    }
+}
 
 /* ========================= 栈溢出检测实现区 ========================= */
 #if (EK_CORO_STACK_OVERFLOW_CHECK > 0)
@@ -234,53 +290,150 @@ static inline void v_calculate_stack_high_water_mark(EK_CoroTCB_t *tcb)
     }
 }
 
-/* ========================= 临界区管理实现区 ========================= */
+/* ========================= 空闲任务实现区 ========================= */
+
+static uint8_t Kernel_IdleTaskStack[EK_CORO_IDLE_TASK_STACK_SIZE];
+static EK_CoroTCB_t Kernel_IdleTaskTCB;
+
+#if (EK_CORO_IDLE_HOOK_ENABLE == 1)
+/**
+ * @brief 空闲钩子函数
+ * 
+ * @return __weak 
+ */
+__weak void EK_CoroIdleHook(void)
+{
+}
+#endif /* EK_CORO_IDLE_HOOK_ENABLE == 1 */
 
 /**
- * @brief 进入内核临界区，禁止中断
- * @details
- *  此函数实现嵌套临界区保护机制：
- *  1. 保存当前中断状态(PRIMASK)
- *  2. 禁止所有中断
- *  3. 首次进入时保存原始中断状态
- *  4. 增加嵌套计数器
- *  5. 添加数据内存屏障确保操作顺序
- * @note 支持嵌套调用，只有最外层调用时才保存中断状态
+ * @brief 空闲任务函数 会处理处理任务删除等逻辑
+ * @details 如果 EK_CORO_IDLE_HOOK_ENABLE 被设置为1 每次空闲任务还会调用一次 EK_CoroIdleHook
+ * 
+ * @param arg 
  */
-void EK_vEnterCritical(void)
+static void Kernel_CoroIdleFunction(void *arg)
 {
-    uint32_t primask = __get_PRIMASK(); // 获取当前中断状态
-    __disable_irq(); // 禁止所有中断
-    if (KernelCriticalNesting == 0U) // 首次进入临界区
+    UNUSED_VAR(arg);
+    while (1)
     {
-        KernelSavedPrimask = primask; // 保存原始中断状态，用于退出时恢复
+        if (KernelToDeleteTCB != NULL)
+        {
+            if (KernelToDeleteTCB->TCB_isDynamic)
+            {
+                EK_CORO_FREE(KernelToDeleteTCB->TCB_StackBase);
+                EK_CORO_FREE(KernelToDeleteTCB);
+            }
+            KernelToDeleteTCB = NULL;
+        }
+
+        if (KernelIdleYield == true)
+        {
+            KernelIdleYield = false;
+            EK_vCoroYield();
+        }
+#if (EK_CORO_IDLE_HOOK_ENABLE == 1)
+        EK_CoroIdleHook();
+#endif /* EK_CORO_IDLE_HOOK_ENABLE == 1 */
     }
-    KernelCriticalNesting++; // 增加嵌套计数
-    __DMB(); // 数据内存屏障，确保操作完成
+}
+
+/* ========================= 内核状态访问器实现区 ========================= */
+
+/**
+ * @brief 获取系统时钟滴答数
+ * @return 当前系统滴答计数
+ * @note 此函数用于获取自系统启动以来的滴答数，1ms分辨率
+ */
+uint32_t EK_uKernelGetTick(void)
+{
+    return KernelTick;
 }
 
 /**
- * @brief 退出内核临界区，恢复中断状态
- * @details
- *  此函数实现嵌套临界区的安全退出机制：
- *  1. 检查嵌套计数器，防止过度退出
- *  2. 减少嵌套计数器
- *  3. 最外层退出时恢复原始中断状态
- *  4. 添加数据内存屏障确保操作顺序
- * @note 只有当嵌套计数归零时才真正恢复中断状态，支持嵌套调用
+ * @brief 获取指定优先级的就绪链表
+ * @param priority 优先级值（数值越小优先级越高）
+ * @return 指向就绪链表的指针
+ * @note 当优先级超出范围时，自动映射到最低优先级
  */
-void EK_vExitCritical(void)
+EK_CoroList_t *EK_pKernelGetReadyList(uint8_t priority)
 {
-    if (KernelCriticalNesting == 0U) // 检查是否过度退出
+    uint8_t index = priority;
+    if (index >= EK_CORO_PRIORITY_GROUPS)
     {
-        return; // 过度退出，直接返回
+        index = EK_CORO_PRIORITY_GROUPS - 1;
     }
-    KernelCriticalNesting--; // 减少嵌套计数
-    if (KernelCriticalNesting == 0U) // 最外层退出
-    {
-        __DMB(); // 数据内存屏障，确保操作完成
-        __set_PRIMASK(KernelSavedPrimask); // 恢复原始中断状态
-    }
+    return &KernelReadyList[index];
+}
+
+/**
+ * @brief 获取挂起链表
+ * @return 指向挂起链表的指针
+ * @note 此链表包含所有被挂起的协程任务
+ */
+EK_CoroList_t *EK_pKernelGetSuspendList(void)
+{
+    return &KernelSuspendList;
+}
+
+/**
+ * @brief 获取当前阻塞链表
+ * @return 指向当前阻塞链表的指针
+ * @note 用于内核内部管理，指向当前正在处理的阻塞事件链表
+ */
+EK_CoroList_t *EK_pKernelGetCurrentBlockList(void)
+{
+    return KernelCurrentBlockPointer;
+}
+
+/**
+ * @brief 获取下一个阻塞链表
+ * @return 指向下一个阻塞链表的指针
+ * @note 用于内核内部管理，指向下一个待处理的阻塞事件链表
+ */
+EK_CoroList_t *EK_pKernelGetNextBlockList(void)
+{
+    return KernelNextBlockPointer;
+}
+
+/**
+ * @brief 获取当前运行的协程任务控制块
+ * @return 指向当前TCB的指针
+ * @note 如果没有任务运行则返回NULL
+ */
+EK_CoroTCB_t *EK_pKernelGetCurrentTCB(void)
+{
+    return KernelCurrentTCB;
+}
+
+/**
+ * @brief 获取空闲任务处理器
+ * @return 空闲任务处理器
+ * @note 当系统没有其他任务可运行时，内核会调用此处理器
+ */
+EK_CoroStaticHandler_t EK_pKernelGetIdleHandler(void)
+{
+    return KernelIdleTCB_Handler;
+}
+
+/**
+ * @brief 获取待删除的任务控制块
+ * @return 指向待删除TCB的指针
+ * @note 标记需要安全删除的任务
+ */
+EK_CoroTCB_t *EK_pKernelGetDeleteTCB(void)
+{
+    return KernelToDeleteTCB;
+}
+
+/**
+ * @brief 设置待删除的任务控制块
+ * @param tcb 指向要删除的任务控制块指针
+ * @note 将任务标记为待删除，由内核在适当时机安全删除
+ */
+void EK_vKernelSetDeleteTCB(EK_CoroTCB_t *tcb)
+{
+    KernelToDeleteTCB = tcb;
 }
 
 /* ========================= 链表函数控制区 ========================= */
@@ -333,8 +486,7 @@ EK_Result_t EK_rKernelRemove(EK_CoroList_t *list, EK_CoroListNode_t *node_to_rem
     node_to_remove->CoroNode_Prev = NULL;
 
     // 如果就绪链表变为空，则清除对应的位图位
-    if (list->List_Count == 0 && list >= EK_CoroKernelReadyList &&
-        list < EK_CoroKernelReadyList + EK_CORO_PRIORITY_GROUPS)
+    if (list->List_Count == 0 && list >= KernelReadyList && list < KernelReadyList + EK_CORO_PRIORITY_GROUPS)
     {
         EK_vClearBit(&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
     }
@@ -404,7 +556,7 @@ EK_Result_t EK_rKernelInsert_WakeUpTime(EK_CoroList_t *list, EK_CoroListNode_t *
     list->List_Count++;
 
     // 判断是不是就绪链表
-    if (list >= EK_CoroKernelReadyList && list < EK_CoroKernelReadyList + EK_CORO_PRIORITY_GROUPS)
+    if (list >= KernelReadyList && list < KernelReadyList + EK_CORO_PRIORITY_GROUPS)
     {
         EK_vSetBit(&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
     }
@@ -417,7 +569,7 @@ EK_Result_t EK_rKernelInsert_WakeUpTime(EK_CoroList_t *list, EK_CoroListNode_t *
  * @brief 将一个协程节点插入到链表的尾部。
  * @details
  *  这是一个公共接口，以 O(1) 的时间复杂度将节点添加到链表的末尾。
- *  主要用于将任务添加到就绪链表 `EK_CoroKernelReadyList` 或挂起链表 `EK_CoroKernelSuspendList`。
+ *  主要用于将任务添加到就绪链表 `KernelReadyList` 或挂起链表 `KernelSuspendList`。
  * @param list 目标链表。
  * @param node 要插入的协程节点。
  * @return EK_Result_t 操作结果。
@@ -448,7 +600,7 @@ EK_Result_t EK_rKernelInsert_Tail(EK_CoroList_t *list, EK_CoroListNode_t *node)
     list->List_Count++;
 
     // 判断是不是就绪链表
-    if (list >= EK_CoroKernelReadyList && list < EK_CoroKernelReadyList + EK_CORO_PRIORITY_GROUPS)
+    if (list >= KernelReadyList && list < KernelReadyList + EK_CORO_PRIORITY_GROUPS)
     {
         EK_vSetBit(&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
     }
@@ -516,7 +668,7 @@ EK_Result_t EK_rKernelInsert_Prio(EK_CoroList_t *list, EK_CoroListNode_t *node)
     list->List_Count++;
 
     // 判断是不是就绪链表
-    if (list >= EK_CoroKernelReadyList && list < EK_CoroKernelReadyList + EK_CORO_PRIORITY_GROUPS)
+    if (list >= KernelReadyList && list < KernelReadyList + EK_CORO_PRIORITY_GROUPS)
     {
         EK_vSetBit(&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
     }
@@ -590,48 +742,13 @@ EK_Result_t EK_rKernelMove_Prio(EK_CoroList_t *list, EK_CoroListNode_t *node)
     return EK_rKernelInsert_Prio(list, node);
 }
 
-/* ========================= 空闲任务实现区 ========================= */
-
-static uint8_t Kernel_IdleTaskStack[EK_CORO_IDLE_TASK_STACK_SIZE];
-static EK_CoroTCB_t Kernel_IdleTaskTCB;
-EK_CoroStaticHandler_t EK_CoroKernelIdleHandler;
-
-__weak void EK_CoroIdle(void)
-{
-}
-
-static void Kernel_CoroIdleFunction(void *arg)
-{
-    UNUSED_VAR(arg);
-    while (1)
-    {
-        if (EK_CoroKernelDeleteTCB != NULL)
-        {
-            if (EK_CoroKernelDeleteTCB->TCB_isDynamic)
-            {
-                EK_CORO_FREE(EK_CoroKernelDeleteTCB->TCB_StackBase);
-                EK_CORO_FREE(EK_CoroKernelDeleteTCB);
-            }
-            EK_CoroKernelDeleteTCB = NULL;
-        }
-
-        if (KernelIdleYield == true)
-        {
-            KernelIdleYield = false;
-            EK_vCoroYield();
-        }
-
-        EK_CoroIdle();
-    }
-}
-
 /* ========================= 内核核心API函数 ========================= */
 
 __naked static void v_kernel_start(void)
 {
     __ASM volatile(
         // 加载第一个任务的堆栈指针到 PSP
-        "ldr r0, =EK_CoroKernelCurrentTCB \n"
+        "ldr r0, =KernelCurrentTCB \n"
         "ldr r0, [r0] \n"
         "ldr r0, [r0] \n"
         "msr psp, r0 \n"
@@ -669,9 +786,9 @@ void EK_vKernelInit(void)
     // 初始化就绪链表
     for (uint8_t i = 0; i < EK_CORO_PRIORITY_GROUPS; i++)
     {
-        EK_CoroKernelReadyList[i].List_Count = 0;
-        EK_CoroKernelReadyList[i].List_Head = NULL;
-        EK_CoroKernelReadyList[i].List_Tail = NULL;
+        KernelReadyList[i].List_Count = 0;
+        KernelReadyList[i].List_Head = NULL;
+        KernelReadyList[i].List_Tail = NULL;
     }
 
     // 初始化阻塞链表1
@@ -685,32 +802,32 @@ void EK_vKernelInit(void)
     KernelBlockList2.List_Tail = NULL;
 
     // 初始化挂起链表
-    EK_CoroKernelSuspendList.List_Count = 0;
-    EK_CoroKernelSuspendList.List_Head = NULL;
-    EK_CoroKernelSuspendList.List_Tail = NULL;
+    KernelSuspendList.List_Count = 0;
+    KernelSuspendList.List_Head = NULL;
+    KernelSuspendList.List_Tail = NULL;
 
     // 初始化位图
     KernelReadyBitMap = 0;
 
     // 初始化Tick
-    EK_CoroKernelTick = 0;
+    KernelTick = 0;
 
     // 初始化指针
-    EK_CoroKernelCurrentTCB = NULL;
-    EK_CoroKernelDeleteTCB = NULL;
+    KernelCurrentTCB = NULL;
+    KernelToDeleteTCB = NULL;
     KernelNextTCB = NULL;
 
     // 初始化当前就绪链表的指针
-    EK_CoroKernelCurrBlock = &KernelBlockList1;
-    EK_CoroKernelNextBlock = &KernelBlockList2;
+    KernelCurrentBlockPointer = &KernelBlockList1;
+    KernelNextBlockPointer = &KernelBlockList2;
 
     // 创建空闲任务
-    EK_CoroKernelIdleHandler = EK_pCoroCreateStatic(&Kernel_IdleTaskTCB,
-                                                    Kernel_CoroIdleFunction,
-                                                    NULL,
-                                                    EK_CORO_PRIORITY_MOUNT - 1, // 最低优先级
-                                                    Kernel_IdleTaskStack,
-                                                    EK_CORO_IDLE_TASK_STACK_SIZE);
+    KernelIdleTCB_Handler = EK_pCoroCreateStatic(&Kernel_IdleTaskTCB,
+                                                 Kernel_CoroIdleFunction,
+                                                 NULL,
+                                                 EK_CORO_PRIORITY_MOUNT - 1, // 最低优先级
+                                                 Kernel_IdleTaskStack,
+                                                 EK_CORO_IDLE_TASK_STACK_SIZE);
 
     // 设置SysTick中断优先级为最低
     NVIC_SetPriority(SysTick_IRQn, 0xFF);
@@ -745,9 +862,9 @@ void EK_vKernelStart(void)
 
     // 找到优先级最高的TCB 启动
     uint8_t highest_prio = EK_KERNEL_GET_HIGHEST_PRIO(KernelReadyBitMap);
-    EK_CoroKernelCurrentTCB = (EK_CoroTCB_t *)EK_CoroKernelReadyList[highest_prio].List_Head->CoroNode_Owner;
-    EK_CoroKernelCurrentTCB->TCB_State = EK_CORO_RUNNING;
-    EK_rKernelRemove(&EK_CoroKernelReadyList[highest_prio], &EK_CoroKernelCurrentTCB->TCB_StateNode);
+    KernelCurrentTCB = (EK_CoroTCB_t *)KernelReadyList[highest_prio].List_Head->CoroNode_Owner;
+    KernelCurrentTCB->TCB_State = EK_CORO_RUNNING;
+    EK_rKernelRemove(&KernelReadyList[highest_prio], &KernelCurrentTCB->TCB_StateNode);
 
     EK_EXIT_CRITICAL();
 
@@ -775,11 +892,11 @@ void EK_vKernelYield(void)
     uint8_t highest_prio = EK_KERNEL_GET_HIGHEST_PRIO(KernelReadyBitMap);
 
     // 更新链表
-    KernelNextTCB = (EK_CoroTCB_t *)EK_CoroKernelReadyList[highest_prio].List_Head->CoroNode_Owner;
+    KernelNextTCB = (EK_CoroTCB_t *)KernelReadyList[highest_prio].List_Head->CoroNode_Owner;
     KernelNextTCB->TCB_State = EK_CORO_RUNNING;
 
     // 将TCB移除
-    EK_rKernelRemove(&EK_CoroKernelReadyList[highest_prio], &KernelNextTCB->TCB_StateNode);
+    EK_rKernelRemove(&KernelReadyList[highest_prio], &KernelNextTCB->TCB_StateNode);
 
     // 在任务切换前检查下一个任务的栈溢出情况并计算高水位标记
     // 注意：这里检查的是即将运行的任务，确保它在运行前栈是安全的
@@ -812,13 +929,13 @@ void EK_vTickHandler(void)
     static uint32_t last_tick = 0;
     EK_ENTER_CRITICAL();
 
-    EK_CoroKernelTick++;
+    KernelTick++;
 
     // 处理因 EK_vCoroDelay() 而阻塞的任务
-    if (EK_CoroKernelCurrBlock->List_Count > 0)
+    if (KernelCurrentBlockPointer->List_Count > 0)
     {
         // 获取当前状态节点
-        EK_CoroListNode_t *current_state_node = EK_CoroKernelCurrBlock->List_Head;
+        EK_CoroListNode_t *current_state_node = KernelCurrentBlockPointer->List_Head;
         while (current_state_node != NULL)
         {
             EK_CoroTCB_t *current_tcb = (EK_CoroTCB_t *)current_state_node->CoroNode_Owner;
@@ -834,7 +951,7 @@ void EK_vTickHandler(void)
             }
 
             // 当前任务未达到唤醒时间
-            if (EK_CoroKernelTick < current_tcb->TCB_WakeUpTime)
+            if (KernelTick < current_tcb->TCB_WakeUpTime)
             {
                 // 由于阻塞链表是按唤醒时间升序排列的，如果当前任务还没到期，后续任务也一定没到期
                 break;
@@ -850,11 +967,11 @@ void EK_vTickHandler(void)
             // 任务延时已到，将其唤醒
             current_tcb->TCB_State = EK_CORO_READY;
             // 更新任务的最后唤醒时间
-            current_tcb->TCB_LastWakeUpTime = EK_CoroKernelTick;
-            EK_rKernelMove_Tail(&EK_CoroKernelReadyList[current_tcb->TCB_Priority], &current_tcb->TCB_StateNode);
+            current_tcb->TCB_LastWakeUpTime = KernelTick;
+            EK_rKernelMove_Tail(&KernelReadyList[current_tcb->TCB_Priority], &current_tcb->TCB_StateNode);
 
             // 如果当前CPU正处于空闲状态，并且我们唤醒了一个任务，那么就需要请求一次调度
-            if (EK_CoroKernelCurrentTCB == EK_CoroKernelIdleHandler)
+            if (KernelCurrentTCB == KernelIdleTCB_Handler)
             {
                 KernelIdleYield = true;
             }
@@ -863,14 +980,14 @@ void EK_vTickHandler(void)
     }
 
     // Tick值溢出 要交换链表了
-    if (last_tick > EK_CoroKernelTick)
+    if (last_tick > KernelTick)
     {
-        EK_CoroList_t *temp = EK_CoroKernelCurrBlock; // 存储当前的链表
-        EK_CoroKernelCurrBlock = EK_CoroKernelNextBlock; // 交换链表到下一个tick周期的链表
-        EK_CoroKernelNextBlock = temp; // 获得新的链表
+        EK_CoroList_t *temp = KernelCurrentBlockPointer; // 存储当前的链表
+        KernelCurrentBlockPointer = KernelNextBlockPointer; // 交换链表到下一个tick周期的链表
+        KernelNextBlockPointer = temp; // 获得新的链表
     }
 
-    last_tick = EK_CoroKernelTick; // 上一次的时间
+    last_tick = KernelTick; // 上一次的时间
 
     EK_EXIT_CRITICAL();
 }
@@ -882,7 +999,7 @@ void EK_vTickHandler(void)
  *  其主要职责是：
  *  1. 保存当前任务的CPU寄存器（R4-R11, LR）到其堆栈。
  *  2. 将更新后的堆栈指针保存到当前任务的TCB中。
- *  3. 将 `KernelNextTCB` 设置为 `EK_CoroKernelCurrentTCB`。
+ *  3. 将 `KernelNextTCB` 设置为 `KernelCurrentTCB`。
  *  4. 从新任务的TCB中加载其堆栈指针。
  *  5. 从新任务的堆栈中恢复其CPU寄存器。
  *  6. 异常返回，CPU开始执行新任务的代码。
@@ -898,18 +1015,18 @@ __naked void EK_vKernelPendSV_Handler(void)
         "stmdb r0!, {r4-r11, lr} \n"
 
         // 保存新的栈顶指针到 TCB
-        "ldr r1, =EK_CoroKernelCurrentTCB \n"
+        "ldr r1, =KernelCurrentTCB \n"
         "ldr r1, [r1] \n" // 解引用得到SP位置
         "str r0, [r1] \n" // 将r0寄存器中的数据存储的SP中
 
-        // 执行调度: EK_CoroKernelCurrentTCB = KernelNextTCB
+        // 执行调度: KernelCurrentTCB = KernelNextTCB
         "ldr r0, =KernelNextTCB \n"
         "ldr r0, [r0] \n"
-        "ldr r1, =EK_CoroKernelCurrentTCB \n"
+        "ldr r1, =KernelCurrentTCB \n"
         "str r0, [r1] \n"
 
         // 恢复新任务的SP
-        "ldr r1, =EK_CoroKernelCurrentTCB \n"
+        "ldr r1, =KernelCurrentTCB \n"
         "ldr r1, [r1] \n"
         "ldr r0, [r1] \n"
 

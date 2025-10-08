@@ -29,7 +29,7 @@
  * @brief 信号量令牌大小定义
  * @details 每个令牌占用1字节，令牌值本身不重要，只关心数量
  */
-#define EK_SEM_TOKEN_SIZE     (sizeof(uint8_t))  // 信号量的令牌大小 1 byte
+#define EK_SEM_TOKEN_SIZE (sizeof(uint8_t)) // 信号量的令牌大小 1 byte
 
 /* ========================= 内部函数 ========================= */
 
@@ -55,7 +55,8 @@ static inline EK_Result_t r_sem_give(EK_CoroSem_t *sem)
     EK_Queue_t *queue = EK_SEM_GET_QUEUE(sem);
 
     // 检查队列是否已满
-    if (EK_bQueueIsFull(queue)) {
+    if (EK_bQueueIsFull(queue))
+    {
         EK_EXIT_CRITICAL();
         return EK_FULL;
     }
@@ -91,7 +92,8 @@ static inline EK_Result_t r_sem_take(EK_CoroSem_t *sem)
     EK_Queue_t *queue = EK_SEM_GET_QUEUE(sem);
 
     // 检查队列是否为空
-    if (EK_bQueueIsEmpty(queue)) {
+    if (EK_bQueueIsEmpty(queue))
+    {
         EK_EXIT_CRITICAL();
         return EK_EMPTY;
     }
@@ -147,18 +149,22 @@ static inline void v_sem_delay(EK_CoroSem_t *sem, EK_CoroTCB_t *tcb, uint32_t ti
  */
 static inline EK_Result_t r_sem_wake(EK_CoroSem_t *sem, EK_CoroTCB_t *tcb)
 {
-    if (tcb->TCB_EventResult == EK_CORO_EVENT_OK) {
+    if (tcb->TCB_EventResult == EK_CORO_EVENT_OK)
+    {
         return EK_OK;
     }
-    else if (tcb->TCB_EventResult == EK_CORO_EVENT_TIMEOUT) {
+    else if (tcb->TCB_EventResult == EK_CORO_EVENT_TIMEOUT)
+    {
         // 超时情况：从等待列表中移除事件节点
         EK_rKernelRemove(&sem->Sem_WaitList, &tcb->TCB_EventNode);
         return EK_TIMEOUT;
     }
-    else if (tcb->TCB_EventResult == EK_CORO_EVENT_DELETED) {
+    else if (tcb->TCB_EventResult == EK_CORO_EVENT_DELETED)
+    {
         return EK_NOT_FOUND;
     }
-    else {
+    else
+    {
         return EK_ERROR;
     }
 }
@@ -184,23 +190,25 @@ EK_CoroSemHanlder_t EK_pSemCreate(uint16_t init_count, uint16_t max_count)
 
     // 动态创建信号量结构体
     EK_CoroSem_t *sem = (EK_CoroSem_t *)EK_CORO_MALLOC(sizeof(EK_CoroSem_t));
-    if (sem == NULL) {
+    if (sem == NULL)
+    {
         EK_EXIT_CRITICAL();
         return NULL;
     }
 
     // 动态创建底层队列
     EK_Queue_t *queue = EK_pQueueCreate(max_count * EK_SEM_TOKEN_SIZE);
-    if (queue == NULL) {
+    if (queue == NULL)
+    {
         EK_CORO_FREE(sem);
         EK_EXIT_CRITICAL();
         return NULL;
     }
 
     // 初始化结构体成员
-    sem->Sem_Queue = queue;          // 设置动态队列指针
-    sem->Sem_MaxCount = max_count;   // 设置最大令牌数
-    sem->Sem_isDynamic = true;       // 标记为动态创建
+    sem->Sem_Queue = queue; // 设置动态队列指针
+    sem->Sem_MaxCount = max_count; // 设置最大令牌数
+    sem->Sem_isDynamic = true; // 标记为动态创建
 
     // 初始化等待列表
     sem->Sem_WaitList.List_Count = 0;
@@ -208,10 +216,13 @@ EK_CoroSemHanlder_t EK_pSemCreate(uint16_t init_count, uint16_t max_count)
     sem->Sem_WaitList.List_Tail = NULL;
 
     // 批量添加初始令牌
-    if (init_count != 0) {
-        for (uint16_t i = 0; i < init_count; i++) {
+    if (init_count != 0)
+    {
+        for (uint16_t i = 0; i < init_count; i++)
+        {
             EK_Result_t res = r_sem_give(sem);
-            if (res != EK_OK) {
+            if (res != EK_OK)
+            {
                 // 初始化失败，清理已分配的资源
                 EK_rQueueDelete(queue);
                 EK_CORO_FREE(sem);
@@ -239,8 +250,7 @@ EK_CoroSemHanlder_t EK_pSemCreate(uint16_t init_count, uint16_t max_count)
  *
  * @return EK_CoroSemStaticHanlder_t 成功时返回信号量句柄，失败返回NULL
  */
-EK_CoroSemStaticHanlder_t EK_pSemCreateStatic(EK_CoroSem_t *sem, void *buffer,
-                                             uint32_t init_count, uint32_t max_count)
+EK_CoroSemStaticHanlder_t EK_pSemCreateStatic(EK_CoroSem_t *sem, void *buffer, uint32_t init_count, uint32_t max_count)
 {
     // 参数有效性检查
     if (max_count == 0 || sem == NULL || buffer == NULL) return NULL;
@@ -249,14 +259,15 @@ EK_CoroSemStaticHanlder_t EK_pSemCreateStatic(EK_CoroSem_t *sem, void *buffer,
 
     // 使用内嵌队列结构体创建静态队列
     EK_Result_t res = EK_pQueueCreateStatic(&sem->Sem_QueueStatic, buffer, max_count * EK_SEM_TOKEN_SIZE);
-    if (res != EK_OK) {
+    if (res != EK_OK)
+    {
         EK_EXIT_CRITICAL();
         return NULL;
     }
 
     // 初始化结构体成员
-    sem->Sem_MaxCount = max_count;   // 设置最大令牌数
-    sem->Sem_isDynamic = false;      // 标记为静态创建
+    sem->Sem_MaxCount = max_count; // 设置最大令牌数
+    sem->Sem_isDynamic = false; // 标记为静态创建
 
     // 初始化等待列表
     sem->Sem_WaitList.List_Count = 0;
@@ -264,10 +275,13 @@ EK_CoroSemStaticHanlder_t EK_pSemCreateStatic(EK_CoroSem_t *sem, void *buffer,
     sem->Sem_WaitList.List_Tail = NULL;
 
     // 批量添加初始令牌
-    if (init_count != 0) {
-        for (uint32_t i = 0; i < init_count; i++) {
+    if (init_count != 0)
+    {
+        for (uint32_t i = 0; i < init_count; i++)
+        {
             res = r_sem_give(sem);
-            if (res != EK_OK) {
+            if (res != EK_OK)
+            {
                 EK_EXIT_CRITICAL();
                 return NULL;
             }
@@ -308,21 +322,25 @@ EK_Result_t EK_rSemTake(EK_CoroSemHanlder_t sem, uint32_t timeout)
     res = r_sem_take(sem);
 
     // 成功获取到信号量
-    if (res == EK_OK) {
+    if (res == EK_OK)
+    {
         EK_EXIT_CRITICAL();
         return EK_OK;
     }
     // 队列为空，需要处理等待逻辑
-    else if (res == EK_EMPTY) {
+    else if (res == EK_EMPTY)
+    {
         // 不需要等待，直接返回失败
-        if (timeout == 0) {
+        if (timeout == 0)
+        {
             EK_EXIT_CRITICAL();
             return EK_EMPTY;
         }
         // 需要阻塞等待
-        else {
+        else
+        {
             // 获取当前协程的TCB
-            EK_CoroTCB_t *current_tcb = EK_CoroKernelCurrentTCB;
+            EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB();
             EK_EXIT_CRITICAL();
 
             // 进入阻塞等待状态
@@ -360,7 +378,8 @@ EK_Result_t EK_rSemGive(EK_CoroSemHanlder_t sem)
     EK_ENTER_CRITICAL();
 
     // 优先级1：有协程在等待信号量，直接唤醒等待时间最长的协程（FIFO）
-    if (sem->Sem_WaitList.List_Count > 0) {
+    if (sem->Sem_WaitList.List_Count > 0)
+    {
         // 获取等待链表头部的协程（等待时间最长）
         EK_CoroListNode_t *wait_node = sem->Sem_WaitList.List_Head;
         EK_CoroTCB_t *wait_tcb = (EK_CoroTCB_t *)wait_node->CoroNode_Owner;
@@ -373,13 +392,14 @@ EK_Result_t EK_rSemGive(EK_CoroSemHanlder_t sem)
         wait_tcb->TCB_State = EK_CORO_READY;
 
         // 加入对应优先级的就绪列表
-        EK_rKernelInsert_Prio(&EK_CoroKernelReadyList[wait_tcb->TCB_Priority], &wait_tcb->TCB_StateNode);
+        EK_rKernelInsert_Prio(EK_pKernelGetReadyList(wait_tcb->TCB_Priority), &wait_tcb->TCB_StateNode);
 
         EK_EXIT_CRITICAL();
         return EK_OK;
     }
     // 优先级2：没有协程等待，直接将令牌放回队列
-    else {
+    else
+    {
         EK_EXIT_CRITICAL();
         return r_sem_give(sem);
     }

@@ -172,15 +172,16 @@ typedef struct EK_CoroTCB_t
 typedef EK_CoroTCB_t *EK_CoroHandler_t; // 动态类型的指针
 typedef EK_CoroTCB_t *EK_CoroStaticHandler_t; // 静态类型的指针
 
-/* ========================= 内核全局变量声明 ========================= */
-extern uint32_t EK_CoroKernelTick;
-extern EK_CoroList_t EK_CoroKernelReadyList[EK_CORO_PRIORITY_GROUPS];
-extern EK_CoroList_t *EK_CoroKernelCurrBlock;
-extern EK_CoroList_t *EK_CoroKernelNextBlock;
-extern EK_CoroList_t EK_CoroKernelSuspendList;
-extern EK_CoroTCB_t *EK_CoroKernelCurrentTCB;
-extern EK_CoroTCB_t *EK_CoroKernelDeleteTCB;
-extern EK_CoroStaticHandler_t EK_CoroKernelIdleHandler;
+/* ========================= 内核状态访问函数 ========================= */
+uint32_t EK_uKernelGetTick(void);
+EK_CoroList_t *EK_pKernelGetReadyList(uint8_t priority);
+EK_CoroList_t *EK_pKernelGetSuspendList(void);
+EK_CoroList_t *EK_pKernelGetCurrentBlockList(void);
+EK_CoroList_t *EK_pKernelGetNextBlockList(void);
+EK_CoroTCB_t *EK_pKernelGetCurrentTCB(void);
+EK_CoroStaticHandler_t EK_pKernelGetIdleHandler(void);
+EK_CoroTCB_t *EK_pKernelGetDeleteTCB(void);
+void EK_vKernelSetDeleteTCB(EK_CoroTCB_t *tcb);
 
 /* ========================= 内核核心API函数 ========================= */
 void EK_vKernelYield(void);

@@ -176,7 +176,7 @@ EK_Result_t EK_rMsgDelete(EK_CoroMsg_t *msg)
 
         // 将任务移至就绪列表 (EK_rKernelMove_Tail会处理从阻塞列表的移除)
         tcb->TCB_State = EK_CORO_READY;
-        EK_rKernelMove_Tail(&EK_CoroKernelReadyList[tcb->TCB_Priority], &tcb->TCB_StateNode);
+        EK_rKernelMove_Tail(EK_pKernelGetReadyList(tcb->TCB_Priority), &tcb->TCB_StateNode);
     }
 
     // 唤醒所有等待接收的任务
@@ -192,7 +192,7 @@ EK_Result_t EK_rMsgDelete(EK_CoroMsg_t *msg)
 
         // 将任务移至就绪列表
         tcb->TCB_State = EK_CORO_READY;
-        EK_rKernelMove_Tail(&EK_CoroKernelReadyList[tcb->TCB_Priority], &tcb->TCB_StateNode);
+        EK_rKernelMove_Tail(EK_pKernelGetReadyList(tcb->TCB_Priority), &tcb->TCB_StateNode);
     }
 
     // 释放队列结构体内存
@@ -238,7 +238,7 @@ EK_Result_t EK_rMsgSend(EK_CoroMsgHanler_t msg, void *tx_buffer, uint32_t timeou
 
     EK_ENTER_CRITICAL();
 
-    EK_CoroTCB_t *current_tcb = EK_CoroKernelCurrentTCB;
+    EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB();
 
     // 检查是否有任务在等待接收 (实现汇合)
     if (msg->Msg_RecvWaitList.List_Count > 0)
@@ -255,7 +255,7 @@ EK_Result_t EK_rMsgSend(EK_CoroMsgHanler_t msg, void *tx_buffer, uint32_t timeou
         // 设置事件结果并唤醒接收者
         tcb_wait_to_recv->TCB_EventResult = EK_CORO_EVENT_OK;
         tcb_wait_to_recv->TCB_State = EK_CORO_READY;
-        EK_rKernelMove_Tail(&EK_CoroKernelReadyList[tcb_wait_to_recv->TCB_Priority], &tcb_wait_to_recv->TCB_StateNode);
+        EK_rKernelMove_Tail(EK_pKernelGetReadyList(tcb_wait_to_recv->TCB_Priority), &tcb_wait_to_recv->TCB_StateNode);
 
         EK_EXIT_CRITICAL();
         return EK_OK;
@@ -329,7 +329,7 @@ EK_Result_t EK_rMsgReceive(EK_CoroMsgHanler_t msg, void *rx_buffer, uint32_t tim
 
     EK_ENTER_CRITICAL();
 
-    EK_CoroTCB_t *current_tcb = EK_CoroKernelCurrentTCB;
+    EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB();
 
     // 安全获取队列指针
     EK_Queue_t *queue = EK_MSG_GET_QUEUE(msg);
@@ -353,7 +353,7 @@ EK_Result_t EK_rMsgReceive(EK_CoroMsgHanler_t msg, void *rx_buffer, uint32_t tim
             // 设置事件结果并唤醒发送者
             tcb_wait_to_send->TCB_EventResult = EK_CORO_EVENT_OK;
             tcb_wait_to_send->TCB_State = EK_CORO_READY;
-            EK_rKernelMove_Tail(&EK_CoroKernelReadyList[tcb_wait_to_send->TCB_Priority],
+            EK_rKernelMove_Tail(EK_pKernelGetReadyList(tcb_wait_to_send->TCB_Priority),
                                 &tcb_wait_to_send->TCB_StateNode);
         }
 
@@ -374,7 +374,7 @@ EK_Result_t EK_rMsgReceive(EK_CoroMsgHanler_t msg, void *rx_buffer, uint32_t tim
         // 设置事件结果并唤醒发送者
         tcb_wait_to_send->TCB_EventResult = EK_CORO_EVENT_OK;
         tcb_wait_to_send->TCB_State = EK_CORO_READY;
-        EK_rKernelMove_Tail(&EK_CoroKernelReadyList[tcb_wait_to_send->TCB_Priority], &tcb_wait_to_send->TCB_StateNode);
+        EK_rKernelMove_Tail(EK_pKernelGetReadyList(tcb_wait_to_send->TCB_Priority), &tcb_wait_to_send->TCB_StateNode);
 
         EK_EXIT_CRITICAL();
         return EK_OK;

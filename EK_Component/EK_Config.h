@@ -118,6 +118,12 @@ extern bool EK_bMemPool_Free(void *ptr);
 #define EK_CORO_IDLE_TASK_STACK_SIZE (256) // 定义空闲任务的堆栈大小(字节)
 
 /**
+ * @brief 是否开启空闲钩子函数
+ * @details 如果开启 每次进入空闲任务就会调用一次 EK_CoroIdleHook 函数 用户可以自己实现具体内容
+ */
+#define EK_CORO_IDLE_HOOK_ENABLE (0) // 1:使能 0:失能
+
+/**
  * @brief 栈溢出检测方法
  * @details 0: 禁用栈溢出检测; 1: 方法1(检测栈底填充值); 2: 方法2(检测栈指针是否超出范围)
  * @note 方法1性能较好但检测范围有限; 方法2检测更全面但性能开销稍大
