@@ -120,12 +120,16 @@
  * 
  */
 #ifndef EK_CORO_IDLE_TASK_STACK_SIZE
-#if (EK_CORO_FPU_USED == 0)
 #define EK_CORO_IDLE_TASK_STACK_SIZE (256) // 定义空闲任务的堆栈大小
-#else
-#define EK_CORO_IDLE_TASK_STACK_SIZE (512) // 定义空闲任务的堆栈大小
-#endif /* EK_CORO_FPU_USED == 0 */
 #endif /* EK_CORO_IDLE_TASK_STACK_SIZE */
+
+/**
+ * @brief 是否开启空闲钩子函数
+ * @details 如果开启 每次进入空闲任务就会调用一次 EK_CoroIdleHook 函数 用户可以自己实现具体内容
+ */
+#ifndef EK_CORO_IDLE_HOOK_ENABLE
+#define EK_CORO_IDLE_HOOK_ENABLE (0)
+#endif /* EK_CORO_IDLE_HOOK_ENABLE */
 
 /**
  * @brief 是否使能消息队列

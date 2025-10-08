@@ -88,6 +88,12 @@ extern bool EK_bMemPool_Free(void *ptr);
 #if (EK_CORO_ENABLE == 1)
 
 /**
+ * @brief 关闭普通的调度器
+ * @warning 不要修改这个宏！
+ */
+#define EK_NORMAL_SCHEDULER (0)
+
+/**
  * @brief 系统的时钟频率(HZ)
  * 
  */
@@ -98,12 +104,6 @@ extern bool EK_bMemPool_Free(void *ptr);
  * 
  */
 #define EK_CORO_TICK_RATE_HZ (1000)
-
-/**
- * @brief 关闭普通的调度器
- * @warning 不要修改这个宏！
- */
-#define EK_NORMAL_SCHEDULER (0)
 
 /**
  * @brief 优先级组数目
@@ -118,10 +118,10 @@ extern bool EK_bMemPool_Free(void *ptr);
 #define EK_CORO_IDLE_TASK_STACK_SIZE (256) // 定义空闲任务的堆栈大小(字节)
 
 /**
- * @brief 是否使能消息队列
- *
+ * @brief 是否开启空闲钩子函数
+ * @details 如果开启 每次进入空闲任务就会调用一次 EK_CoroIdleHook 函数 用户可以自己实现具体内容
  */
-#define EK_CORO_USE_MESSAGE_QUEUE (1) // 1:使能 0:失能
+#define EK_CORO_IDLE_HOOK_ENABLE (0) // 1:使能 0:失能
 
 /**
  * @brief 栈溢出检测方法
@@ -129,6 +129,18 @@ extern bool EK_bMemPool_Free(void *ptr);
  * @note 方法1性能较好但检测范围有限; 方法2检测更全面但性能开销稍大
  */
 #define EK_CORO_STACK_OVERFLOW_CHECK (0) // 0:禁用 1:方法1 2:方法2
+
+/**
+ * @brief 是否使能消息队列
+ *
+ */
+#define EK_CORO_USE_MESSAGE_QUEUE (1) // 1:使能 0:失能
+
+/**
+ * @brief 是否使能信号量
+ *
+ */
+#define EK_CORO_USE_SEMAPHORE (1) // 1:使能 0:失能
 
 #else
 
