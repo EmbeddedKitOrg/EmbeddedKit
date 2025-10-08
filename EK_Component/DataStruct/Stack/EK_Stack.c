@@ -23,7 +23,7 @@
  * @return void* 栈顶端边界地址，失败返回NULL
  * @note 返回的地址是栈满时栈顶指针应该达到的位置
  */
-static inline void *v_stack_get_top(EK_Stack_t *stack)
+STATIC_INLINE void *v_stack_get_top(EK_Stack_t *stack)
 {
     if (stack == NULL) return NULL;
 
@@ -160,7 +160,7 @@ bool EK_bStackIsEmpty(EK_Stack_t *stack)
  * @return EK_Size_t 返回栈剩余可用的字节数，栈指针无效时返回0
  * @note 返回值表示还可以向栈中压入多少字节的数据
  */
-EK_Size_t EK_sStackGetRemain(EK_Stack_t *stack)
+EK_Size_t EK_uStackGetRemain(EK_Stack_t *stack)
 {
     if (stack == NULL) return 0;
 
@@ -187,7 +187,7 @@ EK_Result_t EK_rStackPush(EK_Stack_t *stack, void *data, EK_Size_t data_size)
     if (data_size == 0) return EK_INVALID_PARAM;
 
     // 检测剩余空间是否足够
-    if (EK_sStackGetRemain(stack) < data_size) return EK_INSUFFICIENT_SPACE;
+    if (EK_uStackGetRemain(stack) < data_size) return EK_INSUFFICIENT_SPACE;
 
     // 写入数据
     EK_vMemCpy(stack->Stack_TopPtr, data, data_size);

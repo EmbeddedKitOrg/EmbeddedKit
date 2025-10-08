@@ -68,7 +68,7 @@ static void v_coro_exit(void)
  *  --- 以上由软件(PendSV_Handler)手动压栈 ---
  * @param tcb 指向要初始化上下文的任务控制块 (TCB)。
  */
-static void v_task_init_context(EK_CoroTCB_t *tcb)
+ALWAYS_STATIC_INLINE void v_task_init_context(EK_CoroTCB_t *tcb)
 {
     EK_CoroStack_t *stk;
 #if (EK_HIGH_WATER_MARK_ENABLE == 1)
@@ -313,6 +313,14 @@ void EK_vCoroSuspend(EK_CoroHandler_t task_handle, EK_Result_t *result)
     if (self_suspend && op_res == EK_OK)
     {
         EK_EXIT_CRITICAL();
+
+        // 判断是不是在中断中
+        if (EK_IS_IN_INTERRUPT() == true)
+        {
+            *result = EK_ERROR;
+            return;
+        }
+
         EK_vKernelYield();
     }
     else
@@ -421,6 +429,14 @@ void EK_vCoroDelete(EK_CoroHandler_t task_handle, EK_Result_t *result)
     // 对于动态任务
     if (self_delete)
     {
+        // 判断是不是在中断中
+        if (EK_IS_IN_INTERRUPT() == true)
+        {
+            EK_EXIT_CRITICAL();
+            *result = EK_ERROR;
+            return;
+        }
+
         // 标记等待删除，然后请求调度
         EK_vKernelSetDeleteTCB(target_tcb);
         op_res = EK_rKernelRemove(target_tcb->TCB_StateNode.CoroNode_List, &target_tcb->TCB_StateNode);
@@ -453,7 +469,11 @@ void EK_vCoroDelete(EK_CoroHandler_t task_handle, EK_Result_t *result)
  */
 void EK_vCoroDelay(uint32_t xticks)
 {
+    // 判断是不是在中断中
+    if (EK_IS_IN_INTERRUPT() == true) return;
+
     EK_ENTER_CRITICAL();
+
     // 获取当前的TCB
     EK_CoroTCB_t *current = EK_pKernelGetCurrentTCB();
     if (current == NULL)
@@ -517,6 +537,9 @@ void EK_vCoroDelay(uint32_t xticks)
  */
 void EK_vCoroDelayUntil(uint32_t xticks)
 {
+    // 判断是不是在中断中
+    if (EK_IS_IN_INTERRUPT() == true) return;
+
     // 参数检查
     if (xticks == 0)
     {
@@ -650,6 +673,9 @@ EK_Result_t EK_rCoroWakeup(EK_CoroHandler_t task_handle)
  */
 void EK_vCoroYield(void)
 {
+    // 判断是不是在中断中
+    if (EK_IS_IN_INTERRUPT() == true) return;
+
     EK_ENTER_CRITICAL();
     // 获取当前的TCB
     EK_CoroTCB_t *current = EK_pKernelGetCurrentTCB();

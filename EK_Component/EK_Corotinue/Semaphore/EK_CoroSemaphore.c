@@ -44,7 +44,7 @@
  *         - EK_FULL: 队列已满
  *         - EK_INVALID_PARAM: 参数无效
  */
-static inline EK_Result_t r_sem_give(EK_CoroSem_t *sem)
+ALWAYS_STATIC_INLINE EK_Result_t r_sem_give(EK_CoroSem_t *sem)
 {
     // 参数有效性检查
     if (sem == NULL) return EK_INVALID_PARAM;
@@ -81,7 +81,7 @@ static inline EK_Result_t r_sem_give(EK_CoroSem_t *sem)
  *         - EK_EMPTY: 队列为空
  *         - EK_INVALID_PARAM: 参数无效
  */
-static inline EK_Result_t r_sem_take(EK_CoroSem_t *sem)
+ALWAYS_STATIC_INLINE EK_Result_t r_sem_take(EK_CoroSem_t *sem)
 {
     // 参数有效性检查
     if (sem == NULL) return EK_INVALID_PARAM;
@@ -116,7 +116,7 @@ static inline EK_Result_t r_sem_take(EK_CoroSem_t *sem)
  * @param tcb 要阻塞的协程TCB指针
  * @param timeout 阻塞超时时间
  */
-static inline void v_sem_delay(EK_CoroSem_t *sem, EK_CoroTCB_t *tcb, uint32_t timeout)
+ALWAYS_STATIC_INLINE void v_sem_delay(EK_CoroSem_t *sem, EK_CoroTCB_t *tcb, uint32_t timeout)
 {
     if (timeout == 0 || sem == NULL || tcb == NULL) return;
 
@@ -147,7 +147,7 @@ static inline void v_sem_delay(EK_CoroSem_t *sem, EK_CoroTCB_t *tcb, uint32_t ti
  *         - EK_NOT_FOUND: 信号量被删除
  *         - EK_ERROR: 其他错误
  */
-static inline EK_Result_t r_sem_wake(EK_CoroSem_t *sem, EK_CoroTCB_t *tcb)
+ALWAYS_STATIC_INLINE EK_Result_t r_sem_wake(EK_CoroSem_t *sem, EK_CoroTCB_t *tcb)
 {
     if (tcb->TCB_EventResult == EK_CORO_EVENT_OK)
     {
@@ -167,6 +167,16 @@ static inline EK_Result_t r_sem_wake(EK_CoroSem_t *sem, EK_CoroTCB_t *tcb)
     {
         return EK_ERROR;
     }
+}
+
+ALWAYS_STATIC_INLINE EK_CoroTCB_t *p_sem_take_waiter(EK_CoroList_t *wait_list)
+{
+    if (wait_list == NULL || wait_list->List_Count == 0) return NULL;
+
+    EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)wait_list->List_Head->CoroNode_Owner;
+    EK_rKernelRemove(wait_list, &tcb->TCB_EventNode);
+
+    return tcb;
 }
 /* ========================= 公开API ========================= */
 
@@ -207,7 +217,6 @@ EK_CoroSemHanlder_t EK_pSemCreate(uint16_t init_count, uint16_t max_count)
 
     // 初始化结构体成员
     sem->Sem_Queue = queue; // 设置动态队列指针
-    sem->Sem_MaxCount = max_count; // 设置最大令牌数
     sem->Sem_isDynamic = true; // 标记为动态创建
 
     // 初始化等待列表
@@ -266,7 +275,6 @@ EK_CoroSemStaticHanlder_t EK_pSemCreateStatic(EK_CoroSem_t *sem, void *buffer, u
     }
 
     // 初始化结构体成员
-    sem->Sem_MaxCount = max_count; // 设置最大令牌数
     sem->Sem_isDynamic = false; // 标记为静态创建
 
     // 初始化等待列表
@@ -381,11 +389,7 @@ EK_Result_t EK_rSemGive(EK_CoroSemHanlder_t sem)
     if (sem->Sem_WaitList.List_Count > 0)
     {
         // 获取等待链表头部的协程（等待时间最长）
-        EK_CoroListNode_t *wait_node = sem->Sem_WaitList.List_Head;
-        EK_CoroTCB_t *wait_tcb = (EK_CoroTCB_t *)wait_node->CoroNode_Owner;
-
-        // 从等待列表中移除该协程
-        EK_rKernelRemove(&sem->Sem_WaitList, wait_node);
+        EK_CoroTCB_t *wait_tcb = p_sem_take_waiter(&sem->Sem_WaitList);
 
         // 设置唤醒原因和状态
         wait_tcb->TCB_EventResult = EK_CORO_EVENT_OK;
@@ -403,6 +407,81 @@ EK_Result_t EK_rSemGive(EK_CoroSemHanlder_t sem)
         EK_EXIT_CRITICAL();
         return r_sem_give(sem);
     }
+}
+
+/**
+ * @brief 获取信号量当前计数值
+ * @details 返回信号量当前可用的资源数量，即当前等待该信号量的任务数量
+ * @param sem 信号量句柄
+ * @return EK_Size_t 当前信号量计数值，sem为NULL时返回0
+ * @note 此函数不会阻塞，只返回当前状态快照
+ */
+EK_Size_t EK_uSemGetCount(EK_CoroSemHanlder_t sem)
+{
+    // 参数有效性检查
+    if (sem == NULL) return 0;
+    EK_Queue_t *queue = EK_SEM_GET_QUEUE(sem);
+    return queue->Queue_Size;
+}
+
+/**
+ * @brief 获取信号量剩余可用空间
+ * @details 返回信号量还可以接受多少个等待任务，等于容量减去当前计数值
+ * @param sem 信号量句柄
+ * @return EK_Size_t 剩余可用空间，sem为NULL时返回0
+ * @note 此函数不会阻塞，只返回当前状态快照
+ */
+EK_Size_t EK_uSemGetFree(EK_CoroSemHanlder_t sem)
+{
+    // 参数有效性检查
+    if (sem == NULL) return 0;
+    EK_Queue_t *queue = EK_SEM_GET_QUEUE(sem);
+    return queue->Queue_Capacity - queue->Queue_Size;
+}
+
+/**
+ * @brief 获取信号量最大容量
+ * @details 返回信号量能够容纳的最大等待任务数量
+ * @param sem 信号量句柄
+ * @return EK_Size_t 信号量最大容量，sem为NULL时返回0
+ * @note 此函数不会阻塞，返回创建时设定的固定容量值
+ */
+EK_Size_t EK_uSemGetCapacity(EK_CoroSemHanlder_t sem)
+{
+    // 参数有效性检查
+    if (sem == NULL) return 0;
+    EK_Queue_t *queue = EK_SEM_GET_QUEUE(sem);
+    return queue->Queue_Capacity;
+}
+
+/**
+ * @brief 检查信号量是否已满
+ * @details 检查信号量是否已达到最大容量，无法再接受新的等待任务
+ * @param sem 信号量句柄
+ * @return bool 信号量已满返回true，否则返回false；sem为NULL时返回false
+ * @note 此函数不会阻塞，只是查询信号量的当前状态
+ */
+bool EK_bSemIsFull(EK_CoroSemHanlder_t sem)
+{
+    // 参数有效性检查
+    if (sem == NULL) return false;
+    EK_Queue_t *queue = EK_SEM_GET_QUEUE(sem);
+    return EK_bQueueIsFull(queue);
+}
+
+/**
+ * @brief 检查信号量是否为空
+ * @details 检查信号量是否没有任何等待任务
+ * @param sem 信号量句柄
+ * @return bool 信号量为空返回true，否则返回false；sem为NULL时返回false
+ * @note 此函数不会阻塞，只是查询信号量的当前状态
+ */
+bool EK_bSemIsEmpty(EK_CoroSemHanlder_t sem)
+{
+    // 参数有效性检查
+    if (sem == NULL) return false;
+    EK_Queue_t *queue = EK_SEM_GET_QUEUE(sem);
+    return EK_bQueueIsEmpty(queue);
 }
 
 #endif /* EK_CORO_SEMAPHORE_ENABLE == 1 */

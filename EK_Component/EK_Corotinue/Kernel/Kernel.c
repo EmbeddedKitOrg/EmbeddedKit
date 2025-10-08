@@ -45,7 +45,7 @@
 #define EK_KERNEL_CLZ(__BITMAP__) ((__BITMAP__) == 0 ? 0 : (uint8_t)(31 - __CLZ(__BITMAP__)))
 #else
 // 软件实现作为备用
-static inline uint8_t v_kernel_find_msb_index(EK_BitMap_t val)
+STATIC_INLINE uint8_t v_kernel_find_msb_index(EK_BitMap_t val)
 {
     if (val == 0) return 0;
     uint8_t msb_idx = 0;
@@ -69,11 +69,7 @@ static inline uint8_t v_kernel_find_msb_index(EK_BitMap_t val)
  *
  */
 #ifndef EK_CORO_IDLE_TASK_STACK_SIZE
-#if (EK_CORO_FPU_USED == 0)
-#define EK_CORO_IDLE_TASK_STACK_SIZE (256) // 定义空闲任务的堆栈大小
-#else
 #define EK_CORO_IDLE_TASK_STACK_SIZE (512) // 定义空闲任务的堆栈大小
-#endif /* EK_CORO_FPU_USED == 0 */
 #endif /* EK_CORO_IDLE_TASK_STACK_SIZE */
 
 /* ========================= 全局变量(内部)定义区 ========================= */
@@ -83,6 +79,7 @@ static EK_CoroList_t KernelBlockList1; // 阻塞任务列表 1
 static EK_CoroList_t KernelBlockList2; // 阻塞任务列表 2
 static EK_CoroList_t KernelSuspendList; // 挂起任务列表
 
+/* 阻塞链表指针 */
 static EK_CoroList_t *KernelCurrentBlockPointer; // 用于指向当前就绪的阻塞链表
 static EK_CoroList_t *KernelNextBlockPointer; // 用于指向溢出的就绪的阻塞链表
 
@@ -100,55 +97,90 @@ static volatile EK_BitMap_t KernelReadyBitMap; // 就绪链表位图
 static uint32_t KernelTick; //时基
 
 /*临界区*/
-static volatile uint32_t KernelCriticalNesting = 0U; // 临界区嵌套计数
-static uint32_t KernelSavedPrimask = 0U; // 临界区退出时恢复的 PRIMASK
+static volatile uint32_t KernelCriticalNesting = 0U; // 临界区嵌套计数（任务上下文）
+static uint32_t KernelSavedPrimask = 0U; // 临界区退出时恢复的 PRIMASK（任务上下文）
+static volatile uint32_t ISRCriticalNesting = 0U; // ISR临界区嵌套计数（中断上下文）
+static uint32_t ISRSavedPrimask = 0U; // ISR上下文退出时恢复的 PRIMASK
 
 /* ========================= 临界区管理实现区 ========================= */
 
 /**
- * @brief 进入内核临界区，禁止中断
+ * @brief 进入内核临界区，禁止中断（ISR自适应版本）
  * @details
- *  此函数实现嵌套临界区保护机制：
- *  1. 保存当前中断状态(PRIMASK)
- *  2. 禁止所有中断
- *  3. 首次进入时保存原始中断状态
- *  4. 增加嵌套计数器
- *  5. 添加数据内存屏障确保操作顺序
- * @note 支持嵌套调用，只有最外层调用时才保存中断状态
+ *  此函数实现嵌套临界区保护机制，自动适配ISR和任务上下文：
+ *  1. 先检测当前是否在中断中
+ *  2. 保存当前中断状态(PRIMASK)
+ *  3. 禁止所有中断
+ *  4. 根据上下文选择不同的处理策略
+ *  5. 增加对应上下文的嵌套计数器
+ *  6. 添加数据内存屏障确保操作顺序
+ * @note 支持嵌套调用，ISR和任务上下文使用独立的计数器
  */
 void EK_vEnterCritical(void)
 {
+    // 在禁用中断前先检测当前上下文
+    bool in_interrupt = EK_IS_IN_INTERRUPT();
     uint32_t primask = __get_PRIMASK(); // 获取当前中断状态
     __disable_irq(); // 禁止所有中断
-    if (KernelCriticalNesting == 0U) // 首次进入临界区
+
+    if (in_interrupt)
     {
-        KernelSavedPrimask = primask; // 保存原始中断状态，用于退出时恢复
+        // ISR上下文：保存进入前状态并增加嵌套计数
+        if (ISRCriticalNesting == 0U)
+        {
+            ISRSavedPrimask = primask; // 保存ISR进入前的中断状态
+        }
+        ISRCriticalNesting++;
     }
-    KernelCriticalNesting++; // 增加嵌套计数
+    else
+    {
+        // 任务上下文：保存状态并增加计数
+        if (KernelCriticalNesting == 0U) // 首次进入临界区
+        {
+            KernelSavedPrimask = primask; // 保存原始中断状态，用于退出时恢复
+        }
+        KernelCriticalNesting++; // 增加嵌套计数
+    }
+
     __DMB(); // 数据内存屏障，确保操作完成
 }
 
 /**
- * @brief 退出内核临界区，恢复中断状态
+ * @brief 退出内核临界区，恢复中断状态（ISR自适应版本）
  * @details
- *  此函数实现嵌套临界区的安全退出机制：
- *  1. 检查嵌套计数器，防止过度退出
- *  2. 减少嵌套计数器
- *  3. 最外层退出时恢复原始中断状态
- *  4. 添加数据内存屏障确保操作顺序
- * @note 只有当嵌套计数归零时才真正恢复中断状态，支持嵌套调用
+ *  此函数实现嵌套临界区的安全退出机制，自动适配ISR和任务上下文：
+ *  1. 使用保存的原始中断状态判断上下文
+ *  2. 检查对应上下文的嵌套计数器，防止过度退出
+ *  3. 减少对应上下文的嵌套计数器
+ *  4. 任务上下文最外层退出时恢复原始中断状态
+ *  5. 添加数据内存屏障确保操作顺序
+ * @note ISR和任务上下文使用独立的计数器，只有任务上下文才恢复中断状态
  */
 void EK_vExitCritical(void)
 {
-    if (KernelCriticalNesting == 0U) // 检查是否过度退出
+    if (ISRCriticalNesting > 0)
     {
-        return; // 过度退出，直接返回
+        // ISR上下文：减少嵌套计数，必要时恢复状态
+        ISRCriticalNesting--; // 减少嵌套计数
+        if (ISRCriticalNesting == 0U)
+        {
+            __DMB(); // 数据内存屏障，确保操作完成
+            __set_PRIMASK(ISRSavedPrimask); // 恢复ISR进入前的中断状态
+        }
     }
-    KernelCriticalNesting--; // 减少嵌套计数
-    if (KernelCriticalNesting == 0U) // 最外层退出
+    else
     {
-        __DMB(); // 数据内存屏障，确保操作完成
-        __set_PRIMASK(KernelSavedPrimask); // 恢复原始中断状态
+        // 任务上下文：减少计数并可能恢复状态
+        if (KernelCriticalNesting == 0U) // 检查是否过度退出
+        {
+            return; // 过度退出，直接返回
+        }
+        KernelCriticalNesting--; // 减少嵌套计数
+        if (KernelCriticalNesting == 0U) // 最外层退出
+        {
+            __DMB(); // 数据内存屏障，确保操作完成
+            __set_PRIMASK(KernelSavedPrimask); // 恢复原始中断状态
+        }
     }
 }
 
@@ -194,7 +226,7 @@ __weak void EK_vStackOverflowHook(EK_CoroTCB_t *overflow_tcb)
  *  方法2：检测栈指针是否超出栈范围（更全面）
  * @param tcb 要检测的任务控制块
  */
-static inline void v_check_stack_overflow(EK_CoroTCB_t *tcb)
+STATIC_INLINE void v_check_stack_overflow(EK_CoroTCB_t *tcb)
 {
     if (tcb == NULL || tcb->TCB_StackStart == NULL)
     {
@@ -249,7 +281,7 @@ static inline void v_check_stack_overflow(EK_CoroTCB_t *tcb)
  *  第一个被修改的字节，计算栈使用量。
  * @param tcb 要检测的任务控制块
  */
-static inline void v_calculate_stack_high_water_mark(EK_CoroTCB_t *tcb)
+STATIC_INLINE void v_calculate_stack_high_water_mark(EK_CoroTCB_t *tcb)
 {
     // 参数有效性检查
     if (tcb == NULL || tcb->TCB_StackStart == NULL || tcb->TCB_StackEnd == NULL)
@@ -786,6 +818,9 @@ void EK_vKernelInit(void)
 {
     if (KernelIsInited == true) return;
 
+    // 关闭SysTick中断，确保初始化期间不被时钟中断打扰
+    SysTick->CTRL &= ~SysTick_CTRL_TICKINT_Msk;
+
     // 初始化内存池
     while (EK_bMemPool_Init() != true);
 
@@ -838,11 +873,14 @@ void EK_vKernelInit(void)
     // 设置SysTick中断优先级为最低
     NVIC_SetPriority(SysTick_IRQn, 0xFF);
 
+    // 设置PendSV中断优先级为最低
+    NVIC_SetPriority(PendSV_IRQn, 0xFF);
+
+    // 配置SysTick
+    while (SysTick_Config(EK_CORO_SYSTEM_FREQ / EK_CORO_TICK_RATE_HZ));
+
     // 开启SysTick中断
     SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk;
-
-    // 开启SysTick
-    while (SysTick_Config(EK_CORO_SYSTEM_FREQ / EK_CORO_TICK_RATE_HZ));
 
     KernelIsInited = true;
 }
