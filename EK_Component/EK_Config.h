@@ -128,19 +128,25 @@ extern bool EK_bMemPool_Free(void *ptr);
  * @details 0: 禁用栈溢出检测; 1: 方法1(检测栈底填充值); 2: 方法2(检测栈指针是否超出范围)
  * @note 方法1性能较好但检测范围有限; 方法2检测更全面但性能开销稍大
  */
-#define EK_CORO_STACK_OVERFLOW_CHECK (0) // 0:禁用 1:方法1 2:方法2
+#define EK_CORO_STACK_OVERFLOW_CHECK_ENABLE (0) // 0:禁用 1:方法1 2:方法2
+
+/**
+ * @brief 是否使能高水位检测功能
+ * @details 启用后会统计每个任务的栈使用历史最大值，可用于调试和优化内存使用
+ */
+#define EK_HIGH_WATER_MARK_ENABLE (0) // 1:使能 0:失能
 
 /**
  * @brief 是否使能消息队列
  *
  */
-#define EK_CORO_USE_MESSAGE_QUEUE (1) // 1:使能 0:失能
+#define EK_CORO_MESSAGE_QUEUE_ENABLE (1) // 1:使能 0:失能
 
 /**
  * @brief 是否使能信号量
  *
  */
-#define EK_CORO_USE_SEMAPHORE (1) // 1:使能 0:失能
+#define EK_CORO_SEMAPHORE_ENABLE (1) // 1:使能 0:失能
 
 #else
 

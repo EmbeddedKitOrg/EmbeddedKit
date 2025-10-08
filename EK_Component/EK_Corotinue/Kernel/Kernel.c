@@ -18,9 +18,9 @@
 
 #if (EK_CORO_ENABLE == 1)
 
-#if (EK_CORO_USE_MESSAGE_QUEUE == 1)
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
 #include "../Message/EK_CoroMessage.h"
-#endif /* EK_CORO_USE_MESSAGE_QUEUE == 1 */
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
 
 /* ========================= 内部宏定义区 ========================= */
 
@@ -153,7 +153,7 @@ void EK_vExitCritical(void)
 }
 
 /* ========================= 栈溢出检测实现区 ========================= */
-#if (EK_CORO_STACK_OVERFLOW_CHECK > 0)
+#if (EK_CORO_STACK_OVERFLOW_CHECK_ENABLE > 0)
 /**
  * @brief 弱定义的栈溢出钩子函数
  * @details
@@ -196,14 +196,14 @@ __weak void EK_vStackOverflowHook(EK_CoroTCB_t *overflow_tcb)
  */
 static inline void v_check_stack_overflow(EK_CoroTCB_t *tcb)
 {
-    if (tcb == NULL || tcb->TCB_StackBase == NULL)
+    if (tcb == NULL || tcb->TCB_StackStart == NULL)
     {
         return;
     }
 
-#if (EK_CORO_STACK_OVERFLOW_CHECK == 1)
+#if (EK_CORO_STACK_OVERFLOW_CHECK_ENABLE == 1)
     /* 方法1：检测栈底填充值是否被覆盖 */
-    uint8_t *stack_bottom = (uint8_t *)tcb->TCB_StackBase;
+    uint8_t *stack_bottom = (uint8_t *)tcb->TCB_StackStart;
 
     // 检查栈底的几个字节是否仍为填充值
     if (stack_bottom[0] != EK_STACK_FILL_PATTERN || stack_bottom[1] != EK_STACK_FILL_PATTERN ||
@@ -213,13 +213,17 @@ static inline void v_check_stack_overflow(EK_CoroTCB_t *tcb)
         EK_vStackOverflowHook(tcb);
     }
 
-#elif (EK_CORO_STACK_OVERFLOW_CHECK == 2)
+#elif (EK_CORO_STACK_OVERFLOW_CHECK_ENABLE == 2)
     /* 方法2：检测栈指针是否超出栈范围 */
     if (tcb->TCB_StackPointer != NULL)
     {
         uint8_t *stack_ptr = (uint8_t *)tcb->TCB_StackPointer;
-        uint8_t *stack_bottom = (uint8_t *)tcb->TCB_StackBase;
+        uint8_t *stack_bottom = (uint8_t *)tcb->TCB_StackStart;
+#if (EK_HIGH_WATER_MARK_ENABLE == 1)
         uint8_t *stack_top = (uint8_t *)tcb->TCB_StackEnd;
+#else
+        uint8_t *stack_top = (uint8_t *)((uint8_t *)tcb->TCB_StackStart + tcb->TCB_StackSize);
+#endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
 
         // 检查栈指针是否超出栈范围
         if (stack_ptr < stack_bottom || stack_ptr >= stack_top)
@@ -228,12 +232,13 @@ static inline void v_check_stack_overflow(EK_CoroTCB_t *tcb)
             EK_vStackOverflowHook(tcb);
         }
     }
-#endif /* EK_CORO_STACK_OVERFLOW_CHECK */
+#endif /* EK_CORO_STACK_OVERFLOW_CHECK_ENABLE */
 }
-#endif /* (EK_CORO_STACK_OVERFLOW_CHECK > 0) */
+#endif /* (EK_CORO_STACK_OVERFLOW_CHECK_ENABLE > 0) */
 
-/* ========================= 高水位标记计算区（始终可用） ========================= */
+/* ========================= 高水位标记计算区 ========================= */
 
+#if (EK_HIGH_WATER_MARK_ENABLE == 1)
 /**
  * @brief 独立的高水位标记计算函数
  * @details
@@ -247,13 +252,13 @@ static inline void v_check_stack_overflow(EK_CoroTCB_t *tcb)
 static inline void v_calculate_stack_high_water_mark(EK_CoroTCB_t *tcb)
 {
     // 参数有效性检查
-    if (tcb == NULL || tcb->TCB_StackBase == NULL || tcb->TCB_StackEnd == NULL)
+    if (tcb == NULL || tcb->TCB_StackStart == NULL || tcb->TCB_StackEnd == NULL)
     {
         return;
     }
 
     // 获取栈的起始和结束地址
-    uint8_t *stack_base = (uint8_t *)tcb->TCB_StackBase; // 栈底（低地址）
+    uint8_t *stack_base = (uint8_t *)tcb->TCB_StackStart; // 栈底（低地址）
     uint8_t *stack_limit = (uint8_t *)tcb->TCB_StackEnd; // 栈顶（高地址）
     EK_Size_t used_bytes = 0;
 
@@ -289,6 +294,7 @@ static inline void v_calculate_stack_high_water_mark(EK_CoroTCB_t *tcb)
         tcb->TCB_StackHighWaterMark = used_bytes;
     }
 }
+#endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
 
 /* ========================= 空闲任务实现区 ========================= */
 
@@ -321,7 +327,7 @@ static void Kernel_CoroIdleFunction(void *arg)
         {
             if (KernelToDeleteTCB->TCB_isDynamic)
             {
-                EK_CORO_FREE(KernelToDeleteTCB->TCB_StackBase);
+                EK_CORO_FREE(KernelToDeleteTCB->TCB_StackStart);
                 EK_CORO_FREE(KernelToDeleteTCB);
             }
             KernelToDeleteTCB = NULL;
@@ -901,11 +907,13 @@ void EK_vKernelYield(void)
     // 在任务切换前检查下一个任务的栈溢出情况并计算高水位标记
     // 注意：这里检查的是即将运行的任务，确保它在运行前栈是安全的
     // 执行栈溢出检测（如果启用）
-#if (EK_CORO_STACK_OVERFLOW_CHECK > 0)
+#if (EK_CORO_STACK_OVERFLOW_CHECK_ENABLE > 0)
     v_check_stack_overflow(KernelNextTCB);
-#endif
-    // 始终执行高水位标记计算
+#endif /* EK_CORO_STACK_OVERFLOW_CHECK_ENABLE > 0 */
+    // 执行高水位标记计算（如果启用）
+#if (EK_HIGH_WATER_MARK_ENABLE == 1)
     v_calculate_stack_high_water_mark(KernelNextTCB);
+#endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
 
     EK_EXIT_CRITICAL();
 
@@ -956,13 +964,14 @@ void EK_vTickHandler(void)
                 // 由于阻塞链表是按唤醒时间升序排列的，如果当前任务还没到期，后续任务也一定没到期
                 break;
             }
-
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1)
             // 如果任务正在等待某个事件 (即其事件节点在某个等待列表中)
             if (current_tcb->TCB_EventNode.CoroNode_List != NULL)
             {
                 // 那么延时到期意味着事件超时
                 current_tcb->TCB_EventResult = EK_CORO_EVENT_TIMEOUT;
             }
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 */
 
             // 任务延时已到，将其唤醒
             current_tcb->TCB_State = EK_CORO_READY;

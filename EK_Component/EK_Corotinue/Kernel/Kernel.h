@@ -88,6 +88,24 @@ extern void EK_Coro_Free(void *ptr);
  */
 #define EK_STACK_FILL_PATTERN (0xA5)
 
+/**
+ * @brief 获取结构体成员中的偏移量
+ * @param __type__ 结构体数据类型
+ * @param __mem__ 成员名
+ * 
+ */
+#define EK_GET_OFFSET_OF(__type__, __mem__) ((size_t)&((__type__ *)0)->__mem__)
+
+/**
+ * @brief 通过一个结构体成员的地址反推得到整个结构体的地址
+ * @param __ptr__ 获取地址的指针
+ * @param __type__ 结构体数据类型
+ * @param __mem__ 成员名 
+ * 
+ */
+#define EK_GET_OWNER_OF(__ptr__, __type__, __mem__) \
+    ((__type__ *)(char *)(__ptr__) - EK_GET_OFFSET_OF(__type__, __mem__))
+
 /* ========================= 数据结构 ========================= */
 typedef void (*EK_CoroFunction_t)(void *arg); //协程任务的入口函数指针类型
 typedef uint32_t EK_CoroStack_t; // 堆栈元素类型
@@ -142,31 +160,38 @@ typedef enum
  * @brief 协程任务控制块 (Task Control Block).
  * @details 这是内核管理协程的核心数据结构，包含了协程运行所需的所有信息。
  */
-#if (EK_CORO_USE_MESSAGE_QUEUE == 1)
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
 struct EK_CoroMsg_t; // 前向声明消息结构体
-#endif /* EK_CORO_USE_MESSAGE_QUEUE == 1 */
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
 
 typedef struct EK_CoroTCB_t
 {
     EK_CoroStack_t *TCB_StackPointer; /**< 协程的栈顶指针. */
     void *TCB_Arg; /**< 协程入口函数的参数. */
-    void *TCB_StackBase; /**< 协程栈的起始(低)地址. */
-    void *TCB_StackEnd; /**< 协程栈的结束(高)地址，用于高水位检测. */
+    void *TCB_StackStart; /**< 协程栈的起始(低)地址. */
+    EK_Size_t TCB_StackSize; /**< 协程栈的总大小 (以字节为单位). */
+    EK_CoroState_t TCB_State; /**< 协程的当前状态. */
+    EK_CoroFunction_t TCB_Entry; /**< 协程的入口函数地址. */
     uint16_t TCB_Priority; /**< 协程的优先级 (数值越小，优先级越高). */
     bool TCB_isDynamic; /**< 标记协程是否为动态创建 (用于内存管理). */
     uint32_t TCB_WakeUpTime; /**< 要被唤醒的tick */
     uint32_t TCB_LastWakeUpTime; /**< 上次唤醒的tick，用于delayUntil功能 */
-    EK_Size_t TCB_StackSize; /**< 协程栈的总大小 (以字节为单位). */
-    EK_Size_t TCB_StackHighWaterMark; /**< 协程栈的高水位标记 (历史最大使用量). */
-    EK_CoroState_t TCB_State; /**< 协程的当前状态. */
-    EK_CoroFunction_t TCB_Entry; /**< 协程的入口函数地址. */
     EK_CoroListNode_t TCB_StateNode; /**< 用于将此TCB链入状态管理链表的节点. */
-    EK_CoroListNode_t TCB_EventNode; /**< 用于将此TCB链入事件管理链表的节点. */
 
-#if (EK_CORO_USE_MESSAGE_QUEUE == 1)
+#if (EK_HIGH_WATER_MARK_ENABLE == 1)
+    void *TCB_StackEnd; /**< 协程栈的结束(高)地址，用于高水位检测. */
+    EK_Size_t TCB_StackHighWaterMark; /**< 协程栈的高水位标记 (历史最大使用量). */
+#endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
+
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1)
+    EK_CoroListNode_t TCB_EventNode; /**< 用于将此TCB链入事件管理链表的节点. */
     EK_CoroEventResult_t TCB_EventResult; /**< 最近一次唤醒的原因 */
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 */
+
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
     void *TCB_MsgData; /**< 用于消息队列，指向等待任务的数据缓冲区 */
-#endif /* EK_CORO_USE_MESSAGE_QUEUE == 1 */
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
+
 } EK_CoroTCB_t;
 
 typedef EK_CoroTCB_t *EK_CoroHandler_t; // 动态类型的指针

@@ -38,7 +38,11 @@ void EK_vCoroYield(void);
 EK_Result_t EK_rCoroWakeup(EK_CoroHandler_t task_handle);
 void EK_vCoroSetPriority(EK_CoroHandler_t task_handle, uint16_t priority, EK_Result_t *result);
 EK_Size_t EK_uCoroGetStack(EK_CoroHandler_t task_handle);
+
+#if (EK_HIGH_WATER_MARK_ENABLE == 1)
 EK_Size_t EK_uCoroGetHighWaterMark(EK_CoroHandler_t task_handle);
+EK_Size_t EK_uCoroGetStackUsage_Debug(EK_CoroHandler_t task_handle);
+#endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
 
 #ifdef __cplusplus
 }
