@@ -90,7 +90,7 @@ ALWAYS_STATIC_INLINE void v_task_init_context(EK_CoroTCB_t *tcb)
     *(--stk) = (uintptr_t)tcb->TCB_Arg; // R0 (任务参数)
 
     // 伪造软件手动保存的上下文
-    *(--stk) = INITIAL_EXC_RETURN; // EXC_RETURN:无FPU版本
+    *(--stk) = INITIAL_EXC_RETURN; // EXC_RETURN:无FPU 初始化不需要管FPU
     *(--stk) = 0; // R11
     *(--stk) = 0; // R10
     *(--stk) = 0; // R9
@@ -103,6 +103,7 @@ ALWAYS_STATIC_INLINE void v_task_init_context(EK_CoroTCB_t *tcb)
     // 更新TCB中的堆栈指针
     tcb->TCB_StackPointer = stk;
 }
+
 /**
  * @brief 动态创建一个协程。
  * @details
@@ -120,15 +121,15 @@ EK_CoroHandler_t EK_pCoroCreate(EK_CoroFunction_t task_func, void *task_arg, uin
     if (task_func == NULL) return NULL;
 
     // 为任务控制块 (TCB) 分配内存
-    EK_CoroTCB_t *dynamic_tcb = (EK_CoroTCB_t *)EK_CORO_MALLOC(sizeof(EK_CoroTCB_t));
-    if (dynamic_tcb == NULL) return NULL;
+    EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)EK_CORO_MALLOC(sizeof(EK_CoroTCB_t));
+    if (tcb == NULL) return NULL;
 
     // 为任务堆栈分配内存
     void *stack = EK_CORO_MALLOC(stack_size);
     if (stack == NULL)
     {
         // 如果堆栈分配失败，则释放已分配的TCB内存，防止内存泄漏
-        EK_CORO_FREE(dynamic_tcb);
+        EK_CORO_FREE(tcb);
         return NULL;
     }
 
@@ -142,48 +143,54 @@ EK_CoroHandler_t EK_pCoroCreate(EK_CoroFunction_t task_func, void *task_arg, uin
     }
 
     // 初始化TCB中的各个成员
-    dynamic_tcb->TCB_Entry = task_func;
-    dynamic_tcb->TCB_Arg = task_arg;
-    dynamic_tcb->TCB_StackStart = stack;
-    dynamic_tcb->TCB_Priority = priority;
-    dynamic_tcb->TCB_StackSize = stack_size;
+    tcb->TCB_Entry = task_func;
+    tcb->TCB_Arg = task_arg;
+    tcb->TCB_StackStart = stack;
+    tcb->TCB_Priority = priority;
+    tcb->TCB_StackSize = stack_size;
 
-#if (EK_HIGH_WATER_MARK_ENABLE == 1)
-    dynamic_tcb->TCB_StackEnd = (void *)((uint8_t *)stack + stack_size); // 栈顶地址
-    dynamic_tcb->TCB_StackHighWaterMark = 0; // 初始化高水位标记
-#endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
+    tcb->TCB_WakeUpTime = 0;
+    tcb->TCB_LastWakeUpTime = 0;
+    tcb->TCB_isDynamic = true;
+    tcb->TCB_State = EK_CORO_READY;
+    tcb->TCB_StateNode.CoroNode_Owner = tcb;
+    tcb->TCB_StateNode.CoroNode_Next = NULL;
+    tcb->TCB_StateNode.CoroNode_Prev = NULL;
+    tcb->TCB_StateNode.CoroNode_List = NULL;
 
-    dynamic_tcb->TCB_WakeUpTime = 0;
-    dynamic_tcb->TCB_LastWakeUpTime = 0; // 初始化上次唤醒时间
-    dynamic_tcb->TCB_isDynamic = true; // 标记为动态创建
-    dynamic_tcb->TCB_State = EK_CORO_READY;
-    dynamic_tcb->TCB_StateNode.CoroNode_Owner = dynamic_tcb;
-    dynamic_tcb->TCB_StateNode.CoroNode_Next = NULL;
-    dynamic_tcb->TCB_StateNode.CoroNode_Prev = NULL;
-    dynamic_tcb->TCB_StateNode.CoroNode_List = NULL;
+#if (EK_CORO_TASK_NOTIFY_ENABLE == 1)
+    tcb->TCB_NotifyState = 0;
+    EK_vMemSet(tcb->TCB_NotifyValue, 0, EK_CORO_TASK_NOTIFY_GROUP);
+#endif /* EK_CORO_TASK_NOTIFY_ENABLE == 1 */
 
 #if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1)
-    dynamic_tcb->TCB_EventNode.CoroNode_Owner = dynamic_tcb;
-    dynamic_tcb->TCB_EventNode.CoroNode_Next = NULL;
-    dynamic_tcb->TCB_EventNode.CoroNode_Prev = NULL;
-    dynamic_tcb->TCB_EventNode.CoroNode_List = NULL;
-    dynamic_tcb->TCB_EventResult = EK_CORO_EVENT_NONE;
+    tcb->TCB_EventNode.CoroNode_Owner = tcb;
+    tcb->TCB_EventNode.CoroNode_Next = NULL;
+    tcb->TCB_EventNode.CoroNode_Prev = NULL;
+    tcb->TCB_EventNode.CoroNode_List = NULL;
 #endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 */
 
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 || EK_CORO_TASK_NOTIFY_ENABLE == 1)
+    tcb->TCB_EventResult = EK_CORO_EVENT_NONE;
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 || EK_CORO_TASK_NOTIFY_ENABLE == 1 */
+
 #if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
-    dynamic_tcb->TCB_MsgData = NULL;
+    tcb->TCB_MsgData = NULL;
 #endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
 
-    // 初始化任务的上下文（模拟CPU寄存器入栈）
-    v_task_init_context(dynamic_tcb);
+#if (EK_HIGH_WATER_MARK_ENABLE == 1)
+    tcb->TCB_StackEnd = (void *)((uint8_t *)stack + stack_size);
+    tcb->TCB_StackHighWaterMark = 0;
+#endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
 
-    EK_ENTER_CRITICAL();
+    // 初始化任务的上下文（模拟CPU寄存器入栈）
+    v_task_init_context(tcb);
+
     // 将新创建的任务插入到就绪链表中
-    EK_rKernelInsert_Tail(EK_pKernelGetReadyList(priority), &dynamic_tcb->TCB_StateNode);
-    EK_EXIT_CRITICAL();
+    EK_rKernelInsert_Tail(EK_pKernelGetReadyList(priority), &tcb->TCB_StateNode);
 
     // 返回任务句柄
-    return (EK_CoroHandler_t)dynamic_tcb;
+    return (EK_CoroHandler_t)tcb;
 }
 
 /**
@@ -191,7 +198,7 @@ EK_CoroHandler_t EK_pCoroCreate(EK_CoroFunction_t task_func, void *task_arg, uin
  * @details
  *  此函数使用用户提供的 TCB 结构体和堆栈缓冲区来创建一个任务，避免了动态内存分配。
  *  创建成功后，任务被置于就绪状态，并根据其优先级插入到相应的就绪链表中，等待调度器执行。
- * @param static_tcb 用户提供的静态 TCB 结构体指针。
+ * @param tcb 用户提供的静态 TCB 结构体指针。
  * @param task_func 任务的入口函数指针。
  * @param task_arg 传递给任务入口函数的参数。
  * @param priority 任务的优先级 (数值越小，优先级越高)。
@@ -199,7 +206,7 @@ EK_CoroHandler_t EK_pCoroCreate(EK_CoroFunction_t task_func, void *task_arg, uin
  * @param stack_size 任务堆栈的大小 (以字节为单位)。
  * @return EK_CoroStaticHandler_t 成功时返回静态协程的句柄，参数无效时返回 NULL。
  */
-EK_CoroStaticHandler_t EK_pCoroCreateStatic(EK_CoroTCB_t *static_tcb,
+EK_CoroStaticHandler_t EK_pCoroCreateStatic(EK_CoroTCB_t *tcb,
                                             EK_CoroFunction_t task_func,
                                             void *task_arg,
                                             uint16_t priority,
@@ -207,7 +214,7 @@ EK_CoroStaticHandler_t EK_pCoroCreateStatic(EK_CoroTCB_t *static_tcb,
                                             EK_Size_t stack_size)
 {
     // 确保所有必要的指针都已提供
-    if (static_tcb == NULL || task_func == NULL || stack == NULL) return NULL;
+    if (tcb == NULL || task_func == NULL || stack == NULL) return NULL;
 
     // 填充堆栈以便检测堆栈使用情况
     EK_vMemSet(stack, EK_STACK_FILL_PATTERN, stack_size);
@@ -219,48 +226,54 @@ EK_CoroStaticHandler_t EK_pCoroCreateStatic(EK_CoroTCB_t *static_tcb,
     }
 
     // 初始化用户传入的TCB结构体
-    static_tcb->TCB_Entry = task_func;
-    static_tcb->TCB_Arg = task_arg;
-    static_tcb->TCB_Priority = priority;
-    static_tcb->TCB_StackStart = stack;
-    static_tcb->TCB_StackSize = stack_size;
+    tcb->TCB_Entry = task_func;
+    tcb->TCB_Arg = task_arg;
+    tcb->TCB_Priority = priority;
+    tcb->TCB_StackStart = stack;
+    tcb->TCB_StackSize = stack_size;
 
-#if (EK_HIGH_WATER_MARK_ENABLE == 1)
-    static_tcb->TCB_StackEnd = (void *)((uint8_t *)stack + stack_size); // 栈顶地址
-    static_tcb->TCB_StackHighWaterMark = 0; // 初始化高水位标记
-#endif /* EK_HIGH_WATER_MARK_ENABLE */
+    tcb->TCB_WakeUpTime = 0;
+    tcb->TCB_LastWakeUpTime = 0;
+    tcb->TCB_isDynamic = false;
+    tcb->TCB_State = EK_CORO_READY;
+    tcb->TCB_StateNode.CoroNode_Owner = tcb;
+    tcb->TCB_StateNode.CoroNode_Next = NULL;
+    tcb->TCB_StateNode.CoroNode_Prev = NULL;
+    tcb->TCB_StateNode.CoroNode_List = NULL;
 
-    static_tcb->TCB_WakeUpTime = 0;
-    static_tcb->TCB_LastWakeUpTime = 0; // 初始化上次唤醒时间
-    static_tcb->TCB_isDynamic = false; // 标记为静态创建
-    static_tcb->TCB_State = EK_CORO_READY;
-    static_tcb->TCB_StateNode.CoroNode_Owner = static_tcb;
-    static_tcb->TCB_StateNode.CoroNode_Next = NULL;
-    static_tcb->TCB_StateNode.CoroNode_Prev = NULL;
-    static_tcb->TCB_StateNode.CoroNode_List = NULL;
+#if (EK_CORO_TASK_NOTIFY_ENABLE == 1)
+    tcb->TCB_NotifyState = 0;
+    EK_vMemSet(tcb->TCB_NotifyValue, 0, EK_CORO_TASK_NOTIFY_GROUP);
+#endif /* EK_CORO_TASK_NOTIFY_ENABLE == 1 */
 
 #if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1)
-    static_tcb->TCB_EventNode.CoroNode_Owner = static_tcb;
-    static_tcb->TCB_EventNode.CoroNode_Next = NULL;
-    static_tcb->TCB_EventNode.CoroNode_Prev = NULL;
-    static_tcb->TCB_EventNode.CoroNode_List = NULL;
-    static_tcb->TCB_EventResult = EK_CORO_EVENT_NONE;
+    tcb->TCB_EventNode.CoroNode_Owner = tcb;
+    tcb->TCB_EventNode.CoroNode_Next = NULL;
+    tcb->TCB_EventNode.CoroNode_Prev = NULL;
+    tcb->TCB_EventNode.CoroNode_List = NULL;
 #endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 */
 
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 || EK_CORO_TASK_NOTIFY_ENABLE == 1)
+    tcb->TCB_EventResult = EK_CORO_EVENT_NONE;
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 || EK_CORO_TASK_NOTIFY_ENABLE == 1 */
+
 #if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
-    static_tcb->TCB_MsgData = NULL;
+    tcb->TCB_MsgData = NULL;
 #endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
 
-    // 初始化任务的上下文
-    v_task_init_context(static_tcb);
+#if (EK_HIGH_WATER_MARK_ENABLE == 1)
+    tcb->TCB_StackEnd = (void *)((uint8_t *)stack + stack_size);
+    tcb->TCB_StackHighWaterMark = 0;
+#endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
 
-    EK_ENTER_CRITICAL();
+    // 初始化任务的上下文
+    v_task_init_context(tcb);
+
     // 将任务插入到就绪链表
-    EK_rKernelInsert_Tail(EK_pKernelGetReadyList(priority), &static_tcb->TCB_StateNode);
-    EK_EXIT_CRITICAL();
+    EK_rKernelInsert_Tail(EK_pKernelGetReadyList(priority), &tcb->TCB_StateNode);
 
     // 返回任务句柄
-    return (EK_CoroHandler_t)static_tcb;
+    return (EK_CoroHandler_t)tcb;
 }
 
 /**
@@ -762,6 +775,106 @@ EK_Size_t EK_uCoroGetStack(EK_CoroHandler_t task_handle)
 
     return tcb->TCB_StackSize;
 }
+
+#if (EK_CORO_TASK_NOTIFY_ENABLE == 1)
+
+/**
+ * @brief 唤醒等待通知的任务
+ *
+ * @param task_handle 要唤醒的任务句柄
+ * @return EK_Result_t 操作结果
+ */
+ALWAYS_STATIC_INLINE EK_Result_t r_task_notify_wake(EK_CoroHandler_t task_handle)
+{
+    // 如果本身任务就是就绪的 直接返回OK即可
+    if (task_handle->TCB_State == EK_CORO_READY) return EK_OK;
+
+    task_handle->TCB_State = EK_CORO_READY;
+    task_handle->TCB_EventResult = EK_CORO_EVENT_OK;
+
+    return EK_rKernelMove_Tail(EK_pKernelGetReadyList(task_handle->TCB_Priority), &task_handle->TCB_StateNode);
+}
+
+/**
+ * @brief 使用任务通知某一个任务
+ * 
+ * @param task_handle 想要通知的任务
+ * @param bit 通知的某个位
+ * @return EK_Result_t 操作结果
+ */
+EK_Result_t EK_rCoroSendNotify(EK_CoroHandler_t task_handle, uint8_t bit)
+{
+    // 超过位图长度
+    if (bit >= EK_CORO_TASK_NOTIFY_GROUP) return EK_INVALID_PARAM;
+
+    EK_ENTER_CRITICAL();
+    // 参数合法性检查
+    if (task_handle == EK_pKernelGetIdleHandler() || task_handle == EK_pKernelGetCurrentTCB() || task_handle == NULL)
+    {
+        EK_EXIT_CRITICAL();
+        return EK_INVALID_PARAM;
+    }
+
+    // 置位
+    if (EK_bTestBit(&task_handle->TCB_NotifyState, bit) == false)
+    {
+        EK_vSetBit(&task_handle->TCB_NotifyState, bit);
+    }
+    task_handle->TCB_NotifyValue[bit] = EK_CLAMP(++task_handle->TCB_NotifyValue[bit], UINT8_MAX, 0);
+
+    // 唤醒任务
+    EK_Result_t res = r_task_notify_wake(task_handle);
+
+    EK_EXIT_CRITICAL();
+
+    return res;
+}
+
+/**
+ * @brief 等待指定位置的通知
+ *
+ * @param bit 等待的位位置
+ * @param timeout 超时时间（ms），0表示不阻塞
+ * @return EK_Result_t 操作结果
+ */
+EK_Result_t EK_rCoroWaitNotify(uint8_t bit, uint32_t timeout)
+{
+    EK_CoroTCB_t *target_tcb = EK_pKernelGetCurrentTCB(); // 获取当前的任务句柄
+    if (target_tcb == NULL) return EK_ERROR;
+
+    while (1)
+    {
+        EK_ENTER_CRITICAL();
+
+        // 查看响应位是否有标记
+        if (EK_bTestBit(&target_tcb->TCB_NotifyState, bit) == true)
+        {
+            target_tcb->TCB_NotifyValue[bit] = EK_CLAMP(--target_tcb->TCB_NotifyValue[bit], UINT8_MAX, 0);
+            if (target_tcb->TCB_NotifyValue[bit] == 0)
+            {
+                EK_vClearBit(&target_tcb->TCB_NotifyState, bit);
+            }
+            EK_EXIT_CRITICAL();
+            return EK_OK;
+        }
+        else
+        {
+            if (timeout == 0) return EK_EMPTY; // 无需阻塞直接返回
+            EK_EXIT_CRITICAL();
+            EK_vCoroDelay(timeout);
+
+            // --从这里唤醒--
+            // 超时直接退出
+            if (target_tcb->TCB_EventResult == EK_CORO_EVENT_TIMEOUT)
+            {
+                return EK_TIMEOUT;
+            }
+            // 不是超时就重试
+        }
+    }
+}
+
+#endif /* EK_CORO_TASK_NOTIFY_ENABLE == 1 */
 
 #if (EK_HIGH_WATER_MARK_ENABLE == 1)
 /**

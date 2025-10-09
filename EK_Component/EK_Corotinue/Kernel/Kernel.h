@@ -50,6 +50,20 @@ typedef uint32_t EK_BitMap_t;
  */
 #define EK_MAX_DELAY (UINT32_MAX)
 
+/**
+ * @brief 任务通知相关
+ * 
+ */
+#if (EK_CORO_TASK_NOTIFY_ENABLE == 1)
+#if (EK_CORO_TASK_NOTIFY_GROUP <= 8)
+typedef uint8_t EK_CoroTaskNotifyState_t;
+#elif (EK_CORO_TASK_NOTIFY_GROUP <= 16)
+typedef uint16_t EK_CoroTaskNotifyState_t;
+#else
+typedef uint32_t EK_CoroTaskNotifyState_t;
+#endif /* EK_CORO_TASK_NOTIFY_GROUP implementation */
+#endif /* EK_CORO_TASK_NOTIFY_ENABLE == 1 */
+
 // 临界区函数声明
 void EK_vEnterCritical(void);
 void EK_vExitCritical(void);
@@ -168,19 +182,27 @@ typedef struct EK_CoroTCB_t
     uint32_t TCB_LastWakeUpTime; /**< 上次唤醒的tick，用于delayUntil功能 */
     EK_CoroListNode_t TCB_StateNode; /**< 用于将此TCB链入状态管理链表的节点. */
 
-#if (EK_HIGH_WATER_MARK_ENABLE == 1)
-    void *TCB_StackEnd; /**< 协程栈的结束(高)地址，用于高水位检测. */
-    EK_Size_t TCB_StackHighWaterMark; /**< 协程栈的高水位标记 (历史最大使用量). */
-#endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
-
 #if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1)
     EK_CoroListNode_t TCB_EventNode; /**< 用于将此TCB链入事件管理链表的节点. */
-    EK_CoroEventResult_t TCB_EventResult; /**< 最近一次唤醒的原因 */
 #endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 */
+
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 || EK_CORO_TASK_NOTIFY_ENABLE == 1)
+    EK_CoroEventResult_t TCB_EventResult; /**< 最近一次唤醒的原因 */
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 || EK_CORO_TASK_NOTIFY_ENABLE == 1 */
+
+#if (EK_CORO_TASK_NOTIFY_ENABLE == 1)
+    EK_CoroTaskNotifyState_t TCB_NotifyState; /**< 任务通知状态位图. */
+    uint8_t TCB_NotifyValue[EK_CORO_TASK_NOTIFY_GROUP]; /**< 任务通知状态的数量. */
+#endif /* EK_CORO_TASK_NOTIFY_ENABLE == 1 */
 
 #if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
     void *TCB_MsgData; /**< 用于消息队列，指向等待任务的数据缓冲区 */
 #endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
+
+#if (EK_HIGH_WATER_MARK_ENABLE == 1)
+    void *TCB_StackEnd; /**< 协程栈的结束(高)地址，用于高水位检测. */
+    EK_Size_t TCB_StackHighWaterMark; /**< 协程栈的高水位标记 (历史最大使用量). */
+#endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
 
 } EK_CoroTCB_t;
 

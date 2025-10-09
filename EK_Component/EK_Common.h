@@ -22,7 +22,9 @@
 #elif defined(__IAR_SYSTEMS_ICC__)
 #define __weak __weak
 #elif defined(__CC_ARM) || defined(__ARMCC_VERSION)
-#define __weak __weak
+#define __weak __attribute__((weak))
+#elif defined(__C51__)
+#define __weak
 #else
 #define __weak
 #endif /* __weak implementation */
@@ -36,8 +38,8 @@
 #define __unused __attribute__((unused))
 #elif defined(__CC_ARM) || defined(__ARMCC_VERSION)
 #define __unused __attribute__((unused))
-#elif defined(_MSC_VER)
-#define __unused __pragma(warning(suppress:4505))
+#elif defined(__C51__)
+#define __unused
 #else
 #define __unused
 #endif /* __unused implementation */
@@ -47,14 +49,14 @@
 #ifndef STATIC_INLINE
 #if defined(__GNUC__) || defined(__clang__)
 #define STATIC_INLINE static inline
-#elif defined(_MSC_VER)
-#define STATIC_INLINE static __inline
 #elif defined(__IAR_SYSTEMS_ICC__)
-#define STATIC_INLINE STATIC_INLINE
+#define STATIC_INLINE static inline
 #elif defined(__CC_ARM) || defined(__ARMCC_VERSION)
 #define STATIC_INLINE static __inline
+#elif defined(__C51__)
+#define STATIC_INLINE static __inline
 #else
-#define STATIC_INLINE STATIC_INLINE
+#define STATIC_INLINE static
 #endif /* STATIC_INLINE implementation */
 #endif /* STATIC_INLINE */
 
@@ -62,12 +64,12 @@
 #ifndef ALWAYS_INLINE
 #if defined(__GNUC__) || defined(__clang__)
 #define ALWAYS_INLINE STATIC_INLINE __attribute__((always_inline))
-#elif defined(_MSC_VER)
-#define ALWAYS_INLINE __forceinline
 #elif defined(__IAR_SYSTEMS_ICC__)
 #define ALWAYS_INLINE _Pragma("inline=forced") STATIC_INLINE
 #elif defined(__CC_ARM) || defined(__ARMCC_VERSION)
 #define ALWAYS_INLINE __forceinline
+#elif defined(__C51__)
+#define ALWAYS_INLINE STATIC_INLINE
 #else
 #define ALWAYS_INLINE STATIC_INLINE
 #endif /* ALWAYS_INLINE implementation */
@@ -77,25 +79,41 @@
 #ifndef ALWAYS_STATIC_INLINE
 #if defined(__GNUC__) || defined(__clang__)
 #define ALWAYS_STATIC_INLINE STATIC_INLINE __attribute__((always_inline))
-#elif defined(_MSC_VER)
-#define ALWAYS_STATIC_INLINE static __forceinline
 #elif defined(__IAR_SYSTEMS_ICC__)
 #define ALWAYS_STATIC_INLINE _Pragma("inline=forced") STATIC_INLINE
 #elif defined(__CC_ARM) || defined(__ARMCC_VERSION)
 #define ALWAYS_STATIC_INLINE static __forceinline
+#elif defined(__C51__)
+#define ALWAYS_STATIC_INLINE STATIC_INLINE
 #else
 #define ALWAYS_STATIC_INLINE STATIC_INLINE
 #endif /* ALWAYS_STATIC_INLINE implementation */
 #endif /* ALWAYS_STATIC_INLINE */
 
 /*未使用变量宏*/
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(__GNUC__) || defined(__clang__) || defined(__IAR_SYSTEMS_ICC__) || defined(__CC_ARM) || \
+    defined(__ARMCC_VERSION)
 #define UNUSED_VAR(x) ((void)(x))
-#elif defined(_MSC_VER)
+#elif defined(__C51__)
 #define UNUSED_VAR(x) ((void)(x))
 #else
-#define UNUSED_VAR(X) ((void)(x))
+#define UNUSED_VAR(x) ((void)(x))
 #endif /* UNUSED_VAR macro */
+
+/*裸函数宏*/
+#ifndef __naked
+#if defined(__GNUC__) || defined(__clang__)
+#define __naked __attribute__((naked))
+#elif defined(__IAR_SYSTEMS_ICC__)
+#define __naked __naked
+#elif defined(__CC_ARM) || defined(__ARMCC_VERSION)
+#define __naked __declspec(naked)
+#elif defined(__C51__)
+#define __naked
+#else
+#define __naked
+#endif /* __naked implementation */
+#endif /* __naked */
 
 /* ========================= 数据类型宏 ========================= */
 
@@ -155,6 +173,28 @@ typedef uint32_t uintptr_t; /*!< 用于指针和整数转换. */
 #endif /* __STDINT_H */
 
 /* ========================= 工具宏 ========================= */
+
+/*
+ * 类型推导宏
+ * - C++ 使用 decltype
+ * - GCC/Clang/IAR/Armclang 使用 __typeof__
+ * - Arm Compiler 5 (armcc) 使用 typeof 关键字
+ * 其余编译器需自行扩展，否则会在编译期抛出错误提示
+ */
+#if defined(__cplusplus)
+#define EK_TYPE_OF(__expression__) decltype(__expression__)
+#elif defined(__clang__) || defined(__GNUC__) || defined(__GNUG__)
+#define EK_TYPE_OF(__expression__) __typeof__(__expression__)
+#elif defined(__ICCARM__)
+#define EK_TYPE_OF(__expression__) __typeof__(__expression__)
+#elif defined(__CC_ARM)
+#define EK_TYPE_OF(__expression__) typeof(__expression__)
+#elif defined(__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050)
+#define EK_TYPE_OF(__expression__) __typeof__(__expression__)
+#else
+#error "EK_TYPE_OF is not supported by this compiler. Please provide an implementation."
+#endif /* EK_TYPE_OF */
+
 /**
  * @brief 获取结构体成员中的偏移量
  * @param __type__ 结构体数据类型
@@ -172,6 +212,23 @@ typedef uint32_t uintptr_t; /*!< 用于指针和整数转换. */
  */
 #define EK_GET_OWNER_OF(__ptr__, __type__, __mem__) \
     ((__type__ *)(char *)(__ptr__) - EK_GET_OFFSET_OF(__type__, __mem__))
+
+/**
+ * @brief 限制表达式值在指定范围内的宏
+ * @param __expression__ 要限制的表达式
+ * @param __max__        最大值（上界）
+ * @param __min__        最小值（下界）
+ * @return 限制后的值，确保在 [__min__, __max__] 范围内
+ * @warning 使用 ++/-- 操作符到时候 务必保证: ++/-- expression 否则宏不会奏效
+ *
+ */
+#define EK_CLAMP(__expression__, __max__, __min__)                        \
+    ({                                                                    \
+        EK_TYPE_OF(__expression__) _val = (__expression__);               \
+        EK_TYPE_OF(__max__) _max_val = (__max__);                         \
+        EK_TYPE_OF(__min__) _min_val = (__min__);                         \
+        _val < _min_val ? _min_val : (_val > _max_val ? _max_val : _val); \
+    })
 
 #ifdef __cpluscplus
 extern "C"
