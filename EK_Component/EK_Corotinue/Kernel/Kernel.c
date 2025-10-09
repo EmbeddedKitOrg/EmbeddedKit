@@ -1002,14 +1002,14 @@ void EK_vTickHandler(void)
                 // 由于阻塞链表是按唤醒时间升序排列的，如果当前任务还没到期，后续任务也一定没到期
                 break;
             }
-#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1)
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 || EK_CORO_TASK_NOTIFY_ENABLE == 1)
             // 如果任务正在等待某个事件 (即其事件节点在某个等待列表中)
-            if (current_tcb->TCB_EventNode.CoroNode_List != NULL)
+            if (current_tcb->TCB_EventResult == EK_CORO_EVENT_PENDING)
             {
                 // 那么延时到期意味着事件超时
                 current_tcb->TCB_EventResult = EK_CORO_EVENT_TIMEOUT;
             }
-#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 */
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 || EK_CORO_TASK_NOTIFY_ENABLE == 1 */
 
             // 任务延时已到，将其唤醒
             current_tcb->TCB_State = EK_CORO_READY;
@@ -1055,35 +1055,59 @@ __naked void EK_vKernelPendSV_Handler(void)
 {
     __ASM volatile(
         // 保存当前任务的上下文
-        // 获取当前任务的PSP
         "mrs r0, psp \n"
 
-        // 将核心寄存器 R4-R11 和 LR(EXC_RETURN) 压入当前任务的堆栈
+#if (EK_CORO_FPU_ENABLE == 1)
+        // 检查是否需要保存FPU状态
+        "ldr r2, =0xE000EF34 \n" // FPCCR寄存器
+        "ldr r3, [r2] \n"
+        "tst r3, #0x01 \n" // 检查LSPACT位
+        "beq no_fpu_save \n"
+
+        // 保存FPU寄存器S16-S31
+        "vstmdb r0!, {s16-s31} \n"
+        "vmrs r2, fpscr \n"
+        "stmdb r0!, {r2} \n"
+
+        "no_fpu_save: \n"
+#endif /* EK_CORO_FPU_ENABLE == 1 */
+
+        // 保存通用寄存器
         "stmdb r0!, {r4-r11, lr} \n"
 
-        // 保存新的栈顶指针到 TCB
+        // 保存栈指针到TCB
         "ldr r1, =KernelCurrentTCB \n"
-        "ldr r1, [r1] \n" // 解引用得到SP位置
-        "str r0, [r1] \n" // 将r0寄存器中的数据存储的SP中
+        "ldr r1, [r1] \n"
+        "str r0, [r1] \n"
 
-        // 执行调度: KernelCurrentTCB = KernelNextTCB
+        // 任务切换
         "ldr r0, =KernelNextTCB \n"
         "ldr r0, [r0] \n"
         "ldr r1, =KernelCurrentTCB \n"
         "str r0, [r1] \n"
 
-        // 恢复新任务的SP
+        // 恢复新任务的栈指针
         "ldr r1, =KernelCurrentTCB \n"
         "ldr r1, [r1] \n"
         "ldr r0, [r1] \n"
 
-        // 从新任务的堆栈中恢复 R4-R11 和 LR(EXC_RETURN)
+        // 恢复通用寄存器
         "ldmia r0!, {r4-r11, lr} \n"
 
-        // 更新 PSP
-        "msr psp, r0 \n"
+#if (EK_CORO_FPU_ENABLE == 1)
+        // 检查是否需要恢复FPU状态
+        "tst lr, #0x10 \n" // 检查EXC_RETURN的bit 4
+        "bne no_fpu_restore \n"
 
-        // 异常返回
+        // 恢复FPU状态
+        "ldmia r0!, {r2} \n"
+        "vmsr fpscr, r2 \n"
+        "vldmia r0!, {s16-s31} \n"
+
+        "no_fpu_restore: \n"
+#endif /* EK_CORO_FPU_ENABLE == 1 */
+
+        "msr psp, r0 \n"
         "bx lr \n");
 }
 
