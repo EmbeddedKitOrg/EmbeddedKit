@@ -14,10 +14,20 @@
 #define __EK_COROSEMAPHORE_H
 
 #include "../Kernel/Kernel.h"
-#include "../../DataStruct/Queue/EK_Queue.h"
 
 #if (EK_CORO_ENABLE == 1)
 #if (EK_CORO_SEMAPHORE_ENABLE == 1)
+
+/* ========================= 辅助宏 ========================= */
+/**
+ * @brief 信号量状态查询宏
+ * @details 提供轻量级的信号量状态查询功能
+ */
+#define EK_uSemGetCount(sem_handler)    ((sem_handler)->Sem_Count)
+#define EK_uSemGetFree(sem_handler)     ((sem_handler)->Sem_MaxCount - (sem_handler)->Sem_Count)
+#define EK_bSemIsFull(sem_handler)      ((sem_handler)->Sem_Count >= (sem_handler)->Sem_MaxCount)
+#define EK_bSemIsEmpty(sem_handler)     ((sem_handler)->Sem_Count == 0)
+#define EK_uSemGetCapacity(sem_handler) ((sem_handler)->Sem_MaxCount)
 
 #ifdef __cplusplus
 extern "C"
@@ -29,17 +39,13 @@ extern "C"
 /**
  * @brief 协程信号量结构体
  * @details 用于管理协程间的信号量同步机制。
- *          采用队列令牌模式，将信号量计数值映射为队列中的令牌数量。
- *          支持动态和静态创建，使用union内嵌队列结构体避免动态分配。
+ *          采用轻量级计数器模式，用简单的计数变量替代复杂的队列结构。
+ *          支持动态和静态创建，大幅减少内存占用和提升操作效率。
  */
 typedef struct EK_CoroSem_t
 {
-    union
-    {
-        EK_Queue_t *Sem_Queue; /**< 动态创建时的队列指针，存储信号量令牌 */
-        EK_Queue_t Sem_QueueStatic; /**< 静态创建时的内嵌队列结构体 */
-    };
-
+    uint32_t Sem_Count; /**< 当前可用信号量数量 */
+    uint32_t Sem_MaxCount; /**< 最大信号量数量 */
     EK_CoroList_t Sem_WaitList; /**< 等待获取信号量的协程列表 */
     bool Sem_isDynamic; /**< 是否来源于动态创建的标志位 */
 } EK_CoroSem_t;
@@ -49,21 +55,16 @@ typedef EK_CoroSem_t *EK_CoroSemStaticHanlder_t; /**< 静态类型信号量句�
 
 /* ========================= 函数声明区 ========================= */
 EK_CoroSemHanlder_t EK_pSemCreate(uint16_t init_count, uint16_t max_count);
-EK_CoroSemStaticHanlder_t EK_pSemCreateStatic(EK_CoroSem_t *sem, void *buffer, uint32_t init_count, uint32_t max_count);
+EK_CoroSemStaticHanlder_t EK_pSemCreateStatic(EK_CoroSem_t *sem, uint32_t init_count, uint32_t max_count);
 EK_Result_t EK_rSemTake(EK_CoroSemHanlder_t sem, uint32_t timeout);
 EK_Result_t EK_rSemGive(EK_CoroSemHanlder_t sem);
+EK_Result_t EK_rSemClean(EK_CoroSemHanlder_t sem);
+EK_Result_t EK_rSemDelete(EK_CoroSem_t *sem);
 
 // 二值信号量
-#define EK_pSemBinaryCreate(__init_val__) EK_pSemCreate((__init_val__ == 0 ? 0 : 1), 1)
-#define EK_pSemBinaryCreateStatic(__sem_ptr__, __buffer_ptr__, __init_val__) \
-    EK_pSemCreateStatic(__sem_ptr__, __buffer__, (__init_val__ == 0 ? 0 : 1), 1)
-
-/* ========================= 信号量状态查询函数 ========================= */
-EK_Size_t EK_uSemGetCount(EK_CoroSemHanlder_t sem);
-EK_Size_t EK_uSemGetFree(EK_CoroSemHanlder_t sem);
-EK_Size_t EK_uSemGetCapacity(EK_CoroSemHanlder_t sem);
-bool EK_bSemIsFull(EK_CoroSemHanlder_t sem);
-bool EK_bSemIsEmpty(EK_CoroSemHanlder_t sem);
+#define EK_pSemBinaryCreate(init_val) EK_pSemCreate((init_val == 0 ? 0 : 1), 1)
+#define EK_pSemBinaryCreateStatic(sem_ptr, buffer, init_val) \
+    EK_pSemCreateStatic(sem_ptr, buffer, (init_val == 0 ? 0 : 1), 1)
 
 #ifdef __cplusplus
 }

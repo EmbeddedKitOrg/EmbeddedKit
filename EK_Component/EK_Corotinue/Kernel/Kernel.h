@@ -195,10 +195,6 @@ typedef struct EK_CoroTCB_t
     uint8_t TCB_NotifyValue[EK_CORO_TASK_NOTIFY_GROUP]; /**< 任务通知状态的数量. */
 #endif /* EK_CORO_TASK_NOTIFY_ENABLE == 1 */
 
-#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
-    void *TCB_MsgData; /**< 用于消息队列，指向等待任务的数据缓冲区 */
-#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
-
 #if (EK_HIGH_WATER_MARK_ENABLE == 1)
     void *TCB_StackEnd; /**< 协程栈的结束(高)地址，用于高水位检测. */
     EK_Size_t TCB_StackHighWaterMark; /**< 协程栈的高水位标记 (历史最大使用量). */
@@ -223,11 +219,13 @@ void EK_vKernelSetDeleteTCB(EK_CoroTCB_t *tcb);
 /* ========================= 内核核心API函数 ========================= */
 void EK_vKernelYield(void);
 EK_Result_t EK_rKernelInsert_WakeUpTime(EK_CoroList_t *list, EK_CoroListNode_t *node);
+EK_Result_t EK_rKernelInsert_Head(EK_CoroList_t *list, EK_CoroListNode_t *node);
 EK_Result_t EK_rKernelInsert_Tail(EK_CoroList_t *list, EK_CoroListNode_t *node);
 EK_Result_t EK_rKernelRemove(EK_CoroList_t *list, EK_CoroListNode_t *node);
 EK_Result_t EK_rKernelMove_WakeUpTime(EK_CoroList_t *list, EK_CoroListNode_t *node);
 EK_Result_t EK_rKernelMove_Tail(EK_CoroList_t *list, EK_CoroListNode_t *node);
 EK_Result_t EK_rKernelMove_Prio(EK_CoroList_t *list, EK_CoroListNode_t *node);
+EK_Result_t EK_rKernelMove_Head(EK_CoroList_t *list, EK_CoroListNode_t *node);
 void EK_vKernelInit(void);
 void EK_vKernelStart(void);
 void EK_vTickHandler(void);

@@ -16,13 +16,8 @@
 #if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
 
 #include "../Task/EK_CoroTask.h"
-#include "stm32f4xx.h" // 为了访问SCB寄存器
-/* ========================= 内部辅助宏 ========================= */
-/**
- * @brief 安全获取消息队列的队列指针
- * @details 根据创建类型返回正确的队列指针
- */
-#define EK_MSG_GET_QUEUE(msg) ((msg)->Msg_isDynamic ? (msg)->Msg_Queue : &(msg)->Msg_QueueStatic)
+
+typedef EK_Result_t (*msg_send_t)(EK_Queue_t *, void *, EK_Size_t); // 写队列的函数指针
 
 /* ========================= 内部函数 ========================= */
 /**
@@ -37,8 +32,6 @@ ALWAYS_STATIC_INLINE void v_msg_delay(EK_CoroMsg_t *msg, EK_CoroTCB_t *tcb, uint
 {
     if (msg == NULL || tcb == NULL || timeout == 0) return;
 
-    EK_ENTER_CRITICAL();
-
     // 原子化操作：将任务状态设置和事件节点添加在同一临界区内完成
     // 将TCB的状态设置为阻塞态
     tcb->TCB_State = EK_CORO_BLOCKED;
@@ -46,8 +39,6 @@ ALWAYS_STATIC_INLINE void v_msg_delay(EK_CoroMsg_t *msg, EK_CoroTCB_t *tcb, uint
     // 根据标志位插入事件链表
     if (isRecv == false) EK_rKernelMove_Prio(&msg->Msg_SendWaitList, &tcb->TCB_EventNode);
     else EK_rKernelMove_Prio(&msg->Msg_RecvWaitList, &tcb->TCB_EventNode);
-
-    EK_EXIT_CRITICAL();
 
     // 进入阻塞的延时
     EK_vCoroDelay(timeout);
@@ -83,9 +74,10 @@ ALWAYS_STATIC_INLINE void v_msg_wake(EK_CoroTCB_t *tcb, EK_CoroEventResult_t res
 {
     if (tcb == NULL) return;
 
+    tcb->TCB_WakeUpTime = EK_uKernelGetTick();
     tcb->TCB_EventResult = result;
     tcb->TCB_State = EK_CORO_READY;
-    EK_rKernelMove_Tail(EK_pKernelGetReadyList(tcb->TCB_Priority), &tcb->TCB_StateNode);
+    EK_rKernelMove_Head(EK_pKernelGetReadyList(tcb->TCB_Priority), &tcb->TCB_StateNode);
 }
 
 /* ========================= 公开API ========================= */
@@ -232,90 +224,109 @@ EK_Result_t EK_rMsgDelete(EK_CoroMsg_t *msg)
 }
 
 /**
- * @brief 向消息队列发送一条消息。
- * @details 如果有任务正在等待接收消息，则直接将消息发送给等待时间最长的任务。
- *          如果没有任务等待，并且队列未满，则将消息放入队列。
- *          如果队列已满，则根据指定的超时时间，当前任务将被阻塞。
- * 
- * @param msg 消息队列的句柄。
- * @param tx_buffer 指向要发送数据的指针。
- * @param timeout 如果队列已满，等待发送的超时时间。设置为 0 表示不等待，设置为 EK_MAX_DELAY 表示永久等待。
- * 
+ * @brief 向消息队列发送消息
+ * @details 此函数是消息发送的核心实现，支持FIFO和覆盖两种模式。
+ *          发送流程：
+ *          1. 检查参数有效性，防止空指针和非法调用
+ *          2. 根据over_write参数选择发送策略：
+ *             - FIFO模式：队列满时阻塞等待
+ *             - 覆盖模式：直接覆盖最旧消息
+ *          3. 如果有任务等待接收，直接唤醒任务并传递数据
+ *          4. 否则将消息加入队列，根据队列状态决定是否阻塞
+ *          5. 阻塞唤醒后检查唤醒原因，处理超时等情况
+ *
+ *          线程安全性：此函数使用临界区保护，确保多任务环境下的安全访问
+ *          阻塞机制：当队列满且非覆盖模式时，当前任务会被加入发送等待列表
+ *          唤醒策略：优先唤醒等待时间最长的接收任务
+ *
+ * @param msg 消息队列句柄，必须为有效的消息队列指针
+ * @param tx_buffer 指向要发送数据的缓冲区，数据将被复制到队列中
+ * @param timeout 队列满时的等待超时时间（毫秒）：
+ *                - 0：不等待，队列满时立即返回EK_FULL
+ *                - EK_MAX_DELAY：永久等待直到队列有空位
+ *                - 其他值：等待指定时间，超时返回EK_TIMEOUT
+ * @param over_write 发送模式选择：
+ *                   - false：FIFO模式，队列满时阻塞
+ *                   - true：覆盖模式，队列满时覆盖最旧消息
+ *
  * @return EK_Result_t 操作结果：
- *         - EK_OK: 消息成功发送或任务已进入等待状态。
- *         - EK_NULL_POINTER: msg 或 tx_buffer 为空。
- *         - EK_ERROR: 无法获取当前任务的 TCB。
- *         - EK_INSUFFICIENT_SPACE: 当 timeout 为 0 且队列已满时返回。
+ *         - EK_OK: 消息发送成功
+ *         - EK_NULL_POINTER: msg或tx_buffer为空
+ *         - EK_ERROR: 在中断上下文中调用或当前任务为空闲任务
+ *         - EK_FULL: 队列满且timeout为0（仅FIFO模式）
+ *         - EK_TIMEOUT: 等待超时（仅FIFO模式）
+ *
+ * @note 此函数不能在中断服务程序中调用
+ * @note 覆盖模式下不会阻塞，timeout参数被忽略
+ * @note 发送操作会将当前任务从就绪列表移至阻塞列表（如果需要等待）
+ * @see EK_rMsgSendToBack() FIFO模式发送宏
+ * @see EK_rMsgOverWrite() 覆盖模式发送宏
+ * @see EK_rMsgReceive() 消息接收函数
  */
-EK_Result_t EK_rMsgSend(EK_CoroMsgHanler_t msg, void *tx_buffer, uint32_t timeout)
+EK_Result_t EK_rMsgSend(EK_CoroMsgHanler_t msg, void *tx_buffer, uint32_t timeout, bool over_write)
 {
-    // 判断是不是在中断中
+    if (msg == NULL || tx_buffer == NULL) return EK_NULL_POINTER;
+    if (EK_pKernelGetCurrentTCB() == EK_pKernelGetIdleHandler()) return EK_ERROR;
     if (EK_IS_IN_INTERRUPT() == true) return EK_ERROR;
 
-    if (msg == NULL || tx_buffer == NULL) return EK_NULL_POINTER;
+    EK_Queue_t *queue = EK_MSG_GET_QUEUE(msg); // 获取该消息队列的队列
+    EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB(); // 获取当前任务TCB
 
-    EK_ENTER_CRITICAL();
+    // 写队列模式
+    msg_send_t r_msg_send_queue = (over_write == true) ? EK_rQueueOverWrite : EK_rQueueEnqueue;
 
-    EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB();
-
-    // 检查是否有任务在等待接收 (实现汇合)
-    if (msg->Msg_RecvWaitList.List_Count > 0)
+    while (1)
     {
-        // 直接将数据发送给等待时间最长的接收者
-        EK_CoroTCB_t *tcb_wait_to_recv = p_msg_take_waiter(&msg->Msg_RecvWaitList);
-        if (tcb_wait_to_recv != NULL)
+        EK_ENTER_CRITICAL();
+
+        // 当前的队列未满
+        if (EK_bMsgIsFull(msg) == false || over_write == true)
         {
-            EK_vMemCpy(tcb_wait_to_recv->TCB_MsgData, tx_buffer, msg->Msg_ItemSize);
-            v_msg_wake(tcb_wait_to_recv, EK_CORO_EVENT_OK);
-        }
+            bool need_yield = false;
 
-        EK_EXIT_CRITICAL();
-        return EK_OK;
-    }
+            // 当前的等待接收的列表中有等待任务
+            if (msg->Msg_RecvWaitList.List_Count > 0)
+            {
+                // 从等待链表中找到等待的TCB
+                EK_CoroTCB_t *waiter_tcb = p_msg_take_waiter(&msg->Msg_RecvWaitList);
 
-    // 如果没有任务等待接收，则尝试将消息放入队列
-    EK_Queue_t *queue = EK_MSG_GET_QUEUE(msg); // 安全获取队列指针
-    if (EK_uQueueGetRemain(queue) >= msg->Msg_ItemSize)
-    {
-        // 队列有空间，直接入队
-        EK_rQueueEnqueue(queue, tx_buffer, msg->Msg_ItemSize);
-        EK_EXIT_CRITICAL();
-        return EK_OK;
-    }
+                // 将其唤醒
+                v_msg_wake(waiter_tcb, EK_CORO_EVENT_OK);
 
-    // 队列已满，需要阻塞等待
-    if (timeout == 0)
-    {
-        EK_EXIT_CRITICAL();
-        return EK_INSUFFICIENT_SPACE;
-    }
+                // 如果唤醒的任务的优先级比当前任务的优先级高 则申请一次调度
+                if (waiter_tcb->TCB_Priority < current_tcb->TCB_Priority) need_yield = true;
+            }
 
-    // 阻塞当前任务
-    current_tcb->TCB_MsgData = tx_buffer; // 保存发送缓冲区指针
-    current_tcb->TCB_EventResult = EK_CORO_EVENT_PENDING;
+            // 将消息直接入队
+            r_msg_send_queue(queue, tx_buffer, msg->Msg_ItemSize);
 
-    EK_EXIT_CRITICAL();
-    v_msg_delay(msg, current_tcb, timeout, false); // 阻塞
-
-    // --- 唤醒后 ---
-    // 唤醒后，检查事件结果
-    if (current_tcb->TCB_EventResult == EK_CORO_EVENT_OK)
-    {
-        // 成功，数据已被取走或放入队列
-        return EK_OK;
-    }
-    else
-    {
-        // 仅在超时情况下，任务才需要自己清理事件节点
-        if (current_tcb->TCB_EventResult == EK_CORO_EVENT_TIMEOUT)
-        {
-            EK_ENTER_CRITICAL();
-            EK_rKernelRemove(&msg->Msg_SendWaitList, &current_tcb->TCB_EventNode);
             EK_EXIT_CRITICAL();
+
+            if (need_yield == true) EK_vCoroYield();
+
+            return EK_OK;
         }
-        // 如果是 EK_CORO_EVENT_DELETED，表示删除函数已经处理了节点，此处无需操作
-        // 统一返回超时或错误
-        return EK_TIMEOUT;
+
+        // 剩余空间不够
+
+        EK_EXIT_CRITICAL();
+
+        // 不阻塞的话 直接退出
+        if (timeout == 0)
+        {
+            return EK_FULL;
+        }
+
+        // 阻塞
+        v_msg_delay(msg, current_tcb, timeout, false);
+
+        // --从这里唤醒--
+        // 超时了 如果现在还是没有空间 就直接退出 有空间就入队
+        if (current_tcb->TCB_EventResult == EK_CORO_EVENT_TIMEOUT && EK_bMsgIsFull(msg) == true)
+        {
+            return EK_TIMEOUT;
+        }
+        // 否则就重试
     }
 }
 
@@ -337,94 +348,65 @@ EK_Result_t EK_rMsgSend(EK_CoroMsgHanler_t msg, void *tx_buffer, uint32_t timeou
  */
 EK_Result_t EK_rMsgReceive(EK_CoroMsgHanler_t msg, void *rx_buffer, uint32_t timeout)
 {
-    // 判断是不是在中断中
+    if (msg == NULL || rx_buffer == NULL) return EK_NULL_POINTER;
+    if (EK_pKernelGetCurrentTCB() == EK_pKernelGetIdleHandler()) return EK_ERROR;
     if (EK_IS_IN_INTERRUPT() == true) return EK_ERROR;
 
-    if (msg == NULL || rx_buffer == NULL) return EK_NULL_POINTER;
+    EK_Queue_t *queue = EK_MSG_GET_QUEUE(msg); // 获取该消息队列的队列
+    EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB(); // 获取当前任务TCB
 
-    EK_ENTER_CRITICAL();
-
-    EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB();
-
-    // 安全获取队列指针
-    EK_Queue_t *queue = EK_MSG_GET_QUEUE(msg);
-
-    // 检查队列中是否有消息
-    if (EK_uQueueGetSize(queue) >= msg->Msg_ItemSize)
+    while (1)
     {
-        // 队列有数据，直接出队
-        EK_rQueueDequeue(queue, rx_buffer, msg->Msg_ItemSize);
+        EK_ENTER_CRITICAL();
 
-        // 检查是否有任务在等待发送 (队列腾出了空间)
-        if (msg->Msg_SendWaitList.List_Count > 0)
+        // 当前队列不为空 有消息可以读
+        if (EK_bMsgIsEmpty(msg) != true)
         {
-            // 从等待发送的列表中取出一个任务
-            EK_CoroTCB_t *tcb_wait_to_send = p_msg_take_waiter(&msg->Msg_SendWaitList);
-            if (tcb_wait_to_send != NULL)
+            bool need_yield = false;
+
+            // 读取当前的队列
+            EK_Result_t op_res = EK_rQueueDequeue(queue, rx_buffer, msg->Msg_ItemSize);
+
+            // 当前的等待发送的列表中有等待任务
+            if (msg->Msg_SendWaitList.List_Count > 0)
             {
-                // 将等待发送的数据放入队列
-                EK_rQueueEnqueue(queue, tcb_wait_to_send->TCB_MsgData, msg->Msg_ItemSize);
+                // 从等待链表中找到等待的TCB
+                EK_CoroTCB_t *waiter_tcb = p_msg_take_waiter(&msg->Msg_SendWaitList);
 
-                // 设置事件结果并唤醒发送者
-                v_msg_wake(tcb_wait_to_send, EK_CORO_EVENT_OK);
+                // 将其唤醒
+                v_msg_wake(waiter_tcb, EK_CORO_EVENT_OK);
+
+                // 如果唤醒的任务的优先级比当前任务的优先级高 则申请一次调度
+                if (waiter_tcb->TCB_Priority < current_tcb->TCB_Priority) need_yield = true;
             }
+            EK_EXIT_CRITICAL();
+
+            if (need_yield == true) EK_vCoroYield();
+
+            return op_res;
         }
 
         EK_EXIT_CRITICAL();
-        return EK_OK;
-    }
 
-    // 队列为空，检查是否有任务在等待发送 (实现汇合)
-    if (msg->Msg_SendWaitList.List_Count > 0)
-    {
-        // 直接从等待发送的任务获取数据
-        EK_CoroTCB_t *tcb_wait_to_send = p_msg_take_waiter(&msg->Msg_SendWaitList);
-        if (tcb_wait_to_send != NULL)
+        // 没有消息可读
+        // 是否阻塞
+        // 不阻塞 直接退出
+        if (timeout == 0)
         {
-            // 将数据直接拷贝到当前任务的缓冲区
-            EK_vMemCpy(rx_buffer, tcb_wait_to_send->TCB_MsgData, msg->Msg_ItemSize);
-
-            // 设置事件结果并唤醒发送者
-            v_msg_wake(tcb_wait_to_send, EK_CORO_EVENT_OK);
-
-            EK_EXIT_CRITICAL();
-            return EK_OK;
+            return EK_EMPTY;
         }
-    }
 
-    // 队列为空且无任务等待发送，需要阻塞
-    if (timeout == 0)
-    {
-        EK_EXIT_CRITICAL();
-        return EK_EMPTY;
-    }
+        // 准备阻塞
+        v_msg_delay(msg, current_tcb, timeout, true);
 
-    // 阻塞当前任务
-    current_tcb->TCB_MsgData = rx_buffer; // 保存接收缓冲区指针
-    current_tcb->TCB_EventResult = EK_CORO_EVENT_PENDING;
+        //--从这里唤醒
 
-    EK_EXIT_CRITICAL();
-    v_msg_delay(msg, current_tcb, timeout, true); // 阻塞
-
-    // --- 唤醒后 ---
-    // 唤醒后，检查事件结果
-    if (current_tcb->TCB_EventResult == EK_CORO_EVENT_OK)
-    {
-        // 成功，数据已在缓冲区
-        return EK_OK;
-    }
-    else
-    {
-        // 仅在超时情况下，任务才需要自己清理事件节点
-        if (current_tcb->TCB_EventResult == EK_CORO_EVENT_TIMEOUT)
+        // 超时了 如果现在还是为空 就直接退出 有空间就入队
+        if (current_tcb->TCB_EventResult == EK_CORO_EVENT_TIMEOUT && EK_bMsgIsEmpty(msg) == true)
         {
-            EK_ENTER_CRITICAL();
-            EK_rKernelRemove(&msg->Msg_RecvWaitList, &current_tcb->TCB_EventNode);
-            EK_EXIT_CRITICAL();
+            return EK_TIMEOUT;
         }
-        // 如果是 EK_CORO_EVENT_DELETED，表示删除函数已经处理了节点，此处无需操作
-        // 统一返回超时或错误
-        return EK_TIMEOUT;
+        // 否则就重试
     }
 }
 
@@ -464,95 +446,6 @@ EK_Result_t EK_rMsgPeek(EK_CoroMsgHanler_t msg, void *rx_buffer)
     EK_EXIT_CRITICAL();
 
     return op_res;
-}
-
-/**
- * @brief 获取消息队列已存储的消息数量
- * @param msg 消息队列的句柄。
- * @return EK_Size_t 当前队列中的消息数量，失败时返回0。
- */
-EK_Size_t EK_uMsgGetCount(EK_CoroMsgHanler_t msg)
-{
-    if (msg == NULL || msg->Msg_ItemSize == 0) return 0;
-
-    EK_ENTER_CRITICAL();
-
-    // 已使用的字节数转化为消息数量
-    EK_Queue_t *queue = EK_MSG_GET_QUEUE(msg);
-    EK_Size_t used_bytes = EK_uQueueGetSize(queue);
-
-    EK_EXIT_CRITICAL();
-
-    return used_bytes / msg->Msg_ItemSize;
-}
-
-/**
- * @brief 获取消息队列剩余可用的消息数量
- * @param msg 消息队列的句柄。
- * @return EK_Size_t 剩余可容纳的消息数量，失败时返回0。
- */
-EK_Size_t EK_uMsgGetFree(EK_CoroMsgHanler_t msg)
-{
-    if (msg == NULL || msg->Msg_ItemSize == 0) return 0;
-
-    EK_ENTER_CRITICAL();
-
-    // 剩余可写字节转换成消息数量
-    EK_Queue_t *queue = EK_MSG_GET_QUEUE(msg);
-    EK_Size_t remain_bytes = EK_uQueueGetRemain(queue);
-
-    EK_EXIT_CRITICAL();
-
-    return remain_bytes / msg->Msg_ItemSize;
-}
-
-/**
- * @brief 获取消息队列总共的消息数量
- * @param msg 消息队列的句柄。
- * @return EK_Size_t 总共的消息数量，失败时返回0。
- */
-EK_Size_t EK_uMsgGetCapacity(EK_CoroMsgHanler_t msg)
-{
-    if (msg == NULL || msg->Msg_ItemSize == 0) return 0;
-
-    EK_ENTER_CRITICAL();
-
-    // 剩余可写字节转换成消息数量
-    EK_Queue_t *queue = EK_MSG_GET_QUEUE(msg);
-
-    EK_EXIT_CRITICAL();
-
-    return queue->Queue_Capacity / msg->Msg_ItemSize;
-}
-
-/**
- * @brief 检查消息队列是否已满
- * @details 检查指定的消息队列是否已经达到最大容量，无法再接收新消息
- * @param msg 消息队列句柄
- * @return bool 队列已满返回true，否则返回false；当msg为NULL时返回false
- * @note 此函数不会阻塞，只是查询队列的当前状态
- */
-bool EK_bMsgIsFull(EK_CoroMsgHanler_t msg)
-{
-    // 参数有效性检查
-    if (msg == NULL) return false;
-    EK_Queue_t *queue = EK_MSG_GET_QUEUE(msg);
-    return EK_bQueueIsFull(queue);
-}
-
-/**
- * @brief 检查消息队列是否为空
- * @details 检查指定的消息队列是否没有任何消息可供接收
- * @param msg 消息队列句柄
- * @return bool 队列为空返回true，否则返回false；当msg为NULL时返回false
- * @note 此函数不会阻塞，只是查询队列的当前状态
- */
-bool EK_bMsgIsEmpty(EK_CoroMsgHanler_t msg)
-{
-    // 参数有效性检查
-    if (msg == NULL) return false;
-    EK_Queue_t *queue = EK_MSG_GET_QUEUE(msg);
-    return EK_bQueueIsEmpty(queue);
 }
 
 /**

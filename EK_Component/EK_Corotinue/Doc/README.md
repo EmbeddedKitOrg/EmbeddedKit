@@ -71,7 +71,7 @@ EK_Size_t water_mark = EK_uCoroGetHighWaterMark(task);
 EK_CoroMsgHanler_t queue = EK_pMsgCreate(item_size, item_amount);
 
 // 消息操作
-EK_rMsgSend(queue, &data, timeout);
+EK_rMsgSendToBack(queue, &data, timeout);
 EK_rMsgReceive(queue, &buffer, timeout);
 EK_rMsgDelete(queue);
 ```
