@@ -332,6 +332,9 @@ EK_Result_t EK_rSemGive(EK_CoroSemHanlder_t sem)
     // 有协程在等待信号量，直接唤醒等待时间最长的协程（FIFO）
     if (sem->Sem_WaitList.List_Count > 0)
     {
+        // 信号量自增
+        sem->Sem_Count++;
+
         // 获取等待链表头部的协程（等待时间最长）
         EK_CoroTCB_t *wait_tcb = p_sem_take_waiter(sem);
 
