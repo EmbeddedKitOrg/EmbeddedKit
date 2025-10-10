@@ -95,7 +95,7 @@ extern bool EK_bMemPool_Free(void *ptr);
 
 #if (EK_CORO_ENABLE == 1)
 
-#define EK_CORO_SYSTEM_FREQ          (SystemCoreClock)
+#define EK_CORO_SYSTEM_FREQ          (168000000)
 #define EK_CORO_TICK_RATE_HZ         (1000)
 #define EK_CORO_PRIORITY_GROUPS      (16)
 #define EK_CORO_IDLE_TASK_STACK_SIZE (512)
