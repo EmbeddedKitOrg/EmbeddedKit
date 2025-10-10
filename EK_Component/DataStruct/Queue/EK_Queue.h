@@ -38,6 +38,7 @@ EK_Result_t EK_rQueueCreateStatic(EK_Queue_t *queue_handler, void *buffer, const
 EK_Result_t EK_rQueueClean(EK_Queue_t *queue);
 EK_Result_t EK_rQueueDelete(EK_Queue_t *queue);
 EK_Result_t EK_rQueueEnqueue(EK_Queue_t *queue, void *data, EK_Size_t data_size);
+EK_Result_t EK_rQueueOverWrite(EK_Queue_t *queue, void *data, EK_Size_t data_size);
 EK_Result_t EK_rQueueDequeue(EK_Queue_t *queue, void *data_buffer, EK_Size_t data_size);
 EK_Result_t EK_rQueuePeekFront(EK_Queue_t *queue, void *data_buffer, EK_Size_t data_size);
 

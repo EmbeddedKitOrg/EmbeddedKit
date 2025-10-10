@@ -648,6 +648,50 @@ EK_Result_t EK_rKernelInsert_Tail(EK_CoroList_t *list, EK_CoroListNode_t *node)
 }
 
 /**
+ * @brief 将一个协程节点插入到链表的头部。
+ * @details
+ *  这是一个公共接口，用于将节点插入到链表的开始位置。
+ *  常用于需要优先处理某些任务的场景。
+ * @param list 目标链表。
+ * @param node 要插入的协程节点。
+ * @return EK_Result_t 操作结果。
+ */
+EK_Result_t EK_rKernelInsert_Head(EK_CoroList_t *list, EK_CoroListNode_t *node)
+{
+    if (list == NULL || node == NULL) return EK_NULL_POINTER;
+
+    EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)node->CoroNode_Owner;
+    node->CoroNode_Next = NULL;
+    node->CoroNode_Prev = NULL;
+
+    EK_ENTER_CRITICAL();
+
+    if (list->List_Head == NULL) // 如果链表为空
+    {
+        list->List_Head = node;
+        list->List_Tail = node;
+    }
+    else // 头部插入 (O(1) 操作)
+    {
+        node->CoroNode_Next = list->List_Head;
+        list->List_Head->CoroNode_Prev = node;
+        list->List_Head = node;
+    }
+
+    node->CoroNode_List = list;
+    list->List_Count++;
+
+    // 判断是不是就绪链表
+    if (list >= KernelReadyList && list < KernelReadyList + EK_CORO_PRIORITY_GROUPS)
+    {
+        EK_vSetBit(&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
+    }
+
+    EK_EXIT_CRITICAL();
+    return EK_OK;
+}
+
+/**
  * @brief 将一个协程节点按优先级升序插入到链表中。
  * @details
  *  这是一个公共接口，用于将节点按照其 `TCB_Priority` 成员的值从小到大插入到链表中 (值越小优先级越高)。
@@ -778,6 +822,28 @@ EK_Result_t EK_rKernelMove_Prio(EK_CoroList_t *list, EK_CoroListNode_t *node)
     }
 
     return EK_rKernelInsert_Prio(list, node);
+}
+
+/**
+ * @brief 将一个协程节点移动到另一个链表的头部。
+ * @details
+ *  此函数将节点从当前链表移除，然后插入到目标链表的开始位置。
+ *  常用于将任务优先插入到就绪链表，使其尽快得到调度。
+ * @param list 目标链表。
+ * @param node 要移动的协程节点。
+ * @return EK_Result_t 操作结果。
+ */
+EK_Result_t EK_rKernelMove_Head(EK_CoroList_t *list, EK_CoroListNode_t *node)
+{
+    if (list == NULL || node == NULL) return EK_NULL_POINTER;
+
+    if (node->CoroNode_List != NULL)
+    {
+        EK_Result_t remove_res = EK_rKernelRemove((EK_CoroList_t *)node->CoroNode_List, node);
+        if (remove_res != EK_OK) return remove_res;
+    }
+
+    return EK_rKernelInsert_Head(list, node);
 }
 
 /* ========================= 内核核心API函数 ========================= */

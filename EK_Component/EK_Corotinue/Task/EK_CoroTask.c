@@ -174,10 +174,6 @@ EK_CoroHandler_t EK_pCoroCreate(EK_CoroFunction_t task_func, void *task_arg, uin
     tcb->TCB_EventResult = EK_CORO_EVENT_NONE;
 #endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 || EK_CORO_TASK_NOTIFY_ENABLE == 1 */
 
-#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
-    tcb->TCB_MsgData = NULL;
-#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
-
 #if (EK_HIGH_WATER_MARK_ENABLE == 1)
     tcb->TCB_StackEnd = (void *)((uint8_t *)stack + stack_size);
     tcb->TCB_StackHighWaterMark = 0;
@@ -256,10 +252,6 @@ EK_CoroStaticHandler_t EK_pCoroCreateStatic(EK_CoroTCB_t *tcb,
 #if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 || EK_CORO_TASK_NOTIFY_ENABLE == 1)
     tcb->TCB_EventResult = EK_CORO_EVENT_NONE;
 #endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 || EK_CORO_TASK_NOTIFY_ENABLE == 1 */
-
-#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
-    tcb->TCB_MsgData = NULL;
-#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
 
 #if (EK_HIGH_WATER_MARK_ENABLE == 1)
     tcb->TCB_StackEnd = (void *)((uint8_t *)stack + stack_size);
@@ -792,7 +784,7 @@ ALWAYS_STATIC_INLINE EK_Result_t r_task_notify_wake(EK_CoroHandler_t task_handle
     task_handle->TCB_State = EK_CORO_READY;
     task_handle->TCB_EventResult = EK_CORO_EVENT_OK;
 
-    return EK_rKernelMove_Tail(EK_pKernelGetReadyList(task_handle->TCB_Priority), &task_handle->TCB_StateNode);
+    return EK_rKernelMove_Head(EK_pKernelGetReadyList(task_handle->TCB_Priority), &task_handle->TCB_StateNode);
 }
 
 /**
@@ -807,9 +799,11 @@ EK_Result_t EK_rCoroSendNotify(EK_CoroHandler_t task_handle, uint8_t bit)
     // 超过位图长度
     if (bit >= EK_CORO_TASK_NOTIFY_GROUP) return EK_INVALID_PARAM;
 
+    EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB(); // 获取当前的
+
     EK_ENTER_CRITICAL();
     // 参数合法性检查
-    if (task_handle == EK_pKernelGetIdleHandler() || task_handle == EK_pKernelGetCurrentTCB() || task_handle == NULL)
+    if (task_handle == EK_pKernelGetIdleHandler() || task_handle == current_tcb || task_handle == NULL)
     {
         EK_EXIT_CRITICAL();
         return EK_INVALID_PARAM;
@@ -826,6 +820,9 @@ EK_Result_t EK_rCoroSendNotify(EK_CoroHandler_t task_handle, uint8_t bit)
     EK_Result_t res = r_task_notify_wake(task_handle);
 
     EK_EXIT_CRITICAL();
+
+    // 如果唤醒的任务的优先级高于当前的任务 会切换一次上下文
+    if (task_handle->TCB_Priority < current_tcb->TCB_Priority) EK_vCoroYield();
 
     return res;
 }

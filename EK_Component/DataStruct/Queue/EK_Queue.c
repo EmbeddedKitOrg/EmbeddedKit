@@ -231,6 +231,67 @@ EK_Result_t EK_rQueueEnqueue(EK_Queue_t *queue, void *data, EK_Size_t data_size)
 }
 
 /**
+ * @brief 向队列尾部覆写数据（强制入队操作）
+ * @details 当队列已满时，会自动覆盖最旧的数据以腾出空间
+ * @param queue 队列指针
+ * @param data 要写入的数据指针
+ * @param data_size 数据大小（字节数）
+ * @return EK_Result_t 覆写成功返回EK_OK，失败返回对应错误码
+ * @note 与普通入队不同，当队列空间不足时会自动丢弃最旧的数据
+ * @warning 如果数据大小超过队列容量，将返回EK_INSUFFICIENT_SPACE错误
+ */
+EK_Result_t EK_rQueueOverWrite(EK_Queue_t *queue, void *data, EK_Size_t data_size)
+{
+    // 参数有效性检查
+    if (queue == NULL || data == NULL || data_size == 0) return EK_INVALID_PARAM;
+
+    // 检查数据大小是否超过队列容量
+    if (data_size > queue->Queue_Capacity) return EK_INSUFFICIENT_SPACE;
+
+    // 检查剩余空间是否足够，不足时丢弃最旧的数据
+    while (EK_uQueueGetRemain(queue) < data_size)
+    {
+        // 计算需要丢弃的数据大小（最少丢弃一个字节，最多丢弃整个现有数据）
+        EK_Size_t discard_size = EK_uQueueGetSize(queue);
+        if (discard_size > data_size)
+        {
+            discard_size = data_size;
+        }
+
+        // 更新队列指针，相当于丢弃最旧的数据
+        queue->Queue_Front = (queue->Queue_Front + discard_size) % queue->Queue_Capacity;
+        queue->Queue_Size -= discard_size;
+    }
+
+    // 计算写入缓冲区的起始位置
+    uint8_t *start_addr = (uint8_t *)queue->Queue_Buf + queue->Queue_Rear;
+
+    // 检查是否需要分段复制（跨越缓冲区边界）
+    if (queue->Queue_Rear + data_size <= queue->Queue_Capacity)
+    {
+        // 数据不跨界，直接复制
+        EK_vMemCpy(start_addr, data, data_size);
+    }
+    else
+    {
+        // 数据跨界，分两段复制
+        EK_Size_t first_part = queue->Queue_Capacity - queue->Queue_Rear;
+        EK_Size_t second_part = data_size - first_part;
+
+        EK_vMemCpy(start_addr, data, first_part);
+        EK_vMemCpy(queue->Queue_Buf, (uint8_t *)data + first_part, second_part);
+    }
+
+    // 更新队列指针
+    queue->Queue_Rear = (queue->Queue_Rear + data_size) % queue->Queue_Capacity;
+
+    // 更新大小
+    queue->Queue_Size += data_size;
+
+    return EK_OK;
+}
+
+/**
  * @brief 从队列头部取出数据（出队操作）
  * @param queue 队列指针
  * @param data_buffer 用于接收出队数据的缓冲区指针

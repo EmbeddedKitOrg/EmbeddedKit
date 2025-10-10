@@ -678,9 +678,9 @@ if (result == EK_OK) {
 
 ---
 
-### EK_rMsgSend
+### EK_rMsgSendToBack
 
-**函数原型**: `EK_Result_t EK_rMsgSend(EK_CoroMsgHanler_t msg, void *tx_buffer, uint32_t timeout)`
+**函数原型**: `EK_Result_t EK_rMsgSendToBack(EK_CoroMsgHanler_t msg, void *tx_buffer, uint32_t timeout)`
 
 **功能描述**: 发送消息到队列。
 
@@ -701,7 +701,7 @@ if (result == EK_OK) {
 Message message = {1, {0xAA, 0xBB, 0xCC}};
 
 // 发送消息（阻塞）
-EK_Result_t result = EK_rMsgSend(queue, &message, 100);
+EK_Result_t result = EK_rMsgSendToBack(queue, &message, 100);
 
 if (result == EK_OK) {
     // 发送成功
@@ -938,7 +938,7 @@ void Sensor_Task(void *arg) {
         msg.msg_id = 1;
 
         // 发送消息
-        EK_Result_t result = EK_rMsgSend(sensor_queue, &msg, 100);
+        EK_Result_t result = EK_rMsgSendToBack(sensor_queue, &msg, 100);
 
         if (result != EK_OK) {
             // 发送失败处理
