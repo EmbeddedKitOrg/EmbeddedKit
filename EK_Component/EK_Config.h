@@ -122,25 +122,23 @@ extern bool EK_bMemPool_Free(void *ptr);
  * EK_CORO_MESSAGE_QUEUE_ENABLE       - 是否使能消息队列，1:使能 0:失能
  * EK_CORO_SEMAPHORE_ENABLE           - 是否使能信号量，1:使能 0:失能
  * EK_CORO_MUTEX_ENABLE               - 是否使能互斥锁，仅在 EK_CORO_SEMAPHORE_ENABLE 为1时有效，1:使能 0:失能
+ * EK_CORO_MUTEX_RECURSIVE_ENABLE         - 是否使能递归互斥量，仅在 EK_CORO_MUTEX_ENABLE 有效时才有意义
+ * EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE - 是否开启优先级继承，仅在 EK_CORO_SEMAPHORE_ENABLE 为1时有效，1:使能 0:失能
  */
 
-#define EK_CORO_IDLE_HOOK_ENABLE            (0)
-#define EK_CORO_STACK_OVERFLOW_CHECK_ENABLE (0)
-#define EK_HIGH_WATER_MARK_ENABLE           (0)
-#define EK_CORO_TASK_NOTIFY_ENABLE          (0)
-#define EK_CORO_MESSAGE_QUEUE_ENABLE        (1)
-#define EK_CORO_SEMAPHORE_ENABLE            (1)
+#define EK_CORO_IDLE_HOOK_ENABLE                  (0)
+#define EK_CORO_STACK_OVERFLOW_CHECK_ENABLE       (0)
+#define EK_HIGH_WATER_MARK_ENABLE                 (0)
+#define EK_CORO_TASK_NOTIFY_ENABLE                (0)
+#define EK_CORO_MESSAGE_QUEUE_ENABLE              (1)
+#define EK_CORO_SEMAPHORE_ENABLE                  (1)
+#define EK_CORO_MUTEX_ENABLE                      (1)
+#define EK_CORO_MUTEX_RECURSIVE_ENABLE            (0)
+#define EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE (0)
 
 #if (EK_CORO_TASK_NOTIFY_ENABLE == 1)
 #define EK_CORO_TASK_NOTIFY_GROUP (8) // 此处可以配置任务通知的通知组数目
 #endif /* EK_CORO_TASK_NOTIFY_ENABLE */
-
-/** @warning :此处的宏禁止修改！*/
-#if (EK_CORO_SEMAPHORE_ENABLE == 1)
-#define EK_CORO_MUTEX_ENABLE (1)
-#else
-#define EK_CORO_MUTEX_ENABLE (0)
-#endif /* EK_CORO_SEMAPHORE_ENABLE */
 
 #endif /* EK_CORO_ENABLE */
 

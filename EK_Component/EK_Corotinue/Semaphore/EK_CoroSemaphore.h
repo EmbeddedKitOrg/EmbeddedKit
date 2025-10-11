@@ -48,23 +48,148 @@ typedef struct EK_CoroSem_t
     uint32_t Sem_MaxCount; /**< 最大信号量数量 */
     EK_CoroList_t Sem_WaitList; /**< 等待获取信号量的协程列表 */
     bool Sem_isDynamic; /**< 是否来源于动态创建的标志位 */
+
+#if (EK_CORO_MUTEX_ENABLE == 1)
+    bool Sem_isMutex; /**< 是否是互斥量的标志位 */
+    EK_CoroTCB_t *Mutex_Holder; /**< 互斥量持有者 */
+#if (EK_CORO_MUTEX_RECURSIVE_ENABLE == 1)
+    bool Mutex_isRecursive; /**< 互斥量是否递归 */
+    uint16_t Mutex_RecursiveCount; /**< 递归互斥量计数器 */
+#endif /* EK_CORO_MUTEX_RECURSIVE_ENABLE == 1 */
+#if (EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1)
+    int8_t Mutex_OriginalPriority; /**< 互斥量持有者的原始优先级 默认为-1 */
+#endif /* EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1 */
+
+#endif /* EK_CORO_MUTEX_ENABLE == 1 */
+
 } EK_CoroSem_t;
 
 typedef EK_CoroSem_t *EK_CoroSemHanlder_t; /**< 动态类型信号量句柄 */
 typedef EK_CoroSem_t *EK_CoroSemStaticHanlder_t; /**< 静态类型信号量句柄 */
 
 /* ========================= 函数声明区 ========================= */
-EK_CoroSemHanlder_t EK_pSemCreate(uint16_t init_count, uint16_t max_count);
-EK_CoroSemStaticHanlder_t EK_pSemCreateStatic(EK_CoroSem_t *sem, uint32_t init_count, uint32_t max_count);
+EK_CoroSem_t *EK_pSemGenericCreate(uint16_t init_count, uint16_t max_count, bool is_mutex, bool is_recursive);
+EK_CoroSem_t *EK_pSemGenericCreateStatic(
+    EK_CoroSem_t *sem, uint32_t init_count, uint32_t max_count, bool is_mutex, bool is_recursive);
 EK_Result_t EK_rSemTake(EK_CoroSemHanlder_t sem, uint32_t timeout);
 EK_Result_t EK_rSemGive(EK_CoroSemHanlder_t sem);
 EK_Result_t EK_rSemClean(EK_CoroSemHanlder_t sem);
 EK_Result_t EK_rSemDelete(EK_CoroSem_t *sem);
 
-// 二值信号量
+/* ========================= 计数信号量宏 ========================= */
+/**
+ * @brief 创建计数信号量（动态分配）
+ * @param init_count 初始计数值
+ * @param max_count 最大计数值
+ * @return 信号量句柄指针，失败返回NULL
+ */
+#define EK_pSemCreate(init_count, max_count) EK_pSemGenericCreate(init_count, max_count, false, false)
+
+/**
+ * @brief 创建计数信号量（静态分配）
+ * @param sem_ptr 信号量结构体指针
+ * @param init_count 初始计数值
+ * @param max_count 最大计数值
+ * @return 信号量句柄指针，失败返回NULL
+ */
+#define EK_pSemCreateStatic(sem_ptr, init_count, max_count) \
+    EK_pSemGenericCreateStatic(sem_ptr, init_count, max_count, false, false)
+
+/* ========================= 二值信号量宏 ========================= */
+/**
+ * @brief 创建二值信号量（动态分配）
+ * @param init_val 初始值（0或非0）
+ * @return 信号量句柄指针，失败返回NULL
+ */
 #define EK_pSemBinaryCreate(init_val) EK_pSemCreate((init_val == 0 ? 0 : 1), 1)
-#define EK_pSemBinaryCreateStatic(sem_ptr, buffer, init_val) \
-    EK_pSemCreateStatic(sem_ptr, buffer, (init_val == 0 ? 0 : 1), 1)
+
+/**
+ * @brief 创建二值信号量（静态分配）
+ * @param sem_ptr 信号量结构体指针
+ * @param init_val 初始值（0或非0）
+ * @return 信号量句柄指针，失败返回NULL
+ */
+#define EK_pSemBinaryCreateStatic(sem_ptr, init_val) EK_pSemCreateStatic(sem_ptr, (init_val == 0 ? 0 : 1), 1)
+
+/**
+ * @brief 获取二值信号量
+ * @param mutex_ptr 信号量句柄
+ * @param timeout 超时时间（ms）
+ * @return EK_OK 成功，其他值表示错误
+ */
+#define EK_rSemBinaryTake(mutex_ptr, timeout) EK_rSemTake(mutex_ptr, timeout)
+
+/**
+ * @brief 释放二值信号量
+ * @param mutex_ptr 信号量句柄
+ * @return EK_OK 成功，其他值表示错误
+ */
+#define EK_rSemBinaryGive(mutex_ptr) EK_rSemGive(mutex_ptr)
+
+#if (EK_CORO_MUTEX_ENABLE == 1)
+
+/* ========================= 互斥量宏 ========================= */
+/**
+ * @brief 创建互斥量（动态分配）
+ * @return 互斥量句柄指针，失败返回NULL
+ */
+#define EK_pMutexCreate() EK_pSemGenericCreate(1, 1, true, false)
+
+/**
+ * @brief 创建互斥量（静态分配）
+ * @param mutex_ptr 互斥量结构体指针
+ * @return 互斥量句柄指针，失败返回NULL
+ */
+#define EK_pMutexCreateStatic(mutex_ptr) EK_pSemGenericCreateStatic(mutex_ptr, 1, 1, true, false)
+
+/**
+ * @brief 获取互斥量
+ * @param mutex_ptr 互斥量句柄
+ * @param timeout 超时时间（ms）
+ * @return EK_OK 成功，其他值表示错误
+ */
+#define EK_rMutexTake(mutex_ptr, timeout) EK_rSemTake(mutex_ptr, timeout)
+
+/**
+ * @brief 释放互斥量
+ * @param mutex_ptr 互斥量句柄
+ * @return EK_OK 成功，其他值表示错误
+ */
+#define EK_rMutexGive(mutex_ptr) EK_rSemGive(mutex_ptr)
+
+#if (EK_CORO_MUTEX_RECURSIVE_ENABLE == 1)
+
+/* ========================= 递归互斥量宏 ========================= */
+/**
+ * @brief 创建递归互斥量（动态分配）
+ * @return 递归互斥量句柄指针，失败返回NULL
+ */
+#define EK_pMutexRecursiveCreate() EK_pSemGenericCreate(1, 1, true, true)
+
+/**
+ * @brief 创建递归互斥量（静态分配）
+ * @param mutex_ptr 递归互斥量结构体指针
+ * @return 递归互斥量句柄指针，失败返回NULL
+ */
+#define EK_pMutexRecursiveCreateStatic(mutex_ptr) EK_pSemGenericCreateStatic(mutex_ptr, 1, 1, true, true)
+
+/**
+ * @brief 获取递归互斥量
+ * @param mutex_ptr 递归互斥量句柄
+ * @param timeout 超时时间（ms）
+ * @return EK_OK 成功，其他值表示错误
+ */
+#define EK_rMutexRecursiveTake(mutex_ptr, timeout) EK_rSemTake(mutex_ptr, timeout)
+
+/**
+ * @brief 释放递归互斥量
+ * @param mutex_ptr 递归互斥量句柄
+ * @return EK_OK 成功，其他值表示错误
+ */
+#define EK_rMutexRecursiveGive(mutex_ptr) EK_rSemGive(mutex_ptr)
+
+#endif /* EK_CORO_MUTEX_RECURSIVE_ENABLE == 1 */
+#endif /* EK_CORO_MUTEX_ENABLE == 1 */
 
 #ifdef __cplusplus
 }

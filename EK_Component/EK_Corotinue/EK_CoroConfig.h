@@ -71,98 +71,94 @@
 #endif /* __FPU_PRESENT == 1 && __FPU_USED == 1 */
 
 /**
- * @brief 协程优先级分组数目
- * @warning 禁止修改
+ * @warning
+ * 下面的宏定义都是提供的默认设置，请不要修改！
+ * 想要具体配置 请到 `EK_Config.h` 中配置
+ * 否则可能会出现未知的错误！
  */
+
+/* ================================ 协程系统配置 ================================ */
+/**
+ * @brief 协程系统配置选项 (仅在 EK_CORO_ENABLE=1 时生效)
+ *
+ * EK_CORO_PRIORITY_GROUPS       - 协程优先级组数目
+ * EK_CORO_SYSTEM_FREQ           - 系统时钟频率 (HZ)
+ * EK_CORO_TICK_RATE_HZ          - SysTick中断周期 (HZ)
+ * EK_CORO_IDLE_TASK_STACK_SIZE  - 协程空闲任务堆栈大小 (字节)
+ */
+
 #ifndef EK_CORO_PRIORITY_GROUPS
 #define EK_CORO_PRIORITY_GROUPS (16)
 #endif /* EK_CORO_PRIORITY_GROUPS */
 
-/**
- * @brief 系统的时钟频率(HZ)
- * @warning 禁止修改
- */
 #ifndef EK_CORO_SYSTEM_FREQ
 #define EK_CORO_SYSTEM_FREQ (SystemCoreClock)
 #endif /*EK_CORO_SYSTEM_FREQ*/
 
-/**
- * @brief SysTick中断周期
- * @warning 禁止修改
- */
 #ifndef EK_CORO_TICK_RATE_HZ
 #define EK_CORO_TICK_RATE_HZ (1000)
 #endif /*EK_CORO_TICK_RATE_HZ*/
 
-/**
- * @brief 栈溢出检测方法
- * @details 0: 禁用栈溢出检测; 1: 方法1(检测栈底填充值); 2: 方法2(检测栈指针是否超出范围)
- * @note 方法1性能较好但检测范围有限; 方法2检测更全面但性能开销稍大
- * @warning 禁止修改
- */
-#ifndef EK_CORO_STACK_OVERFLOW_CHECK_ENABLE
-#define EK_CORO_STACK_OVERFLOW_CHECK_ENABLE (0) // 0:禁用 1:方法1 2:方法2
-#endif /*EK_CORO_STACK_OVERFLOW_CHECK_ENABLE*/
-
-/**
- * @brief 协程空闲任务堆栈大小
- * @warning 禁止修改
- */
 #ifndef EK_CORO_IDLE_TASK_STACK_SIZE
-#define EK_CORO_IDLE_TASK_STACK_SIZE (512) // 定义空闲任务的堆栈大小
+#define EK_CORO_IDLE_TASK_STACK_SIZE (512)
 #endif /* EK_CORO_IDLE_TASK_STACK_SIZE */
 
+/* ================================ 协程功能配置 ================================ */
 /**
- * @brief 是否开启空闲钩子函数
- * @details 如果开启 每次进入空闲任务就会调用一次 EK_CoroIdleHook 函数 用户可以自己实现具体内容
- * @warning 禁止修改
+ * @brief 协程功能配置选项 (仅在 EK_CORO_ENABLE=1 时生效)
+ *
+ * EK_CORO_IDLE_HOOK_ENABLE           - 是否开启空闲钩子函数
+ *                                    如果开启，每次进入空闲任务就会调用一次 EK_CoroIdleHook 函数
+ *                                    1:使能 0:失能
+ *
+ * EK_CORO_STACK_OVERFLOW_CHECK_ENABLE - 栈溢出检测方法
+ *                                    0: 禁用栈溢出检测
+ *                                    1: 方法1(检测栈底填充值)，性能较好但检测范围有限
+ *                                    2: 方法2(检测栈指针是否超出范围)，检测更全面但性能开销稍大
+ *
+ * EK_HIGH_WATER_MARK_ENABLE          - 是否使能高水位检测功能
+ *                                    启用后会统计每个任务的栈使用历史最大值，可用于调试和优化内存使用
+ *                                    1:使能 0:失能
+ * EK_CORO_TASK_NOTIFY_ENABLE         - 是否使能任务通知， 1:使能 0:失能
+ * EK_CORO_MESSAGE_QUEUE_ENABLE       - 是否使能消息队列，1:使能 0:失能
+ * EK_CORO_SEMAPHORE_ENABLE           - 是否使能信号量，1:使能 0:失能
+ * EK_CORO_MUTEX_ENABLE               - 是否使能互斥锁，仅在 EK_CORO_SEMAPHORE_ENABLE 为1时有效，1:使能 0:失能
+ * EK_CORO_MUTEX_RECURSIVE_ENABLE         - 是否使能递归互斥量，仅在 EK_CORO_MUTEX_ENABLE 有效时才有意义
+ * EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE - 是否开启优先级继承，仅在 EK_CORO_SEMAPHORE_ENABLE 为1时有效，1:使能 0:失能
  */
+
 #ifndef EK_CORO_IDLE_HOOK_ENABLE
 #define EK_CORO_IDLE_HOOK_ENABLE (0)
 #endif /* EK_CORO_IDLE_HOOK_ENABLE */
 
-/**
- * @brief 是否使能高水位检测功能
- * @details 启用后会统计每个任务的栈使用历史最大值，可用于调试和优化内存使用
- * @warning 禁止修改
- */
+#ifndef EK_CORO_STACK_OVERFLOW_CHECK_ENABLE
+#define EK_CORO_STACK_OVERFLOW_CHECK_ENABLE (0)
+#endif /*EK_CORO_STACK_OVERFLOW_CHECK_ENABLE*/
+
 #ifndef EK_HIGH_WATER_MARK_ENABLE
 #define EK_HIGH_WATER_MARK_ENABLE (0)
 #endif /* EK_HIGH_WATER_MARK_ENABLE */
 
-/**
- * @brief 是否使能任务通知
- * @warning 禁止修改
- */
 #ifndef EK_CORO_TASK_NOTIFY_ENABLE
-#define EK_CORO_TASK_NOTIFY_ENABLE (1) // 1:使能 0:失能
+#define EK_CORO_TASK_NOTIFY_ENABLE (0)
 #endif /* EK_CORO_TASK_NOTIFY_ENABLE */
 
-/**
- * @brief 是否使能消息队列
- * @warning 禁止修改
- */
 #ifndef EK_CORO_MESSAGE_QUEUE_ENABLE
-#define EK_CORO_MESSAGE_QUEUE_ENABLE (1) // 1:使能 0:失能
+#define EK_CORO_MESSAGE_QUEUE_ENABLE (0)
 #endif /* EK_CORO_MESSAGE_QUEUE_ENABLE */
 
-/**
- * @brief 是否使能信号量
- * @warning 禁止修改
- */
 #ifndef EK_CORO_SEMAPHORE_ENABLE
-#define EK_CORO_SEMAPHORE_ENABLE (0) // 1:使能 0:失能
+#define EK_CORO_SEMAPHORE_ENABLE (0)
 #endif /* EK_CORO_SEMAPHORE_ENABLE */
 
-/**
- * @brief 使能信号量的情况下 是否使能互斥量
- * @warning 禁止修改
- */
-#if (EK_CORO_SEMAPHORE_ENABLE == 1)
-#define EK_CORO_MUTEX_ENABLE (1)
-#else
+#if (EK_CORO_SEMAPHORE_ENABLE == 0)
 #define EK_CORO_MUTEX_ENABLE (0)
-#endif /* EK_CORO_SEMAPHORE_ENABLE == 1 */
+#endif /* EK_CORO_SEMAPHORE_ENABLE == 0 */
+
+#if (EK_CORO_MUTEX_ENABLE == 0)
+#define EK_CORO_MUTEX_RECURSIVE_ENABLE            (0)
+#define EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE (0)
+#endif /* EK_CORO_MUTEX_ENABLE == 0 */
 
 #endif /* EK_CORO_ENABLE == 1 */
 

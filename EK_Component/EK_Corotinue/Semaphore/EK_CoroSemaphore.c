@@ -20,6 +20,61 @@
 
 /* ========================= 内部函数 ========================= */
 
+#if (EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1)
+
+// 继承当前任务的优先级
+ALWAYS_STATIC_INLINE EK_Result_t r_mutex_inherit_priority(EK_CoroSem_t *sem)
+{
+    // 参数有效性检查
+    if (sem == NULL) return EK_NULL_POINTER;
+    if (sem->Mutex_Holder == NULL || sem->Sem_isMutex == false) return EK_INVALID_PARAM;
+
+    // 先保存原始优先级（如果还未保存）
+    if (sem->Mutex_OriginalPriority == -1)
+    {
+        sem->Mutex_OriginalPriority = sem->Mutex_Holder->TCB_Priority;
+    }
+
+    // 如果等待链表非空
+    if (sem->Sem_WaitList.List_Head != NULL)
+    {
+        // 等待链表已按优先级排序，头部即为最高优先级任务
+        uint8_t highest_prio = ((EK_CoroTCB_t *)(sem->Sem_WaitList.List_Head->CoroNode_Owner))->TCB_Priority;
+
+        // 优先级继承
+        if (highest_prio < sem->Mutex_Holder->TCB_Priority)
+        {
+            // 修改优先级
+            sem->Mutex_Holder->TCB_Priority = highest_prio;
+        }
+    }
+
+    return EK_OK;
+}
+
+// 恢复当前任务的优先级
+ALWAYS_STATIC_INLINE EK_Result_t r_mutex_restore_priority(EK_CoroSem_t *sem)
+{
+    // 参数有效性检查
+    if (sem == NULL) return EK_NULL_POINTER;
+    if (sem->Mutex_Holder == NULL || sem->Sem_isMutex == false || sem->Mutex_OriginalPriority == -1)
+    {
+        return EK_INVALID_PARAM;
+    }
+
+    if (sem->Mutex_Holder->TCB_Priority != sem->Mutex_OriginalPriority)
+    {
+        // 恢复优先级
+        sem->Mutex_Holder->TCB_Priority = sem->Mutex_OriginalPriority;
+    }
+
+    sem->Mutex_OriginalPriority = -1;
+
+    return EK_OK;
+}
+
+#endif /* EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1 */
+
 /**
  * @brief 内部信号量释放函数（非阻塞版本）
  * @details 增加信号量计数，不处理等待协程的唤醒。
@@ -34,7 +89,7 @@
 ALWAYS_STATIC_INLINE EK_Result_t r_sem_give(EK_CoroSem_t *sem)
 {
     // 参数有效性检查
-    if (sem == NULL) return EK_INVALID_PARAM;
+    if (sem == NULL) return EK_NULL_POINTER;
 
     // 检查是否已达到最大值
     if (sem->Sem_Count >= sem->Sem_MaxCount)
@@ -42,8 +97,81 @@ ALWAYS_STATIC_INLINE EK_Result_t r_sem_give(EK_CoroSem_t *sem)
         return EK_FULL;
     }
 
+    EK_Result_t op_res;
+    bool sem_count_plus_flag = true;
+
+// 开启互斥量
+#if (EK_CORO_MUTEX_ENABLE == 1)
+
+    // 查看持有者 只有持有者才可以给出互斥量
+    if (sem->Sem_isMutex == true)
+    {
+        EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB(); // 获取当前的TCB
+
+        // 递归互斥量
+#if (EK_CORO_MUTEX_RECURSIVE_ENABLE == 1)
+        // 是递归互斥锁
+        if (sem->Mutex_isRecursive == true && current_tcb == sem->Mutex_Holder)
+        {
+            // 递归释放：减少递归计数器
+            sem->Mutex_RecursiveCount--;
+
+            // 如果递归计数器仍然大于0，说明还在持有锁，不增加信号量计数
+            if (sem->Mutex_RecursiveCount > 0)
+            {
+                sem_count_plus_flag = false;  // 不增加信号量计数
+            }
+            else
+            {
+                // 递归计数器归零，准备完全释放锁
+                sem_count_plus_flag = true;   // 增加信号量计数
+            }
+        }
+        else
+        {
+#endif /* EK_CORO_MUTEX_RECURSIVE_ENABLE == 1 */
+
+            // 当前任务TCB并不是持有者 直接退出
+            if (sem->Mutex_Holder != current_tcb) return EK_ERROR;
+
+#if (EK_CORO_MUTEX_RECURSIVE_ENABLE == 1)
+        }
+#endif /* EK_CORO_MUTEX_RECURSIVE_ENABLE == 1 */
+
+// 优先级继承
+#if (EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1)
+        // 是持有者 先判断是否有优先级继承 有优先级继承要恢复原有的优先级
+        // 注意：只有当递归计数器为0时才恢复优先级
+#if (EK_CORO_MUTEX_RECURSIVE_ENABLE == 1)
+        if (sem->Mutex_isRecursive == false || sem->Mutex_RecursiveCount == 0)
+        {
+#endif /* EK_CORO_MUTEX_RECURSIVE_ENABLE == 1 */
+
+            op_res = r_mutex_restore_priority(sem);
+            if (op_res != EK_OK) return op_res;
+            
+#if (EK_CORO_MUTEX_RECURSIVE_ENABLE == 1)
+        }
+#endif /* EK_CORO_MUTEX_RECURSIVE_ENABLE == 1 */
+#endif /* EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1 */
+
+        // 只有当递归计数器为0时才删除持有者
+#if (EK_CORO_MUTEX_RECURSIVE_ENABLE == 1)
+        if (sem->Mutex_isRecursive == false || sem->Mutex_RecursiveCount == 0)
+        {
+#endif /* EK_CORO_MUTEX_RECURSIVE_ENABLE == 1 */
+
+            sem->Mutex_Holder = NULL;
+
+#if (EK_CORO_MUTEX_RECURSIVE_ENABLE == 1)
+        }
+#endif /* EK_CORO_MUTEX_RECURSIVE_ENABLE == 1 */
+    }
+
+#endif /* EK_CORO_MUTEX_ENABLE == 1 */
+
     // 简单增加计数
-    sem->Sem_Count++;
+    if (sem_count_plus_flag == true) sem->Sem_Count++;
     return EK_OK;
 }
 
@@ -61,13 +189,72 @@ ALWAYS_STATIC_INLINE EK_Result_t r_sem_give(EK_CoroSem_t *sem)
 ALWAYS_STATIC_INLINE EK_Result_t r_sem_take(EK_CoroSem_t *sem)
 {
     // 参数有效性检查
-    if (sem == NULL) return EK_INVALID_PARAM;
+    if (sem == NULL) return EK_NULL_POINTER;
 
-    // 检查是否有可用信号量
-    if (sem->Sem_Count == 0)
+    EK_Result_t op_res;
+
+// 开启互斥量
+#if (EK_CORO_MUTEX_ENABLE == 1)
+
+    // 互斥量要记录持有者
+    if (sem->Sem_isMutex == true)
     {
-        return EK_EMPTY;
+        EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB(); // 获取当前的TCB
+
+        // 递归互斥量
+#if (EK_CORO_MUTEX_RECURSIVE_ENABLE == 1)
+        // 是递归互斥锁且当前任务已经是持有者
+        if (sem->Mutex_isRecursive == true && current_tcb == sem->Mutex_Holder)
+        {
+            // 递归获取：增加递归计数器，但不减少信号量计数
+            sem->Mutex_RecursiveCount++;
+            return EK_OK;  // 直接返回成功，不需要继续处理信号量计数
+        }
+        else
+        {
+#endif /* EK_CORO_MUTEX_RECURSIVE_ENABLE == 1 */
+
+            // 对于互斥锁，需要检查信号量计数（但只有非持有者才检查）
+            if (sem->Sem_Count == 0)
+            {
+                return EK_EMPTY;
+            }
+
+            // 更新持有者（第一次获取）
+            sem->Mutex_Holder = current_tcb;
+
+// 优先级继承
+#if (EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1)
+
+            // 继承优先级（只有非递归获取或者第一次获取递归锁时才处理）
+            op_res = r_mutex_inherit_priority(sem);
+
+            if (op_res != EK_OK) return op_res;
+
+#endif /* EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1 */
+
+#if (EK_CORO_MUTEX_RECURSIVE_ENABLE == 1)
+            // 如果是递归互斥锁，初始化递归计数器为1
+            if (sem->Mutex_isRecursive == true)
+            {
+                sem->Mutex_RecursiveCount = 1;
+            }
+        }
+#endif /* EK_CORO_MUTEX_RECURSIVE_ENABLE == 1 */
     }
+    else
+    {
+#endif /* EK_CORO_MUTEX_ENABLE == 1 */
+
+        // 非互斥锁或普通信号量，检查信号量计数
+        if (sem->Sem_Count == 0)
+        {
+            return EK_EMPTY;
+        }
+
+#if (EK_CORO_MUTEX_ENABLE == 1)
+    }
+#endif /* EK_CORO_MUTEX_ENABLE == 1 */
 
     // 简单减少计数
     sem->Sem_Count--;
@@ -95,45 +282,6 @@ ALWAYS_STATIC_INLINE void v_sem_delay(EK_CoroSem_t *sem, EK_CoroTCB_t *tcb, uint
 
     // 任务阻塞等待
     EK_vCoroDelay(timeout);
-}
-
-/**
- * @brief 内部信号量唤醒结果处理函数
- * @details 检查协程被唤醒的原因，处理超时和删除情况。
- *          对于超时情况，需要从等待列表中移除协程节点。
- *
- * @param sem 信号量指针
- * @param tcb 被唤醒的协程TCB指针
- * @return EK_Result_t 唤醒结果：
- *         - EK_OK: 成功获取信号量
- *         - EK_TIMEOUT: 等待超时
- *         - EK_NOT_FOUND: 信号量被删除
- *         - EK_ERROR: 其他错误
- */
-ALWAYS_STATIC_INLINE EK_Result_t r_sem_wake(EK_CoroSem_t *sem, EK_CoroTCB_t *tcb)
-{
-    tcb->TCB_WakeUpTime = EK_uKernelGetTick();
-    if (tcb->TCB_EventResult == EK_CORO_EVENT_OK)
-    {
-        return EK_OK;
-    }
-    else if (tcb->TCB_EventResult == EK_CORO_EVENT_TIMEOUT)
-    {
-        // 超时情况：从等待列表中移除事件节点（若仍在等待链表中）
-        if (tcb->TCB_EventNode.CoroNode_List == &sem->Sem_WaitList)
-        {
-            EK_rKernelRemove(&sem->Sem_WaitList, &tcb->TCB_EventNode);
-        }
-        return EK_TIMEOUT;
-    }
-    else if (tcb->TCB_EventResult == EK_CORO_EVENT_DELETED)
-    {
-        return EK_NOT_FOUND;
-    }
-    else
-    {
-        return EK_ERROR;
-    }
 }
 
 /**
@@ -180,13 +328,23 @@ ALWAYS_STATIC_INLINE void v_sem_wake(EK_CoroTCB_t *tcb, EK_CoroEventResult_t res
  *
  * @param init_count 初始令牌数量（信号量初始计数值）
  * @param max_count 最大令牌数量（信号量最大计数值）
+ * @param is_mutex 是否是互斥量
+ * @param is_recursive 是否是递归互斥
  *
- * @return EK_CoroSemHanlder_t 成功时返回信号量句柄，失败返回NULL
+ * @return EK_CoroSem_t * 成功时返回信号量句柄，失败返回NULL
  */
-EK_CoroSemHanlder_t EK_pSemCreate(uint16_t init_count, uint16_t max_count)
+EK_CoroSem_t *EK_pSemGenericCreate(uint16_t init_count, uint16_t max_count, bool is_mutex, bool is_recursive)
 {
     // 参数有效性检查：最大值不能为0
     if (max_count == 0) return NULL;
+
+#if (EK_CORO_MUTEX_ENABLE == 0)
+    UNUSED_VAR(is_mutex);
+#endif /* EK_CORO_MUTEX_ENABLE == 0 */
+
+#if (EK_CORO_MUTEX_RECURSIVE_ENABLE == 0)
+    UNUSED_VAR(is_recursive);
+#endif /* EK_CORO_MUTEX_RECURSIVE_ENABLE == 0 */
 
     EK_ENTER_CRITICAL();
 
@@ -203,6 +361,19 @@ EK_CoroSemHanlder_t EK_pSemCreate(uint16_t init_count, uint16_t max_count)
     sem->Sem_MaxCount = max_count;
     sem->Sem_isDynamic = true;
 
+    // 初始化互斥量相关
+#if (EK_CORO_MUTEX_ENABLE == 1)
+    sem->Sem_isMutex = is_mutex;
+    sem->Mutex_Holder = NULL;
+#if (EK_CORO_MUTEX_RECURSIVE_ENABLE == 1)
+    sem->Mutex_RecursiveCount = 0;
+    sem->Mutex_isRecursive = is_recursive;
+#endif /* EK_CORO_MUTEX_RECURSIVE_ENABLE == 1 */
+#if (EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1)
+    sem->Mutex_OriginalPriority = -1;
+#endif /* EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1 */
+#endif /* EK_CORO_MUTEX_ENABLE == 1 */
+
     // 初始化等待列表
     sem->Sem_WaitList.List_Count = 0;
     sem->Sem_WaitList.List_Head = NULL;
@@ -210,7 +381,7 @@ EK_CoroSemHanlder_t EK_pSemCreate(uint16_t init_count, uint16_t max_count)
 
     EK_EXIT_CRITICAL();
 
-    return (EK_CoroSemHanlder_t)sem;
+    return (EK_CoroSemHanlder_t)sem; // 使用统一的信号量句柄类型
 }
 
 /**
@@ -221,13 +392,24 @@ EK_CoroSemHanlder_t EK_pSemCreate(uint16_t init_count, uint16_t max_count)
  * @param sem 指向用户提供的静态信号量结构体的指针
  * @param init_count 初始令牌数量（信号量初始计数值）
  * @param max_count 最大令牌数量（信号量最大计数值）
+ * @param is_mutex 是否是互斥量
+ * @param is_recursive 是否是递归量
  *
- * @return EK_CoroSemStaticHanlder_t 成功时返回信号量句柄，失败返回NULL
+ * @return EK_CoroSem_t * 成功时返回信号量句柄，失败返回NULL
  */
-EK_CoroSemStaticHanlder_t EK_pSemCreateStatic(EK_CoroSem_t *sem, uint32_t init_count, uint32_t max_count)
+EK_CoroSem_t *
+EK_pSemGenericCreateStatic(EK_CoroSem_t *sem, uint32_t init_count, uint32_t max_count, bool is_mutex, bool is_recursive)
 {
     // 参数有效性检查
     if (max_count == 0 || sem == NULL) return NULL;
+
+#if (EK_CORO_MUTEX_ENABLE == 0)
+    UNUSED_VAR(is_mutex);
+#endif /* EK_CORO_MUTEX_ENABLE == 0 */
+
+#if (EK_CORO_MUTEX_RECURSIVE_ENABLE == 0)
+    UNUSED_VAR(is_recursive);
+#endif /* EK_CORO_MUTEX_RECURSIVE_ENABLE == 0 */
 
     EK_ENTER_CRITICAL();
 
@@ -236,6 +418,21 @@ EK_CoroSemStaticHanlder_t EK_pSemCreateStatic(EK_CoroSem_t *sem, uint32_t init_c
     sem->Sem_MaxCount = max_count;
     sem->Sem_isDynamic = false;
 
+    // 初始化互斥量相关
+#if (EK_CORO_MUTEX_ENABLE == 1)
+    sem->Sem_isMutex = is_mutex;
+    sem->Mutex_Holder = NULL;
+
+#if (EK_CORO_MUTEX_RECURSIVE_ENABLE == 1)
+    sem->Mutex_RecursiveCount = 0;
+    sem->Mutex_isRecursive = is_recursive;
+#endif /* EK_CORO_MUTEX_RECURSIVE_ENABLE == 1 */
+
+#if (EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1)
+    sem->Mutex_OriginalPriority = -1;
+#endif /* EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1 */
+#endif /* EK_CORO_MUTEX_ENABLE == 1 */
+
     // 初始化等待列表
     sem->Sem_WaitList.List_Count = 0;
     sem->Sem_WaitList.List_Head = NULL;
@@ -243,7 +440,7 @@ EK_CoroSemStaticHanlder_t EK_pSemCreateStatic(EK_CoroSem_t *sem, uint32_t init_c
 
     EK_EXIT_CRITICAL();
 
-    return (EK_CoroSemStaticHanlder_t)sem;
+    return (EK_CoroSemStaticHanlder_t)sem; // 使用统一的信号量句柄类型
 }
 
 /**
@@ -278,8 +475,12 @@ EK_Result_t EK_rSemTake(EK_CoroSemHanlder_t sem, uint32_t timeout)
         // 当前信号量中有可用令牌
         if (sem->Sem_Count > 0)
         {
-            EK_EXIT_CRITICAL();
-            return r_sem_take(sem);
+            EK_Result_t op_res = r_sem_take(sem);
+            if (op_res == EK_OK)
+            {
+                EK_EXIT_CRITICAL();
+                return op_res;
+            }
         }
 
         // 没有可用信号量
@@ -333,7 +534,13 @@ EK_Result_t EK_rSemGive(EK_CoroSemHanlder_t sem)
     if (sem->Sem_WaitList.List_Count > 0)
     {
         // 信号量自增
-        sem->Sem_Count++;
+        EK_Result_t op_res = r_sem_give(sem);
+
+        if (op_res != EK_OK)
+        {
+            EK_EXIT_CRITICAL();
+            return op_res;
+        }
 
         // 获取等待链表头部的协程（等待时间最长）
         EK_CoroTCB_t *wait_tcb = p_sem_take_waiter(sem);
