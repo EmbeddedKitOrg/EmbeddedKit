@@ -130,9 +130,9 @@ extern bool EK_bMemPool_Free(void *ptr);
 #define EK_CORO_STACK_OVERFLOW_CHECK_ENABLE       (0)
 #define EK_HIGH_WATER_MARK_ENABLE                 (0)
 #define EK_CORO_TASK_NOTIFY_ENABLE                (0)
-#define EK_CORO_MESSAGE_QUEUE_ENABLE              (1)
-#define EK_CORO_SEMAPHORE_ENABLE                  (1)
-#define EK_CORO_MUTEX_ENABLE                      (1)
+#define EK_CORO_MESSAGE_QUEUE_ENABLE              (0)
+#define EK_CORO_SEMAPHORE_ENABLE                  (0)
+#define EK_CORO_MUTEX_ENABLE                      (0)
 #define EK_CORO_MUTEX_RECURSIVE_ENABLE            (0)
 #define EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE (0)
 
