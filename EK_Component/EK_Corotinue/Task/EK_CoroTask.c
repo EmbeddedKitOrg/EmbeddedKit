@@ -372,15 +372,6 @@ void EK_vCoroResume(EK_CoroHandler_t task_handle, EK_Result_t *result)
         EK_rKernelMove_Tail(EK_pKernelGetReadyList(target_tcb->TCB_Priority), &target_tcb->TCB_StateNode);
     if (result) *result = op_res;
 
-    // 如果唤醒的任务比当前任务优先级更高，则请求调度
-    EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB();
-    if (current_tcb != NULL && target_tcb->TCB_Priority < current_tcb->TCB_Priority)
-    {
-        EK_EXIT_CRITICAL();
-        EK_vKernelYield();
-        return EK_OK;
-    }
-
     EK_EXIT_CRITICAL();
 }
 

@@ -12,6 +12,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdint.h>
 
 /* ========================= 函数属性宏 ========================= */
 
@@ -130,47 +131,6 @@ typedef unsigned char bool;
 #define false (0 == 1)
 #define true  (1 == 1)
 #endif /* bool */
-
-/* 数据类型定义 */
-#ifndef __STDINT_H
-#ifndef _STDINT_H
-#ifndef _STDINT_H_
-#ifndef __STDINT_TYPES_DEFINED__
-
-/* 整数类型限制宏定义 */
-#define INT8_MIN   (-0x80)
-#define INT8_MAX   (0x7F)
-#define UINT8_MAX  (0xFF)
-
-#define INT16_MIN  (-0x8000)
-#define INT16_MAX  (0x7FFF)
-#define UINT16_MAX (0xFFFF)
-
-#define INT32_MIN  (-0x7FFFFFFF - 1)
-#define INT32_MAX  (0x7FFFFFFF)
-#define UINT32_MAX (0xFFFFFFFFU)
-
-#define INT64_MIN  (-0x7FFFFFFFFFFFFFFFLL - 1)
-#define INT64_MAX  (0x7FFFFFFFFFFFFFFFLL)
-#define UINT64_MAX (0xFFFFFFFFFFFFFFFFULL)
-
-typedef char int8_t;
-typedef unsigned char uint8_t;
-typedef short int16_t;
-typedef unsigned short uint16_t;
-typedef int int32_t;
-typedef unsigned int uint32_t;
-typedef long long int64_t;
-typedef unsigned long long uint64_t;
-
-typedef uint32_t uintptr_t; /*!< 用于指针和整数转换. */
-
-#define _SYS__STDINT_H // 避免GCC报错
-
-#endif /* __STDINT_TYPES_DEFINED__ */
-#endif /* _STDINT_H_ */
-#endif /* _STDINT_H */
-#endif /* __STDINT_H */
 
 /* ========================= 工具宏 ========================= */
 
