@@ -355,6 +355,12 @@ static void Kernel_CoroIdleFunction(void *arg)
     UNUSED_VAR(arg);
     while (1)
     {
+        EK_ENTER_CRITICAL();
+
+#if (EK_CORO_IDLE_HOOK_ENABLE == 1)
+        EK_CoroIdleHook();
+#endif /* EK_CORO_IDLE_HOOK_ENABLE == 1 */
+
         if (KernelToDeleteTCB != NULL)
         {
             if (KernelToDeleteTCB->TCB_isDynamic)
@@ -368,11 +374,11 @@ static void Kernel_CoroIdleFunction(void *arg)
         if (KernelIdleYield == true)
         {
             KernelIdleYield = false;
+            EK_EXIT_CRITICAL();
             EK_vCoroYield();
         }
-#if (EK_CORO_IDLE_HOOK_ENABLE == 1)
-        EK_CoroIdleHook();
-#endif /* EK_CORO_IDLE_HOOK_ENABLE == 1 */
+
+        EK_EXIT_CRITICAL();
     }
 }
 
@@ -648,6 +654,50 @@ EK_Result_t EK_rKernelInsert_Tail(EK_CoroList_t *list, EK_CoroListNode_t *node)
 }
 
 /**
+ * @brief 将一个协程节点插入到链表的头部。
+ * @details
+ *  这是一个公共接口，用于将节点插入到链表的开始位置。
+ *  常用于需要优先处理某些任务的场景。
+ * @param list 目标链表。
+ * @param node 要插入的协程节点。
+ * @return EK_Result_t 操作结果。
+ */
+EK_Result_t EK_rKernelInsert_Head(EK_CoroList_t *list, EK_CoroListNode_t *node)
+{
+    if (list == NULL || node == NULL) return EK_NULL_POINTER;
+
+    EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)node->CoroNode_Owner;
+    node->CoroNode_Next = NULL;
+    node->CoroNode_Prev = NULL;
+
+    EK_ENTER_CRITICAL();
+
+    if (list->List_Head == NULL) // 如果链表为空
+    {
+        list->List_Head = node;
+        list->List_Tail = node;
+    }
+    else // 头部插入 (O(1) 操作)
+    {
+        node->CoroNode_Next = list->List_Head;
+        list->List_Head->CoroNode_Prev = node;
+        list->List_Head = node;
+    }
+
+    node->CoroNode_List = list;
+    list->List_Count++;
+
+    // 判断是不是就绪链表
+    if (list >= KernelReadyList && list < KernelReadyList + EK_CORO_PRIORITY_GROUPS)
+    {
+        EK_vSetBit(&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
+    }
+
+    EK_EXIT_CRITICAL();
+    return EK_OK;
+}
+
+/**
  * @brief 将一个协程节点按优先级升序插入到链表中。
  * @details
  *  这是一个公共接口，用于将节点按照其 `TCB_Priority` 成员的值从小到大插入到链表中 (值越小优先级越高)。
@@ -780,9 +830,31 @@ EK_Result_t EK_rKernelMove_Prio(EK_CoroList_t *list, EK_CoroListNode_t *node)
     return EK_rKernelInsert_Prio(list, node);
 }
 
+/**
+ * @brief 将一个协程节点移动到另一个链表的头部。
+ * @details
+ *  此函数将节点从当前链表移除，然后插入到目标链表的开始位置。
+ *  常用于将任务优先插入到就绪链表，使其尽快得到调度。
+ * @param list 目标链表。
+ * @param node 要移动的协程节点。
+ * @return EK_Result_t 操作结果。
+ */
+EK_Result_t EK_rKernelMove_Head(EK_CoroList_t *list, EK_CoroListNode_t *node)
+{
+    if (list == NULL || node == NULL) return EK_NULL_POINTER;
+
+    if (node->CoroNode_List != NULL)
+    {
+        EK_Result_t remove_res = EK_rKernelRemove((EK_CoroList_t *)node->CoroNode_List, node);
+        if (remove_res != EK_OK) return remove_res;
+    }
+
+    return EK_rKernelInsert_Head(list, node);
+}
+
 /* ========================= 内核核心API函数 ========================= */
 
-__naked static void v_kernel_start(void)
+__naked ALWAYS_STATIC_INLINE void v_kernel_start(void)
 {
     __ASM volatile(
         // 加载第一个任务的堆栈指针到 PSP
@@ -805,6 +877,16 @@ __naked static void v_kernel_start(void)
         // 此时，栈顶正好是任务的入口地址(PC)。直接将其弹出到 PC 寄存器，
         // 这将导致 CPU 立即跳转到该地址，开始执行第一个任务。
         "pop {pc} \n");
+}
+
+/**
+ * @brief 获取内存池的剩余内存
+ * 
+ * @return EK_Size_t 
+ */
+EK_Size_t EK_uKernelGetFreeHeap(void)
+{
+    return EK_uMemPool_GetFreeSize();
 }
 
 /**
@@ -1002,14 +1084,14 @@ void EK_vTickHandler(void)
                 // 由于阻塞链表是按唤醒时间升序排列的，如果当前任务还没到期，后续任务也一定没到期
                 break;
             }
-#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1)
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 || EK_CORO_TASK_NOTIFY_ENABLE == 1)
             // 如果任务正在等待某个事件 (即其事件节点在某个等待列表中)
-            if (current_tcb->TCB_EventNode.CoroNode_List != NULL)
+            if (current_tcb->TCB_EventResult == EK_CORO_EVENT_PENDING)
             {
                 // 那么延时到期意味着事件超时
                 current_tcb->TCB_EventResult = EK_CORO_EVENT_TIMEOUT;
             }
-#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 */
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 || EK_CORO_TASK_NOTIFY_ENABLE == 1 */
 
             // 任务延时已到，将其唤醒
             current_tcb->TCB_State = EK_CORO_READY;
@@ -1055,35 +1137,59 @@ __naked void EK_vKernelPendSV_Handler(void)
 {
     __ASM volatile(
         // 保存当前任务的上下文
-        // 获取当前任务的PSP
         "mrs r0, psp \n"
 
-        // 将核心寄存器 R4-R11 和 LR(EXC_RETURN) 压入当前任务的堆栈
+#if (EK_CORO_FPU_ENABLE == 1)
+        // 检查是否需要保存FPU状态
+        "ldr r2, =0xE000EF34 \n" // FPCCR寄存器
+        "ldr r3, [r2] \n"
+        "tst r3, #0x01 \n" // 检查LSPACT位
+        "beq no_fpu_save \n"
+
+        // 保存FPU寄存器S16-S31
+        "vstmdb r0!, {s16-s31} \n"
+        "vmrs r2, fpscr \n"
+        "stmdb r0!, {r2} \n"
+
+        "no_fpu_save: \n"
+#endif /* EK_CORO_FPU_ENABLE == 1 */
+
+        // 保存通用寄存器
         "stmdb r0!, {r4-r11, lr} \n"
 
-        // 保存新的栈顶指针到 TCB
+        // 保存栈指针到TCB
         "ldr r1, =KernelCurrentTCB \n"
-        "ldr r1, [r1] \n" // 解引用得到SP位置
-        "str r0, [r1] \n" // 将r0寄存器中的数据存储的SP中
+        "ldr r1, [r1] \n"
+        "str r0, [r1] \n"
 
-        // 执行调度: KernelCurrentTCB = KernelNextTCB
+        // 任务切换
         "ldr r0, =KernelNextTCB \n"
         "ldr r0, [r0] \n"
         "ldr r1, =KernelCurrentTCB \n"
         "str r0, [r1] \n"
 
-        // 恢复新任务的SP
+        // 恢复新任务的栈指针
         "ldr r1, =KernelCurrentTCB \n"
         "ldr r1, [r1] \n"
         "ldr r0, [r1] \n"
 
-        // 从新任务的堆栈中恢复 R4-R11 和 LR(EXC_RETURN)
+        // 恢复通用寄存器
         "ldmia r0!, {r4-r11, lr} \n"
 
-        // 更新 PSP
-        "msr psp, r0 \n"
+#if (EK_CORO_FPU_ENABLE == 1)
+        // 检查是否需要恢复FPU状态
+        "tst lr, #0x10 \n" // 检查EXC_RETURN的bit 4
+        "bne no_fpu_restore \n"
 
-        // 异常返回
+        // 恢复FPU状态
+        "ldmia r0!, {r2} \n"
+        "vmsr fpscr, r2 \n"
+        "vldmia r0!, {s16-s31} \n"
+
+        "no_fpu_restore: \n"
+#endif /* EK_CORO_FPU_ENABLE == 1 */
+
+        "msr psp, r0 \n"
         "bx lr \n");
 }
 

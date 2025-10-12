@@ -249,9 +249,9 @@ EK_CoroStaticHandler_t critical_task = EK_pCoroCreateStatic(
 
 ---
 
-### EK_vCoroDelete
+### EK_rCoroDelete
 
-**函数原型**: `void EK_vCoroDelete(EK_CoroHandler_t task_handle, EK_Result_t *result)`
+**函数原型**: `void EK_rCoroDelete(EK_CoroHandler_t task_handle, EK_Result_t *result)`
 
 **功能描述**: 删除指定的协程任务。
 
@@ -268,7 +268,7 @@ EK_CoroHandler_t temp_task = EK_pCoroCreate(TempTask, NULL, 5, 256);
 
 // 删除任务
 EK_Result_t result;
-EK_vCoroDelete(temp_task, &result);
+EK_rCoroDelete(temp_task, &result);
 
 if (result == EK_OK) {
     // 删除成功
@@ -285,9 +285,9 @@ if (result == EK_OK) {
 
 ---
 
-### EK_vCoroSuspend
+### EK_rCoroSuspend
 
-**函数原型**: `void EK_vCoroSuspend(EK_CoroHandler_t task_handle, EK_Result_t *result)`
+**函数原型**: `void EK_rCoroSuspend(EK_CoroHandler_t task_handle, EK_Result_t *result)`
 
 **功能描述**: 挂起指定的协程任务。
 
@@ -301,7 +301,7 @@ if (result == EK_OK) {
 ```c
 // 挂起任务
 EK_Result_t result;
-EK_vCoroSuspend(task_handle, &result);
+EK_rCoroSuspend(task_handle, &result);
 
 if (result == EK_OK) {
     // 任务已挂起
@@ -311,13 +311,13 @@ if (result == EK_OK) {
 **注意事项**:
 - 挂起的任务不会被调度器调度
 - 可以挂起自己（自挂起）
-- 需要调用 `EK_vCoroResume` 恢复
+- 需要调用 `EK_rCoroResume` 恢复
 
 ---
 
-### EK_vCoroResume
+### EK_rCoroResume
 
-**函数原型**: `void EK_vCoroResume(EK_CoroHandler_t task_handle, EK_Result_t *result)`
+**函数原型**: `void EK_rCoroResume(EK_CoroHandler_t task_handle, EK_Result_t *result)`
 
 **功能描述**: 恢复被挂起的协程任务。
 
@@ -331,7 +331,7 @@ if (result == EK_OK) {
 ```c
 // 恢复任务
 EK_Result_t result;
-EK_vCoroResume(task_handle, &result);
+EK_rCoroResume(task_handle, &result);
 
 if (result == EK_OK) {
     // 任务已恢复
@@ -678,9 +678,9 @@ if (result == EK_OK) {
 
 ---
 
-### EK_rMsgSend
+### EK_rMsgSendToBack
 
-**函数原型**: `EK_Result_t EK_rMsgSend(EK_CoroMsgHanler_t msg, void *tx_buffer, uint32_t timeout)`
+**函数原型**: `EK_Result_t EK_rMsgSendToBack(EK_CoroMsgHanler_t msg, void *tx_buffer, uint32_t timeout)`
 
 **功能描述**: 发送消息到队列。
 
@@ -701,7 +701,7 @@ if (result == EK_OK) {
 Message message = {1, {0xAA, 0xBB, 0xCC}};
 
 // 发送消息（阻塞）
-EK_Result_t result = EK_rMsgSend(queue, &message, 100);
+EK_Result_t result = EK_rMsgSendToBack(queue, &message, 100);
 
 if (result == EK_OK) {
     // 发送成功
@@ -938,7 +938,7 @@ void Sensor_Task(void *arg) {
         msg.msg_id = 1;
 
         // 发送消息
-        EK_Result_t result = EK_rMsgSend(sensor_queue, &msg, 100);
+        EK_Result_t result = EK_rMsgSendToBack(sensor_queue, &msg, 100);
 
         if (result != EK_OK) {
             // 发送失败处理

@@ -705,7 +705,7 @@ EK_Result_t EK_rTaskDelay(uint16_t delay_ms)
  */
 EK_Size_t EK_sTaskGetFreeMemory(void)
 {
-    return EK_sMemPool_GetFreeSize();
+    return EK_uMemPool_GetFreeSize();
 }
 
 /**

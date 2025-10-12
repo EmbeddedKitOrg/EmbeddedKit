@@ -404,7 +404,7 @@ void EK_vMemPool_GetStats(PoolStats_t *stats)
  * @param 无
  * @retval 剩余可用字节数
  */
-EK_Size_t EK_sMemPool_GetFreeSize(void)
+EK_Size_t EK_uMemPool_GetFreeSize(void)
 {
     return pool_initialized ? pool_statistics.Pool_FreeBytes : 0;
 }

@@ -3,11 +3,11 @@
  * @brief 协程信号量模块实现文件
  * @details 实现协程任务间的信号量同步机制，包含动态和静态信号量的创建、删除、
  *          获取和释放功能。支持任务阻塞与唤醒机制，提供超时控制和FIFO公平性保证。
- *          采用队列令牌机制实现信号量计数管理，复用现有的队列系统。
+ *          采用轻量级计数器模式，大幅简化实现并提升性能。
  *          使用双节点机制实现状态-事件分离，与协程调度器完美集成。
  * @author N1ntyNine99
- * @date 2025-10-07
- * @version v1.0
+ * @date 2025-10-10
+ * @version v2.0
  */
 
 /* ========================= 头文件包含区 ========================= */
@@ -18,93 +18,111 @@
 
 #include "../Task/EK_CoroTask.h"
 
-/* ========================= 内部辅助宏 ========================= */
-/**
- * @brief 安全获取信号量的队列指针
- * @details 根据创建类型返回正确的队列指针，支持动态和静态创建的统一访问
- */
-#define EK_SEM_GET_QUEUE(sem) ((sem)->Sem_isDynamic ? (sem)->Sem_Queue : &(sem)->Sem_QueueStatic)
-
-/**
- * @brief 信号量令牌大小定义
- * @details 每个令牌占用1字节，令牌值本身不重要，只关心数量
- */
-#define EK_SEM_TOKEN_SIZE (sizeof(uint8_t)) // 信号量的令牌大小 1 byte
-
 /* ========================= 内部函数 ========================= */
+
+#if (EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1)
+
+// 继承当前任务的优先级
+ALWAYS_STATIC_INLINE EK_Result_t r_mutex_inherit_priority(EK_CoroSem_t *sem)
+{
+    // 参数有效性检查
+    if (sem == NULL) return EK_NULL_POINTER;
+    if (sem->Mutex_Holder == NULL || sem->Sem_isMutex == false) return EK_INVALID_PARAM;
+
+    // 先保存原始优先级（如果还未保存）
+    if (sem->Mutex_OriginalPriority == -1)
+    {
+        sem->Mutex_OriginalPriority = sem->Mutex_Holder->TCB_Priority;
+    }
+
+    // 如果等待链表非空
+    if (sem->Sem_WaitList.List_Head != NULL)
+    {
+        // 等待链表已按优先级排序，头部即为最高优先级任务
+        uint8_t highest_prio = ((EK_CoroTCB_t *)(sem->Sem_WaitList.List_Head->CoroNode_Owner))->TCB_Priority;
+
+        // 优先级继承
+        if (highest_prio < sem->Mutex_Holder->TCB_Priority)
+        {
+            // 修改优先级
+            sem->Mutex_Holder->TCB_Priority = highest_prio;
+        }
+    }
+
+    return EK_OK;
+}
+
+// 恢复当前任务的优先级
+ALWAYS_STATIC_INLINE EK_Result_t r_mutex_restore_priority(EK_CoroSem_t *sem)
+{
+    // 参数有效性检查
+    if (sem == NULL) return EK_NULL_POINTER;
+    if (sem->Mutex_Holder == NULL || sem->Sem_isMutex == false || sem->Mutex_OriginalPriority == -1)
+    {
+        return EK_INVALID_PARAM;
+    }
+
+    if (sem->Mutex_Holder->TCB_Priority != sem->Mutex_OriginalPriority)
+    {
+        // 恢复优先级
+        sem->Mutex_Holder->TCB_Priority = sem->Mutex_OriginalPriority;
+    }
+
+    sem->Mutex_OriginalPriority = -1;
+
+    return EK_OK;
+}
+
+#endif /* EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1 */
 
 /**
  * @brief 内部信号量释放函数（非阻塞版本）
- * @details 向信号量队列添加一个令牌，不处理等待协程的唤醒。
- *          此函数为纯队列操作，用于内部实现，不检查等待列表。
+ * @details 增加信号量计数，不处理等待协程的唤醒。
+ *          此函数为纯计数操作，用于内部实现，不检查等待列表。
+ *          仅进行最基本的计数增加操作，不处理任何互斥锁逻辑。
  *
  * @param sem 信号量指针
  * @return EK_Result_t 操作结果：
- *         - EK_OK: 成功添加令牌
- *         - EK_FULL: 队列已满
+ *         - EK_OK: 成功增加计数
+ *         - EK_FULL: 信号量已满
  *         - EK_INVALID_PARAM: 参数无效
  */
 ALWAYS_STATIC_INLINE EK_Result_t r_sem_give(EK_CoroSem_t *sem)
 {
     // 参数有效性检查
-    if (sem == NULL) return EK_INVALID_PARAM;
+    if (sem == NULL) return EK_NULL_POINTER;
 
-    EK_ENTER_CRITICAL();
+    // 检查是否达到最大值
+    if (sem->Sem_Count >= sem->Sem_MaxCount) return EK_FULL;
 
-    // 获取当前信号量的队列
-    EK_Queue_t *queue = EK_SEM_GET_QUEUE(sem);
-
-    // 检查队列是否已满
-    if (EK_bQueueIsFull(queue))
-    {
-        EK_EXIT_CRITICAL();
-        return EK_FULL;
-    }
-
-    // 使用临时令牌变量
-    uint8_t token = 1; // 令牌值可以是任意非零值，只关心数量
-    EK_Result_t res = EK_rQueueEnqueue(queue, &token, EK_SEM_TOKEN_SIZE);
-
-    EK_EXIT_CRITICAL();
-
-    return res;
+    // 简单增加计数
+    sem->Sem_Count++;
+    return EK_OK;
 }
 
 /**
  * @brief 内部信号量获取函数（非阻塞版本）
- * @details 从信号量队列取出一个令牌，不处理协程阻塞逻辑。
- *          此函数为纯队列操作，用于内部实现，不进行阻塞等待。
+ * @details 减少信号量计数，不处理协程阻塞逻辑。
+ *          此函数为纯计数操作，用于内部实现，不进行阻塞等待。
+ *          仅进行最基本的计数减少操作，不处理任何互斥锁逻辑。
  *
  * @param sem 信号量指针
  * @return EK_Result_t 操作结果：
- *         - EK_OK: 成功获取令牌
- *         - EK_EMPTY: 队列为空
+ *         - EK_OK: 成功减少计数
+ *         - EK_EMPTY: 信号量为空
  *         - EK_INVALID_PARAM: 参数无效
  */
 ALWAYS_STATIC_INLINE EK_Result_t r_sem_take(EK_CoroSem_t *sem)
 {
     // 参数有效性检查
-    if (sem == NULL) return EK_INVALID_PARAM;
+    if (sem == NULL) return EK_NULL_POINTER;
 
-    EK_ENTER_CRITICAL();
+    // 检查是否有可用信号量
+    if (sem->Sem_Count == 0) return EK_EMPTY;
 
-    // 获取当前信号量的队列
-    EK_Queue_t *queue = EK_SEM_GET_QUEUE(sem);
-
-    // 检查队列是否为空
-    if (EK_bQueueIsEmpty(queue))
-    {
-        EK_EXIT_CRITICAL();
-        return EK_EMPTY;
-    }
-
-    // 使用临时令牌变量
-    uint8_t token;
-    EK_Result_t res = EK_rQueueDequeue(queue, &token, EK_SEM_TOKEN_SIZE);
-
-    EK_EXIT_CRITICAL();
-
-    return res;
+    // 简单减少计数
+    sem->Sem_Count--;
+    return EK_OK;
 }
 
 /**
@@ -120,64 +138,50 @@ ALWAYS_STATIC_INLINE void v_sem_delay(EK_CoroSem_t *sem, EK_CoroTCB_t *tcb, uint
 {
     if (timeout == 0 || sem == NULL || tcb == NULL) return;
 
-    EK_ENTER_CRITICAL();
-
     // 设置事件结果为等待中
     tcb->TCB_EventResult = EK_CORO_EVENT_PENDING;
 
     // 将当前TCB的事件节点加入信号量等待列表
     EK_rKernelMove_Prio(&sem->Sem_WaitList, &tcb->TCB_EventNode);
 
-    EK_EXIT_CRITICAL();
-
     // 任务阻塞等待
     EK_vCoroDelay(timeout);
 }
 
 /**
- * @brief 内部信号量唤醒结果处理函数
- * @details 检查协程被唤醒的原因，处理超时和删除情况。
- *          对于超时情况，需要从等待列表中移除协程节点。
- *
- * @param sem 信号量指针
- * @param tcb 被唤醒的协程TCB指针
- * @return EK_Result_t 唤醒结果：
- *         - EK_OK: 成功获取信号量
- *         - EK_TIMEOUT: 等待超时
- *         - EK_NOT_FOUND: 信号量被删除
- *         - EK_ERROR: 其他错误
+ * @brief 从信号量等待列表中取出一个等待的协程
+ * @details 从指定的等待列表中取出第一个等待的协程任务控制块，
+ *          并将该协程从等待列表中移除。通常在有信号量可用时调用。
+ * @param sem 等待操作的信号量
+ * @return EK_CoroTCB_t* 指向取出的协程任务控制块的指针，如果列表为空则返回NULL
  */
-ALWAYS_STATIC_INLINE EK_Result_t r_sem_wake(EK_CoroSem_t *sem, EK_CoroTCB_t *tcb)
+ALWAYS_STATIC_INLINE EK_CoroTCB_t *p_sem_take_waiter(EK_CoroSem_t *sem)
 {
-    if (tcb->TCB_EventResult == EK_CORO_EVENT_OK)
-    {
-        return EK_OK;
-    }
-    else if (tcb->TCB_EventResult == EK_CORO_EVENT_TIMEOUT)
-    {
-        // 超时情况：从等待列表中移除事件节点
-        EK_rKernelRemove(&sem->Sem_WaitList, &tcb->TCB_EventNode);
-        return EK_TIMEOUT;
-    }
-    else if (tcb->TCB_EventResult == EK_CORO_EVENT_DELETED)
-    {
-        return EK_NOT_FOUND;
-    }
-    else
-    {
-        return EK_ERROR;
-    }
-}
+    if (sem == NULL || sem->Sem_WaitList.List_Count == 0) return NULL;
 
-ALWAYS_STATIC_INLINE EK_CoroTCB_t *p_sem_take_waiter(EK_CoroList_t *wait_list)
-{
-    if (wait_list == NULL || wait_list->List_Count == 0) return NULL;
-
-    EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)wait_list->List_Head->CoroNode_Owner;
-    EK_rKernelRemove(wait_list, &tcb->TCB_EventNode);
+    EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)sem->Sem_WaitList.List_Head->CoroNode_Owner;
+    EK_rKernelRemove(&sem->Sem_WaitList, &tcb->TCB_EventNode);
 
     return tcb;
 }
+
+/**
+ * @brief 唤醒等待信号量的协程
+ * @details 将指定的协程任务设置为就绪状态，设置事件结果，
+ *          并将其移动到对应优先级的就绪队列末尾，准备被调度执行。
+ *          通常在信号量可用且需要唤醒等待协程时调用。
+ * @param tcb 指向要唤醒的协程任务控制块的指针
+ * @param result 事件结果，通常为EK_CORO_OK或EK_CORO_TIMEOUT
+ */
+ALWAYS_STATIC_INLINE void v_sem_wake(EK_CoroTCB_t *tcb, EK_CoroEventResult_t result)
+{
+    if (tcb == NULL) return;
+
+    tcb->TCB_EventResult = result;
+    tcb->TCB_State = EK_CORO_READY;
+    EK_rKernelMove_Head(EK_pKernelGetReadyList(tcb->TCB_Priority), &tcb->TCB_StateNode);
+}
+
 /* ========================= 公开API ========================= */
 
 /**
@@ -188,13 +192,19 @@ ALWAYS_STATIC_INLINE EK_CoroTCB_t *p_sem_take_waiter(EK_CoroList_t *wait_list)
  *
  * @param init_count 初始令牌数量（信号量初始计数值）
  * @param max_count 最大令牌数量（信号量最大计数值）
+ * @param is_mutex 是否是互斥量
+ * @param is_recursive 是否是递归互斥
  *
- * @return EK_CoroSemHanlder_t 成功时返回信号量句柄，失败返回NULL
+ * @return EK_CoroSem_t * 成功时返回信号量句柄，失败返回NULL
  */
-EK_CoroSemHanlder_t EK_pSemCreate(uint16_t init_count, uint16_t max_count)
+EK_CoroSem_t *EK_pSemGenericCreate(uint16_t init_count, uint16_t max_count, bool is_mutex, bool is_recursive)
 {
     // 参数有效性检查：最大值不能为0
     if (max_count == 0) return NULL;
+
+#if (EK_CORO_MUTEX_ENABLE == 0)
+    UNUSED_VAR(is_mutex);
+#endif /* EK_CORO_MUTEX_ENABLE == 0 */
 
     EK_ENTER_CRITICAL();
 
@@ -206,99 +216,87 @@ EK_CoroSemHanlder_t EK_pSemCreate(uint16_t init_count, uint16_t max_count)
         return NULL;
     }
 
-    // 动态创建底层队列
-    EK_Queue_t *queue = EK_pQueueCreate(max_count * EK_SEM_TOKEN_SIZE);
-    if (queue == NULL)
-    {
-        EK_CORO_FREE(sem);
-        EK_EXIT_CRITICAL();
-        return NULL;
-    }
-
     // 初始化结构体成员
-    sem->Sem_Queue = queue; // 设置动态队列指针
-    sem->Sem_isDynamic = true; // 标记为动态创建
+    sem->Sem_Count = (init_count > max_count) ? max_count : init_count;
+    sem->Sem_MaxCount = max_count;
+    sem->Sem_isDynamic = true;
+
+    // 初始化互斥量相关
+#if (EK_CORO_MUTEX_ENABLE == 1)
+    sem->Sem_isMutex = is_mutex;
+    sem->Mutex_Holder = NULL;
+
+    // 递归互斥量
+    sem->Mutex_RecursiveCount = 0;
+    sem->Mutex_isRecursive = is_recursive;
+
+#if (EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1)
+    sem->Mutex_OriginalPriority = -1;
+#endif /* EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1 */
+#endif /* EK_CORO_MUTEX_ENABLE == 1 */
 
     // 初始化等待列表
     sem->Sem_WaitList.List_Count = 0;
     sem->Sem_WaitList.List_Head = NULL;
     sem->Sem_WaitList.List_Tail = NULL;
 
-    // 批量添加初始令牌
-    if (init_count != 0)
-    {
-        for (uint16_t i = 0; i < init_count; i++)
-        {
-            EK_Result_t res = r_sem_give(sem);
-            if (res != EK_OK)
-            {
-                // 初始化失败，清理已分配的资源
-                EK_rQueueDelete(queue);
-                EK_CORO_FREE(sem);
-                EK_EXIT_CRITICAL();
-                return NULL;
-            }
-        }
-    }
-
     EK_EXIT_CRITICAL();
 
-    return (EK_CoroSemHanlder_t)sem;
+    return (EK_CoroSemHanlder_t)sem; // 使用统一的信号量句柄类型
 }
 
 /**
  * @brief 静态创建一个信号量
- * @details 使用用户提供的缓冲区创建信号量，完全避免动态内存分配。
+ * @details 使用用户提供的信号量结构体创建信号量，完全避免动态内存分配。
  *          静态创建的信号量具有确定性内存使用特性，适合资源受限的嵌入式环境。
- *          使用内嵌队列结构体，确保真正的静态创建。
  *
  * @param sem 指向用户提供的静态信号量结构体的指针
- * @param buffer 指向用户提供的静态缓冲区，用于存储令牌
  * @param init_count 初始令牌数量（信号量初始计数值）
  * @param max_count 最大令牌数量（信号量最大计数值）
+ * @param is_mutex 是否是互斥量
+ * @param is_recursive 是否是递归量
  *
- * @return EK_CoroSemStaticHanlder_t 成功时返回信号量句柄，失败返回NULL
+ * @return EK_CoroSem_t * 成功时返回信号量句柄，失败返回NULL
  */
-EK_CoroSemStaticHanlder_t EK_pSemCreateStatic(EK_CoroSem_t *sem, void *buffer, uint32_t init_count, uint32_t max_count)
+EK_CoroSem_t *
+EK_pSemGenericCreateStatic(EK_CoroSem_t *sem, uint32_t init_count, uint32_t max_count, bool is_mutex, bool is_recursive)
 {
     // 参数有效性检查
-    if (max_count == 0 || sem == NULL || buffer == NULL) return NULL;
+    if (max_count == 0 || sem == NULL) return NULL;
+
+#if (EK_CORO_MUTEX_ENABLE == 0)
+    UNUSED_VAR(is_mutex);
+#endif /* EK_CORO_MUTEX_ENABLE == 0 */
 
     EK_ENTER_CRITICAL();
 
-    // 使用内嵌队列结构体创建静态队列
-    EK_Result_t res = EK_pQueueCreateStatic(&sem->Sem_QueueStatic, buffer, max_count * EK_SEM_TOKEN_SIZE);
-    if (res != EK_OK)
-    {
-        EK_EXIT_CRITICAL();
-        return NULL;
-    }
-
     // 初始化结构体成员
-    sem->Sem_isDynamic = false; // 标记为静态创建
+    sem->Sem_Count = (init_count > max_count) ? max_count : init_count;
+    sem->Sem_MaxCount = max_count;
+    sem->Sem_isDynamic = false;
+
+    // 初始化互斥量相关
+#if (EK_CORO_MUTEX_ENABLE == 1)
+    sem->Sem_isMutex = is_mutex;
+    sem->Mutex_Holder = NULL;
+
+    // 递归互斥量
+    sem->Mutex_RecursiveCount = 0;
+    sem->Mutex_isRecursive = is_recursive;
+
+#if (EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1)
+    sem->Mutex_OriginalPriority = -1;
+#endif /* EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1 */
+#endif /* EK_CORO_MUTEX_ENABLE == 1 */
 
     // 初始化等待列表
     sem->Sem_WaitList.List_Count = 0;
     sem->Sem_WaitList.List_Head = NULL;
     sem->Sem_WaitList.List_Tail = NULL;
 
-    // 批量添加初始令牌
-    if (init_count != 0)
-    {
-        for (uint32_t i = 0; i < init_count; i++)
-        {
-            res = r_sem_give(sem);
-            if (res != EK_OK)
-            {
-                EK_EXIT_CRITICAL();
-                return NULL;
-            }
-        }
-    }
-
     EK_EXIT_CRITICAL();
 
-    return (EK_CoroSemStaticHanlder_t)sem;
+    return (EK_CoroSemStaticHanlder_t)sem; // 使用统一的信号量句柄类型
 }
 
 /**
@@ -307,6 +305,7 @@ EK_CoroSemStaticHanlder_t EK_pSemCreateStatic(EK_CoroSem_t *sem, void *buffer, u
  *          1. 快速路径：如果有可用令牌，立即获取并返回成功
  *          2. 慢速路径：如果无可用令牌，根据超时设置选择阻塞等待或立即返回
  *          支持FIFO公平性，按照请求顺序唤醒等待协程。
+ *          处理互斥锁的持有者设置、递归获取和优先级继承逻辑。
  *
  * @param sem 信号量句柄
  * @param timeout 等待超时时间（tick数），0表示不等待，EK_MAX_DELAY表示永久等待
@@ -320,56 +319,107 @@ EK_CoroSemStaticHanlder_t EK_pSemCreateStatic(EK_CoroSem_t *sem, void *buffer, u
 EK_Result_t EK_rSemTake(EK_CoroSemHanlder_t sem, uint32_t timeout)
 {
     // 参数有效性检查
+    if (EK_IS_IN_INTERRUPT() == true) return EK_ERROR;
     if (sem == NULL) return EK_NULL_POINTER;
+    if (EK_pKernelGetCurrentTCB() == EK_pKernelGetIdleHandler()) return EK_INVALID_PARAM;
 
-    EK_ENTER_CRITICAL();
+    EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB(); // 当前的TCB
+    EK_Result_t op_res;
 
-    EK_Result_t res;
-
-    // 快速路径：尝试从队列获取令牌
-    res = r_sem_take(sem);
-
-    // 成功获取到信号量
-    if (res == EK_OK)
+    while (1)
     {
+        EK_ENTER_CRITICAL();
+
+        // 处理互斥锁相关逻辑
+#if (EK_CORO_MUTEX_ENABLE == 1)
+        if (sem->Sem_isMutex == true)
+        {
+            // 递归互斥锁的特殊处理
+            if (sem->Mutex_isRecursive == true && current_tcb == sem->Mutex_Holder)
+            {
+                // 递归获取：增加递归计数器，但不减少信号量计数
+                sem->Mutex_RecursiveCount++;
+                EK_EXIT_CRITICAL();
+                return EK_OK; // 直接返回成功，不需要继续处理信号量计数
+            }
+
+            // 对于互斥锁，如果当前任务已经是持有者，不需要处理信号量计数
+            if (current_tcb == sem->Mutex_Holder)
+            {
+                EK_EXIT_CRITICAL();
+                return EK_OK;
+            }
+        }
+#endif /* EK_CORO_MUTEX_ENABLE == 1 */
+
+        // 检查信号量计数
+        if (sem->Sem_Count > 0)
+        {
+            // 调用底层函数减少计数
+            op_res = r_sem_take(sem);
+            if (op_res == EK_OK)
+            {
+                // 处理互斥锁相关逻辑
+#if (EK_CORO_MUTEX_ENABLE == 1)
+                if (sem->Sem_isMutex == true)
+                {
+                    // 设置持有者
+                    sem->Mutex_Holder = current_tcb;
+
+                    // 处理递归互斥锁初始化
+                    if (sem->Mutex_isRecursive == true)
+                    {
+                        sem->Mutex_RecursiveCount = 1;
+                    }
+
+                    // 处理优先级继承
+#if (EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1)
+                    op_res = r_mutex_inherit_priority(sem);
+                    if (op_res != EK_OK)
+                    {
+                        EK_EXIT_CRITICAL();
+                        return op_res;
+                    }
+#endif /* EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1 */
+                }
+#endif /* EK_CORO_MUTEX_ENABLE == 1 */
+
+                EK_EXIT_CRITICAL();
+                return EK_OK;
+            }
+        }
+
+        // 没有可用信号量
         EK_EXIT_CRITICAL();
-        return EK_OK;
-    }
-    // 队列为空，需要处理等待逻辑
-    else if (res == EK_EMPTY)
-    {
-        // 不需要等待，直接返回失败
+
+        // 不阻塞
         if (timeout == 0)
         {
-            EK_EXIT_CRITICAL();
             return EK_EMPTY;
         }
-        // 需要阻塞等待
-        else
+
+        // 阻塞
+        v_sem_delay(sem, current_tcb, timeout);
+
+        // --从这里唤醒--
+
+        // 超时并且没有对应的信号量 退出
+        if (current_tcb->TCB_EventResult == EK_CORO_EVENT_TIMEOUT && sem->Sem_Count == 0)
         {
-            // 获取当前协程的TCB
-            EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB();
-            EK_EXIT_CRITICAL();
-
-            // 进入阻塞等待状态
-            v_sem_delay(sem, current_tcb, timeout);
-
-            // 协程被唤醒后，检查唤醒原因
-            return r_sem_wake(sem, current_tcb);
+            return EK_TIMEOUT;
         }
-    }
 
-    // 未知错误情况
-    EK_EXIT_CRITICAL();
-    return EK_UNKNOWN;
+        // 否则重试
+    }
 }
 
 /**
  * @brief 释放信号量（V操作）
  * @details 向信号量释放一个令牌。实现汇合操作：
  *          1. 如果有协程正在等待获取信号量，直接唤醒等待时间最长的协程
- *          2. 如果没有等待协程，将令牌放回队列中增加信号量计数
+ *          2. 如果没有等待协程，增加信号量计数
  *          支持优先级调度和FIFO公平性保证。
+ *          处理互斥锁的持有者检查、递归释放和优先级恢复逻辑。
  *
  * @param sem 信号量句柄
  *
@@ -377,111 +427,186 @@ EK_Result_t EK_rSemTake(EK_CoroSemHanlder_t sem, uint32_t timeout)
  *         - EK_OK: 成功释放信号量
  *         - EK_NULL_POINTER: 参数无效
  *         - EK_FULL: 信号量已满（理论上不应发生）
+ *         - EK_ERROR: 互斥量持有者不匹配
  */
 EK_Result_t EK_rSemGive(EK_CoroSemHanlder_t sem)
 {
     // 参数有效性检查
     if (sem == NULL) return EK_NULL_POINTER;
 
+    EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB(); // 获取当前的TCB
+    EK_Result_t op_res;
+    bool sem_count_plus_flag = true; // 是否需要增加信号量计数
+
     EK_ENTER_CRITICAL();
 
-    // 优先级1：有协程在等待信号量，直接唤醒等待时间最长的协程（FIFO）
+    // 处理互斥锁相关逻辑
+#if (EK_CORO_MUTEX_ENABLE == 1)
+    if (sem->Sem_isMutex == true)
+    {
+        // 检查持有者：只有持有者才可以给出互斥量
+        if (sem->Mutex_Holder != current_tcb)
+        {
+            EK_EXIT_CRITICAL();
+            return EK_ERROR;
+        }
+
+        // 处理递归互斥锁
+        if (sem->Mutex_isRecursive == true)
+        {
+            // 递归释放：减少递归计数器
+            sem->Mutex_RecursiveCount--;
+
+            // 如果递归计数器仍然大于0，说明还在持有锁，不增加信号量计数
+            if (sem->Mutex_RecursiveCount > 0)
+            {
+                sem_count_plus_flag = false;
+            }
+        }
+
+        // 处理优先级恢复
+#if (EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1)
+        // 只有当递归计数器为0或非递归互斥锁时才恢复优先级
+        if (sem->Mutex_isRecursive == false || sem->Mutex_RecursiveCount == 0)
+        {
+            op_res = r_mutex_restore_priority(sem);
+            if (op_res != EK_OK)
+            {
+                EK_EXIT_CRITICAL();
+                return op_res;
+            }
+        }
+#endif /* EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1 */
+
+        // 只有当递归计数器为0或非递归互斥锁时才清除持有者
+        if (sem->Mutex_isRecursive == false || sem->Mutex_RecursiveCount == 0)
+        {
+            sem->Mutex_Holder = NULL;
+        }
+    }
+#endif /* EK_CORO_MUTEX_ENABLE == 1 */
+
+    // 有协程在等待信号量，直接唤醒等待时间最长的协程（FIFO）
     if (sem->Sem_WaitList.List_Count > 0)
     {
+        // 只有需要增加计数时才调用底层函数
+        if (sem_count_plus_flag)
+        {
+            op_res = r_sem_give(sem);
+            if (op_res != EK_OK)
+            {
+                EK_EXIT_CRITICAL();
+                return op_res;
+            }
+        }
+
         // 获取等待链表头部的协程（等待时间最长）
-        EK_CoroTCB_t *wait_tcb = p_sem_take_waiter(&sem->Sem_WaitList);
+        EK_CoroTCB_t *wait_tcb = p_sem_take_waiter(sem);
 
-        // 设置唤醒原因和状态
-        wait_tcb->TCB_EventResult = EK_CORO_EVENT_OK;
-        wait_tcb->TCB_State = EK_CORO_READY;
-
-        // 加入对应优先级的就绪列表
-        EK_rKernelInsert_Prio(EK_pKernelGetReadyList(wait_tcb->TCB_Priority), &wait_tcb->TCB_StateNode);
+        // 设置唤醒原因并加入就绪链表
+        v_sem_wake(wait_tcb, EK_CORO_EVENT_OK);
 
         EK_EXIT_CRITICAL();
+
+        // 唤醒的任务的优先级高于当前的任务 主动上下文切换一次
+        if (wait_tcb->TCB_Priority < current_tcb->TCB_Priority) EK_vCoroYield();
+
         return EK_OK;
     }
-    // 优先级2：没有协程等待，直接将令牌放回队列
+    // 没有协程等待，直接增加计数
     else
     {
+        if (sem_count_plus_flag)
+        {
+            op_res = r_sem_give(sem);
+        }
+        else
+        {
+            op_res = EK_OK; // 递归释放但不增加计数的情况
+        }
+
         EK_EXIT_CRITICAL();
-        return r_sem_give(sem);
+        return op_res;
     }
 }
 
 /**
- * @brief 获取信号量当前计数值
- * @details 返回信号量当前可用的资源数量，即当前等待该信号量的任务数量
+ * @brief 清空信号量中的令牌并唤醒等待任务
+ * @details 将信号量计数重置为0，所有因等待令牌而阻塞的任务将以超时状态返回，
+ *          方便上层逻辑执行错误恢复或重新尝试。
  * @param sem 信号量句柄
- * @return EK_Size_t 当前信号量计数值，sem为NULL时返回0
- * @note 此函数不会阻塞，只返回当前状态快照
+ * @return EK_Result_t 操作结果（EK_OK, EK_NULL_POINTER, EK_ERROR 等）
  */
-EK_Size_t EK_uSemGetCount(EK_CoroSemHanlder_t sem)
+EK_Result_t EK_rSemClean(EK_CoroSemHanlder_t sem)
 {
     // 参数有效性检查
-    if (sem == NULL) return 0;
-    EK_Queue_t *queue = EK_SEM_GET_QUEUE(sem);
-    return queue->Queue_Size;
+    if (EK_IS_IN_INTERRUPT() == true) return EK_ERROR;
+    if (sem == NULL) return EK_NULL_POINTER;
+
+    bool need_yield = false; // 是否需要山下文切换
+
+    EK_ENTER_CRITICAL();
+
+    // 重置信号量计数
+    sem->Sem_Count = 0;
+
+    // 唤醒等待信号量的任务
+    EK_CoroTCB_t *wait_tcb = NULL;
+    while ((wait_tcb = p_sem_take_waiter(sem)) != NULL)
+    {
+        v_sem_wake(wait_tcb, EK_CORO_EVENT_TIMEOUT);
+        need_yield = true;
+    }
+
+    EK_EXIT_CRITICAL();
+
+    if (need_yield)
+    {
+        EK_vKernelYield();
+    }
+
+    return EK_OK;
 }
 
 /**
- * @brief 获取信号量剩余可用空间
- * @details 返回信号量还可以接受多少个等待任务，等于容量减去当前计数值
- * @param sem 信号量句柄
- * @return EK_Size_t 剩余可用空间，sem为NULL时返回0
- * @note 此函数不会阻塞，只返回当前状态快照
+ * @brief 删除信号量
+ * @details 唤醒所有等待任务并释放底层资源，动态创建的信号量会释放控制块。
+ * @param sem 要删除的信号量指针
+ * @return EK_Result_t 操作结果（EK_OK 或错误码）
  */
-EK_Size_t EK_uSemGetFree(EK_CoroSemHanlder_t sem)
+EK_Result_t EK_rSemDelete(EK_CoroSem_t *sem)
 {
     // 参数有效性检查
-    if (sem == NULL) return 0;
-    EK_Queue_t *queue = EK_SEM_GET_QUEUE(sem);
-    return queue->Queue_Capacity - queue->Queue_Size;
-}
+    if (sem == NULL) return EK_NULL_POINTER;
 
-/**
- * @brief 获取信号量最大容量
- * @details 返回信号量能够容纳的最大等待任务数量
- * @param sem 信号量句柄
- * @return EK_Size_t 信号量最大容量，sem为NULL时返回0
- * @note 此函数不会阻塞，返回创建时设定的固定容量值
- */
-EK_Size_t EK_uSemGetCapacity(EK_CoroSemHanlder_t sem)
-{
-    // 参数有效性检查
-    if (sem == NULL) return 0;
-    EK_Queue_t *queue = EK_SEM_GET_QUEUE(sem);
-    return queue->Queue_Capacity;
-}
+    bool need_yield = false; //是否需要上下文切换
 
-/**
- * @brief 检查信号量是否已满
- * @details 检查信号量是否已达到最大容量，无法再接受新的等待任务
- * @param sem 信号量句柄
- * @return bool 信号量已满返回true，否则返回false；sem为NULL时返回false
- * @note 此函数不会阻塞，只是查询信号量的当前状态
- */
-bool EK_bSemIsFull(EK_CoroSemHanlder_t sem)
-{
-    // 参数有效性检查
-    if (sem == NULL) return false;
-    EK_Queue_t *queue = EK_SEM_GET_QUEUE(sem);
-    return EK_bQueueIsFull(queue);
-}
+    EK_ENTER_CRITICAL();
 
-/**
- * @brief 检查信号量是否为空
- * @details 检查信号量是否没有任何等待任务
- * @param sem 信号量句柄
- * @return bool 信号量为空返回true，否则返回false；sem为NULL时返回false
- * @note 此函数不会阻塞，只是查询信号量的当前状态
- */
-bool EK_bSemIsEmpty(EK_CoroSemHanlder_t sem)
-{
-    // 参数有效性检查
-    if (sem == NULL) return false;
-    EK_Queue_t *queue = EK_SEM_GET_QUEUE(sem);
-    return EK_bQueueIsEmpty(queue);
+    // 唤醒所有等待信号量的任务
+    EK_CoroTCB_t *wait_tcb = NULL;
+    while ((wait_tcb = p_sem_take_waiter(sem)) != NULL)
+    {
+        v_sem_wake(wait_tcb, EK_CORO_EVENT_DELETED);
+        need_yield = true;
+    }
+
+    // 根据是否动态来删除信号量
+    bool is_dynamic = sem->Sem_isDynamic;
+
+    if (is_dynamic)
+    {
+        EK_CORO_FREE(sem);
+    }
+
+    EK_EXIT_CRITICAL();
+
+    if (need_yield)
+    {
+        EK_vKernelYield();
+    }
+
+    return EK_OK;
 }
 
 #endif /* EK_CORO_SEMAPHORE_ENABLE == 1 */

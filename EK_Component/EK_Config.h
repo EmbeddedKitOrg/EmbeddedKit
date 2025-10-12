@@ -76,6 +76,7 @@ extern bool EK_bMemPool_Free(void *ptr);
 
 #define EK_CORO_ENABLE (1)
 
+/** @warning :此处的宏禁止修改！*/
 #if (EK_CORO_ENABLE == 1)
 #define EK_NORMAL_SCHEDULER (0)
 #else
@@ -94,7 +95,7 @@ extern bool EK_bMemPool_Free(void *ptr);
 
 #if (EK_CORO_ENABLE == 1)
 
-#define EK_CORO_SYSTEM_FREQ          (SystemCoreClock)
+#define EK_CORO_SYSTEM_FREQ          (168000000)
 #define EK_CORO_TICK_RATE_HZ         (1000)
 #define EK_CORO_PRIORITY_GROUPS      (16)
 #define EK_CORO_IDLE_TASK_STACK_SIZE (512)
@@ -103,32 +104,39 @@ extern bool EK_bMemPool_Free(void *ptr);
 /**
  * @brief 协程功能配置选项 (仅在 EK_CORO_ENABLE=1 时生效)
  *
- * EK_CORO_IDLE_HOOK_ENABLE          - 是否开启空闲钩子函数
+ * EK_CORO_IDLE_HOOK_ENABLE           - 是否开启空闲钩子函数
  *                                    如果开启，每次进入空闲任务就会调用一次 EK_CoroIdleHook 函数
  *                                    1:使能 0:失能
+ * 
  * EK_CORO_STACK_OVERFLOW_CHECK_ENABLE - 栈溢出检测方法
  *                                    0: 禁用栈溢出检测
  *                                    1: 方法1(检测栈底填充值)，性能较好但检测范围有限
  *                                    2: 方法2(检测栈指针是否超出范围)，检测更全面但性能开销稍大
+ * 
  * EK_HIGH_WATER_MARK_ENABLE          - 是否使能高水位检测功能
  *                                    启用后会统计每个任务的栈使用历史最大值，可用于调试和优化内存使用
  *                                    1:使能 0:失能
+ * EK_CORO_TASK_NOTIFY_ENABLE         - 是否使能任务通知， 1:使能 0:失能。开启后可以配置 EK_CORO_TASK_NOTIFY_GROUP 的值来配置
+ *                                    通知组:每一个组都代表一个通道建议:8、16、32                                     
+ * 
  * EK_CORO_MESSAGE_QUEUE_ENABLE       - 是否使能消息队列，1:使能 0:失能
  * EK_CORO_SEMAPHORE_ENABLE           - 是否使能信号量，1:使能 0:失能
- * EK_CORO_MUTEX_ENABLE              - 是否使能互斥锁，仅在 EK_CORO_SEMAPHORE_ENABLE 为1时有效，1:使能 0:失能
+ * EK_CORO_MUTEX_ENABLE               - 是否使能互斥锁，仅在 EK_CORO_SEMAPHORE_ENABLE 为1时有效，1:使能 0:失能
+ * EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE - 是否开启优先级继承，仅在 EK_CORO_SEMAPHORE_ENABLE 为1时有效，1:使能 0:失能
  */
 
-#define EK_CORO_IDLE_HOOK_ENABLE            (0)
-#define EK_CORO_STACK_OVERFLOW_CHECK_ENABLE (0)
-#define EK_HIGH_WATER_MARK_ENABLE           (0)
-#define EK_CORO_MESSAGE_QUEUE_ENABLE        (1)
-#define EK_CORO_SEMAPHORE_ENABLE            (1)
+#define EK_CORO_IDLE_HOOK_ENABLE                  (0)
+#define EK_CORO_STACK_OVERFLOW_CHECK_ENABLE       (0)
+#define EK_HIGH_WATER_MARK_ENABLE                 (0)
+#define EK_CORO_TASK_NOTIFY_ENABLE                (0)
+#define EK_CORO_MESSAGE_QUEUE_ENABLE              (1)
+#define EK_CORO_SEMAPHORE_ENABLE                  (1)
+#define EK_CORO_MUTEX_ENABLE                      (1)
+#define EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE (1)
 
-#if (EK_CORO_SEMAPHORE_ENABLE == 1)
-#define EK_CORO_MUTEX_ENABLE (1)
-#else
-#define EK_CORO_MUTEX_ENABLE (0)
-#endif /* EK_CORO_SEMAPHORE_ENABLE */
+#if (EK_CORO_TASK_NOTIFY_ENABLE == 1)
+#define EK_CORO_TASK_NOTIFY_GROUP (8) // 此处可以配置任务通知的通知组数目
+#endif /* EK_CORO_TASK_NOTIFY_ENABLE */
 
 #endif /* EK_CORO_ENABLE */
 

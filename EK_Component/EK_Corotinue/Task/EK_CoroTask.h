@@ -29,9 +29,9 @@ EK_CoroStaticHandler_t EK_pCoroCreateStatic(EK_CoroTCB_t *static_tcb,
                                             void *stack,
                                             EK_Size_t stack_size);
 
-void EK_vCoroSuspend(EK_CoroHandler_t task_handle, EK_Result_t *result);
-void EK_vCoroResume(EK_CoroHandler_t task_handle, EK_Result_t *result);
-void EK_vCoroDelete(EK_CoroHandler_t task_handle, EK_Result_t *result);
+EK_Result_t EK_rCoroSuspend(EK_CoroHandler_t task_handle);
+EK_Result_t EK_rCoroResume(EK_CoroHandler_t task_handle);
+EK_Result_t EK_rCoroDelete(EK_CoroHandler_t task_handle);
 void EK_vCoroDelay(uint32_t xticks);
 void EK_vCoroDelayUntil(uint32_t xticks);
 void EK_vCoroYield(void);
@@ -39,6 +39,13 @@ EK_Result_t EK_rCoroWakeup(EK_CoroHandler_t task_handle);
 void EK_vCoroSetPriority(EK_CoroHandler_t task_handle, uint16_t priority, EK_Result_t *result);
 EK_Size_t EK_uCoroGetStack(EK_CoroHandler_t task_handle);
 
+// 任务通知
+#if (EK_CORO_TASK_NOTIFY_ENABLE == 1)
+EK_Result_t EK_rCoroSendNotify(EK_CoroHandler_t task_handle, uint8_t bit);
+EK_Result_t EK_rCoroWaitNotify(uint8_t bit, uint32_t timeout);
+#endif /* EK_CORO_TASK_NOTIFY_ENABLE == 1 */
+
+// 高水位值
 #if (EK_HIGH_WATER_MARK_ENABLE == 1)
 EK_Size_t EK_uCoroGetHighWaterMark(EK_CoroHandler_t task_handle);
 EK_Size_t EK_uCoroGetStackUsage_Debug(EK_CoroHandler_t task_handle);

@@ -50,6 +50,20 @@ typedef uint32_t EK_BitMap_t;
  */
 #define EK_MAX_DELAY (UINT32_MAX)
 
+/**
+ * @brief 任务通知相关
+ * 
+ */
+#if (EK_CORO_TASK_NOTIFY_ENABLE == 1)
+#if (EK_CORO_TASK_NOTIFY_GROUP <= 8)
+typedef uint8_t EK_CoroTaskNotifyState_t;
+#elif (EK_CORO_TASK_NOTIFY_GROUP <= 16)
+typedef uint16_t EK_CoroTaskNotifyState_t;
+#else
+typedef uint32_t EK_CoroTaskNotifyState_t;
+#endif /* EK_CORO_TASK_NOTIFY_GROUP implementation */
+#endif /* EK_CORO_TASK_NOTIFY_ENABLE == 1 */
+
 // 临界区函数声明
 void EK_vEnterCritical(void);
 void EK_vExitCritical(void);
@@ -162,25 +176,29 @@ typedef struct EK_CoroTCB_t
     EK_Size_t TCB_StackSize; /**< 协程栈的总大小 (以字节为单位). */
     EK_CoroState_t TCB_State; /**< 协程的当前状态. */
     EK_CoroFunction_t TCB_Entry; /**< 协程的入口函数地址. */
-    uint16_t TCB_Priority; /**< 协程的优先级 (数值越小，优先级越高). */
+    uint8_t TCB_Priority; /**< 协程的优先级 (数值越小，优先级越高). */
     bool TCB_isDynamic; /**< 标记协程是否为动态创建 (用于内存管理). */
     uint32_t TCB_WakeUpTime; /**< 要被唤醒的tick */
     uint32_t TCB_LastWakeUpTime; /**< 上次唤醒的tick，用于delayUntil功能 */
     EK_CoroListNode_t TCB_StateNode; /**< 用于将此TCB链入状态管理链表的节点. */
 
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1)
+    EK_CoroListNode_t TCB_EventNode; /**< 用于将此TCB链入事件管理链表的节点. */
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 */
+
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 || EK_CORO_TASK_NOTIFY_ENABLE == 1)
+    EK_CoroEventResult_t TCB_EventResult; /**< 最近一次唤醒的原因 */
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 || EK_CORO_TASK_NOTIFY_ENABLE == 1 */
+
+#if (EK_CORO_TASK_NOTIFY_ENABLE == 1)
+    EK_CoroTaskNotifyState_t TCB_NotifyState; /**< 任务通知状态位图. */
+    uint8_t TCB_NotifyValue[EK_CORO_TASK_NOTIFY_GROUP]; /**< 任务通知状态的数量. */
+#endif /* EK_CORO_TASK_NOTIFY_ENABLE == 1 */
+
 #if (EK_HIGH_WATER_MARK_ENABLE == 1)
     void *TCB_StackEnd; /**< 协程栈的结束(高)地址，用于高水位检测. */
     EK_Size_t TCB_StackHighWaterMark; /**< 协程栈的高水位标记 (历史最大使用量). */
 #endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
-
-#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1)
-    EK_CoroListNode_t TCB_EventNode; /**< 用于将此TCB链入事件管理链表的节点. */
-    EK_CoroEventResult_t TCB_EventResult; /**< 最近一次唤醒的原因 */
-#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 */
-
-#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
-    void *TCB_MsgData; /**< 用于消息队列，指向等待任务的数据缓冲区 */
-#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
 
 } EK_CoroTCB_t;
 
@@ -201,11 +219,14 @@ void EK_vKernelSetDeleteTCB(EK_CoroTCB_t *tcb);
 /* ========================= 内核核心API函数 ========================= */
 void EK_vKernelYield(void);
 EK_Result_t EK_rKernelInsert_WakeUpTime(EK_CoroList_t *list, EK_CoroListNode_t *node);
+EK_Result_t EK_rKernelInsert_Head(EK_CoroList_t *list, EK_CoroListNode_t *node);
 EK_Result_t EK_rKernelInsert_Tail(EK_CoroList_t *list, EK_CoroListNode_t *node);
 EK_Result_t EK_rKernelRemove(EK_CoroList_t *list, EK_CoroListNode_t *node);
 EK_Result_t EK_rKernelMove_WakeUpTime(EK_CoroList_t *list, EK_CoroListNode_t *node);
 EK_Result_t EK_rKernelMove_Tail(EK_CoroList_t *list, EK_CoroListNode_t *node);
 EK_Result_t EK_rKernelMove_Prio(EK_CoroList_t *list, EK_CoroListNode_t *node);
+EK_Result_t EK_rKernelMove_Head(EK_CoroList_t *list, EK_CoroListNode_t *node);
+EK_Size_t EK_uKernelGetFreeHeap(void);
 void EK_vKernelInit(void);
 void EK_vKernelStart(void);
 void EK_vTickHandler(void);
