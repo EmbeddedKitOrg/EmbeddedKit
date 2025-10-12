@@ -41,7 +41,7 @@
 | `EK_pMemPool_Malloc(size)` | 从内存池中分配指定大小的内存。 |
 | `EK_bMemPool_Free(ptr)` | 释放之前分配的内存块。 |
 | `EK_vMemPool_GetStats(stats)` | 获取内存池的详细统计信息。 |
-| `EK_sMemPool_GetFreeSize()` | 获取当前可用的空闲内存字节数。 |
+| `EK_uMemPool_GetFreeSize()` | 获取当前可用的空闲内存字节数。 |
 | `EK_bMemPool_CheckIntegrity()`| 检查内存池数据结构的完整性，用于调试。 |
 
 ## 5. 使用示例
@@ -57,7 +57,7 @@ void mempool_example(void) {
         printf("Memory pool initialization failed!\n");
         return;
     }
-    printf("Memory pool initialized. Free size: %u bytes\n", EK_sMemPool_GetFreeSize());
+    printf("Memory pool initialized. Free size: %u bytes\n", EK_uMemPool_GetFreeSize());
 
     // 2. 分配内存
     char *my_buffer = (char *)EK_pMemPool_Malloc(128);
@@ -65,7 +65,7 @@ void mempool_example(void) {
         printf("Malloc failed!\n");
         return;
     }
-    printf("Malloc(128) successful. Free size: %u bytes\n", EK_sMemPool_GetFreeSize());
+    printf("Malloc(128) successful. Free size: %u bytes\n", EK_uMemPool_GetFreeSize());
 
     // 3. 使用内存
     strcpy(my_buffer, "Hello from EK_MemPool!");
@@ -73,7 +73,7 @@ void mempool_example(void) {
 
     // 4. 释放内存
     if (EK_bMemPool_Free(my_buffer)) {
-        printf("Free successful. Free size: %u bytes\n", EK_sMemPool_GetFreeSize());
+        printf("Free successful. Free size: %u bytes\n", EK_uMemPool_GetFreeSize());
     } else {
         printf("Free failed!\n");
     }

@@ -47,7 +47,7 @@ void EK_vMemPool_Deinit(void);
 void *EK_pMemPool_Malloc(EK_Size_t size);
 bool EK_bMemPool_Free(void *ptr);
 void EK_vMemPool_GetStats(PoolStats_t *stats);
-EK_Size_t EK_sMemPool_GetFreeSize(void);
+EK_Size_t EK_uMemPool_GetFreeSize(void);
 bool EK_bMemPool_CheckIntegrity(void);
 
 #ifdef __cplusplus

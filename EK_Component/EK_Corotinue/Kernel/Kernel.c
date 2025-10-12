@@ -355,6 +355,12 @@ static void Kernel_CoroIdleFunction(void *arg)
     UNUSED_VAR(arg);
     while (1)
     {
+        EK_ENTER_CRITICAL();
+
+#if (EK_CORO_IDLE_HOOK_ENABLE == 1)
+        EK_CoroIdleHook();
+#endif /* EK_CORO_IDLE_HOOK_ENABLE == 1 */
+
         if (KernelToDeleteTCB != NULL)
         {
             if (KernelToDeleteTCB->TCB_isDynamic)
@@ -368,11 +374,11 @@ static void Kernel_CoroIdleFunction(void *arg)
         if (KernelIdleYield == true)
         {
             KernelIdleYield = false;
+            EK_EXIT_CRITICAL();
             EK_vCoroYield();
         }
-#if (EK_CORO_IDLE_HOOK_ENABLE == 1)
-        EK_CoroIdleHook();
-#endif /* EK_CORO_IDLE_HOOK_ENABLE == 1 */
+
+        EK_EXIT_CRITICAL();
     }
 }
 
@@ -848,7 +854,7 @@ EK_Result_t EK_rKernelMove_Head(EK_CoroList_t *list, EK_CoroListNode_t *node)
 
 /* ========================= 内核核心API函数 ========================= */
 
-__naked static void v_kernel_start(void)
+__naked ALWAYS_STATIC_INLINE void v_kernel_start(void)
 {
     __ASM volatile(
         // 加载第一个任务的堆栈指针到 PSP
@@ -871,6 +877,16 @@ __naked static void v_kernel_start(void)
         // 此时，栈顶正好是任务的入口地址(PC)。直接将其弹出到 PC 寄存器，
         // 这将导致 CPU 立即跳转到该地址，开始执行第一个任务。
         "pop {pc} \n");
+}
+
+/**
+ * @brief 获取内存池的剩余内存
+ * 
+ * @return EK_Size_t 
+ */
+EK_Size_t EK_uKernelGetFreeHeap(void)
+{
+    return EK_uMemPool_GetFreeSize();
 }
 
 /**

@@ -123,7 +123,6 @@
  * EK_CORO_MESSAGE_QUEUE_ENABLE       - 是否使能消息队列，1:使能 0:失能
  * EK_CORO_SEMAPHORE_ENABLE           - 是否使能信号量，1:使能 0:失能
  * EK_CORO_MUTEX_ENABLE               - 是否使能互斥锁，仅在 EK_CORO_SEMAPHORE_ENABLE 为1时有效，1:使能 0:失能
- * EK_CORO_MUTEX_RECURSIVE_ENABLE         - 是否使能递归互斥量，仅在 EK_CORO_MUTEX_ENABLE 有效时才有意义
  * EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE - 是否开启优先级继承，仅在 EK_CORO_SEMAPHORE_ENABLE 为1时有效，1:使能 0:失能
  */
 
@@ -156,7 +155,6 @@
 #endif /* EK_CORO_SEMAPHORE_ENABLE == 0 */
 
 #if (EK_CORO_MUTEX_ENABLE == 0)
-#define EK_CORO_MUTEX_RECURSIVE_ENABLE            (0)
 #define EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE (0)
 #endif /* EK_CORO_MUTEX_ENABLE == 0 */
 

@@ -52,10 +52,8 @@ typedef struct EK_CoroSem_t
 #if (EK_CORO_MUTEX_ENABLE == 1)
     bool Sem_isMutex; /**< 是否是互斥量的标志位 */
     EK_CoroTCB_t *Mutex_Holder; /**< 互斥量持有者 */
-#if (EK_CORO_MUTEX_RECURSIVE_ENABLE == 1)
     bool Mutex_isRecursive; /**< 互斥量是否递归 */
     uint16_t Mutex_RecursiveCount; /**< 递归互斥量计数器 */
-#endif /* EK_CORO_MUTEX_RECURSIVE_ENABLE == 1 */
 #if (EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1)
     int8_t Mutex_OriginalPriority; /**< 互斥量持有者的原始优先级 默认为-1 */
 #endif /* EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1 */
@@ -157,8 +155,6 @@ EK_Result_t EK_rSemDelete(EK_CoroSem_t *sem);
  */
 #define EK_rMutexGive(mutex_ptr) EK_rSemGive(mutex_ptr)
 
-#if (EK_CORO_MUTEX_RECURSIVE_ENABLE == 1)
-
 /* ========================= 递归互斥量宏 ========================= */
 /**
  * @brief 创建递归互斥量（动态分配）
@@ -188,7 +184,6 @@ EK_Result_t EK_rSemDelete(EK_CoroSem_t *sem);
  */
 #define EK_rMutexRecursiveGive(mutex_ptr) EK_rSemGive(mutex_ptr)
 
-#endif /* EK_CORO_MUTEX_RECURSIVE_ENABLE == 1 */
 #endif /* EK_CORO_MUTEX_ENABLE == 1 */
 
 #ifdef __cplusplus

@@ -269,189 +269,191 @@ EK_CoroStaticHandler_t EK_pCoroCreateStatic(EK_CoroTCB_t *tcb,
 }
 
 /**
- * @brief 挂起一个指定的协程。
+ * @brief 挂起指定协程。
  * @details
- *  将指定的任务从其当前所在的链表（通常是就绪链表）中移除，并放入挂起链表 `EK_CoroKernelSuspendList`。
- *  被挂起的任务将不会被调度器选中，直到它被 `EK_vCoroResume` 恢复。
- *  如果任务句柄为 NULL，则会挂起当前正在运行的任务，并立即触发一次任务调度。
- * @param task_handle 要挂起的任务句柄。若为 NULL，则挂起当前任务。
- * @param result (可选) 指向 `EK_Result_t` 的指针，用于返回操作结果。
+ *  将目标任务从当前所属链表（通常为就绪链表）移至挂起链表 `EK_CoroKernelSuspendList`，
+ *  使其暂时不会被调度。若入参为 `NULL`，则默认挂起当前正在运行的任务，
+ *  并在成功挂起后触发一次调度切换。
+ * @param task_handle 要挂起的任务句柄，传入 `NULL` 表示挂起当前任务。
+ * @return EK_Result_t 操作结果：
+ *         - EK_OK：挂起成功；
+ *         - EK_INVALID_PARAM：尝试挂起空闲任务；
+ *         - EK_ERROR：无法获取当前任务或在中断中执行自挂起；
+ *         - 其他错误码：链表操作失败。
  */
-void EK_vCoroSuspend(EK_CoroHandler_t task_handle, EK_Result_t *result)
+EK_Result_t EK_rCoroSuspend(EK_CoroHandler_t task_handle)
 {
     bool self_suspend = false;
-    EK_Result_t op_res;
-    // 获取当前任务句柄
     EK_CoroTCB_t *target_tcb = (EK_CoroTCB_t *)task_handle;
 
     EK_ENTER_CRITICAL();
-    // 禁止操作空闲任务
+
+    // 空闲任务不允许被挂起
     if (target_tcb == EK_pKernelGetIdleHandler())
     {
-        if (result) *result = EK_INVALID_PARAM;
         EK_EXIT_CRITICAL();
-        return;
+        return EK_INVALID_PARAM;
     }
 
-    // 空指针处理
+    // 处理空句柄，默认挂起当前任务
     if (target_tcb == NULL)
     {
         target_tcb = EK_pKernelGetCurrentTCB();
         if (target_tcb == NULL)
         {
-            if (result) *result = EK_ERROR;
             EK_EXIT_CRITICAL();
-            return;
+            return EK_ERROR;
         }
         self_suspend = true;
     }
 
-    // 设置当前的状态
+    // 检查并清理事件节点：如果任务正在等待信号量/消息队列，需要从等待列表中移除
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1)
+    if (target_tcb->TCB_EventNode.CoroNode_List != NULL)
+    {
+        // 从事件等待列表中移除任务的事件节点
+        EK_rKernelRemove(target_tcb->TCB_EventNode.CoroNode_List, &target_tcb->TCB_EventNode);
+    }
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 */
+
+    // 清理事件结果状态
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 || EK_CORO_TASK_NOTIFY_ENABLE == 1)
+    target_tcb->TCB_EventResult = EK_CORO_EVENT_NONE;
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 || EK_CORO_TASK_NOTIFY_ENABLE == 1 */
+
+    // 更新任务状态并移入挂起链表
     target_tcb->TCB_State = EK_CORO_SUSPENDED;
+    EK_Result_t op_res = EK_rKernelMove_Tail(EK_pKernelGetSuspendList(), &target_tcb->TCB_StateNode);
 
-    // 移动节点到挂起链表
-    op_res = EK_rKernelMove_Tail(EK_pKernelGetSuspendList(), &target_tcb->TCB_StateNode);
-
-    if (result) *result = op_res;
-
-    // 自挂起的话就请求一次调度
     if (self_suspend && op_res == EK_OK)
     {
         EK_EXIT_CRITICAL();
 
-        // 判断是不是在中断中
+        // 中断上下文中禁止触发调度切换
         if (EK_IS_IN_INTERRUPT() == true)
         {
-            *result = EK_ERROR;
-            return;
+            return EK_ERROR;
         }
 
         EK_vKernelYield();
+        return EK_OK;
     }
-    else
-    {
-        EK_EXIT_CRITICAL();
-    }
-}
-
-/**
- * @brief 恢复一个被挂起的协程。
- * @details
- *  将指定的任务从挂起链表 `EK_CoroKernelSuspendList` 中移除，并根据其优先级放回到就绪链表的末尾。
- *  恢复后的任务将能够再次被调度器调度。此函数对一个未被挂起的任务操作是安全的，但没有效果。
- * @param task_handle 要恢复的任务句柄。
- * @param result (可选) 指向 `EK_Result_t` 的指针，用于返回操作结果。
- */
-void EK_vCoroResume(EK_CoroHandler_t task_handle, EK_Result_t *result)
-{
-    // 获取当前任务句柄
-    EK_CoroTCB_t *target_tcb = (EK_CoroTCB_t *)task_handle;
-
-    EK_ENTER_CRITICAL();
-    // 禁止操作空闲任务
-    if (target_tcb == EK_pKernelGetIdleHandler())
-    {
-        if (result) *result = EK_INVALID_PARAM;
-        EK_EXIT_CRITICAL();
-        return;
-    }
-
-    // 空指针处理
-    if (target_tcb == NULL)
-    {
-        if (result) *result = EK_NULL_POINTER;
-        EK_EXIT_CRITICAL();
-        return;
-    }
-
-    // 更新当前TCB的状态
-    target_tcb->TCB_State = EK_CORO_READY;
-
-    // 移动到就绪链表
-    EK_Result_t op_res =
-        EK_rKernelMove_Tail(EK_pKernelGetReadyList(target_tcb->TCB_Priority), &target_tcb->TCB_StateNode);
-    if (result) *result = op_res;
 
     EK_EXIT_CRITICAL();
+    return op_res;
 }
 
 /**
- * @brief 删除一个指定的协程。
+ * @brief 恢复被挂起的协程。
  * @details
- *  - 对于动态创建的任务：将其从内核的调度列表中移除，并释放其 TCB 和堆栈所占用的内存。
- *  - 对于静态创建的任务：由于其资源是静态分配的，不能被释放，因此该函数会将其挂起，效果等同于调用 `EK_vCoroSuspend`。
- *  - 如果任务句柄为 NULL，则会删除当前任务。这种情况下，删除操作会被延迟到空闲任务中执行，以确保安全。
- * @param task_handle 要删除的任务句柄。若为 NULL，则删除当前任务。
- * @param result (可选) 指向 `EK_Result_t` 的指针，用于返回操作结果。
+ *  将挂起链表中的目标任务重新插入对应优先级的就绪链表尾部，
+ *  使其再次具备被调度的机会。若任务未挂起，链表迁移会返回失败码。
+ * @param task_handle 要恢复的任务句柄。
+ * @return EK_Result_t 操作结果：
+ *         - EK_OK：恢复成功；
+ *         - EK_INVALID_PARAM：尝试恢复空闲任务；
+ *         - EK_NULL_POINTER：传入空句柄；
+ *         - 其他错误码：链表迁移失败。
  */
-void EK_vCoroDelete(EK_CoroHandler_t task_handle, EK_Result_t *result)
+EK_Result_t EK_rCoroResume(EK_CoroHandler_t task_handle)
 {
-    bool self_delete = false;
-    EK_Result_t op_res;
-
-    // 获取当前任务句柄
+    // 参数转换：获取目标任务的TCB指针
     EK_CoroTCB_t *target_tcb = (EK_CoroTCB_t *)task_handle;
 
+    // 进入临界区：保护任务状态和链表操作
     EK_ENTER_CRITICAL();
-    // 禁止操作空闲任务
+
+    // 不能恢复空闲任务
     if (target_tcb == EK_pKernelGetIdleHandler())
     {
-        if (result) *result = EK_INVALID_PARAM;
         EK_EXIT_CRITICAL();
-        return;
+        return EK_INVALID_PARAM;
     }
 
-    // 空指针处理
+    // 检查空指针
+    if (target_tcb == NULL)
+    {
+        EK_EXIT_CRITICAL();
+        return EK_NULL_POINTER;
+    }
+
+    // 将任务状态设置为就绪
+    target_tcb->TCB_State = EK_CORO_READY;
+
+    // 将任务从挂起链表移到对应优先级的就绪链表尾部
+    // 使用尾部插入，保证FIFO公平性
+    EK_Result_t op_res =
+        EK_rKernelMove_Tail(EK_pKernelGetReadyList(target_tcb->TCB_Priority), &target_tcb->TCB_StateNode);
+
+    // 退出临界区：恢复中断
+    EK_EXIT_CRITICAL();
+    return op_res;
+}
+
+/**
+ * @brief 删除指定协程。
+ * @details
+ *  - 动态任务：从调度链表移除并释放堆栈与 TCB；
+ *  - 静态任务：无法释放资源，改为挂起任务作为等效操作；
+ *  - 传入 `NULL`：表示删除当前任务，删除动作会在空闲任务中完成以保证安全。
+ * @param task_handle 要删除的任务句柄，`NULL` 表示当前任务。
+ * @return EK_Result_t 操作结果：
+ *         - EK_OK：删除或挂起成功；
+ *         - EK_INVALID_PARAM：尝试删除空闲任务；
+ *         - EK_ERROR：无法获取当前任务或在中断中自删除；
+ *         - 其他错误码：链表操作失败。
+ */
+EK_Result_t EK_rCoroDelete(EK_CoroHandler_t task_handle)
+{
+    EK_CoroTCB_t *target_tcb = (EK_CoroTCB_t *)task_handle;
+
+    // 进入临界区：保护任务删除过程
+    EK_ENTER_CRITICAL();
+
+    // 不能删除空闲任务
+    if (target_tcb == EK_pKernelGetIdleHandler())
+    {
+        EK_EXIT_CRITICAL();
+        return EK_INVALID_PARAM;
+    }
+
+    // NULL表示删除当前任务
     if (target_tcb == NULL)
     {
         target_tcb = EK_pKernelGetCurrentTCB();
         if (target_tcb == NULL)
         {
-            if (result) *result = EK_ERROR;
             EK_EXIT_CRITICAL();
-            return;
+            return EK_ERROR;
         }
-        self_delete = true;
     }
 
-    // 对于静态任务，我们不能释放其资源，只能将其挂起
+    // 静态任务 无法释放内存，改为挂起操作
     if (target_tcb->TCB_isDynamic == false)
     {
         EK_EXIT_CRITICAL();
-        EK_vCoroSuspend(target_tcb, result);
-        return;
+        return EK_rCoroSuspend(target_tcb);
     }
 
-    // 对于动态任务
-    if (self_delete)
-    {
-        // 判断是不是在中断中
-        if (EK_IS_IN_INTERRUPT() == true)
-        {
-            EK_EXIT_CRITICAL();
-            *result = EK_ERROR;
-            return;
-        }
+    // 动态任务
+    // 删除其所有相关的节点链表
+    EK_Result_t op_res = EK_OK;
+    EK_CoroList_t *state_list = target_tcb->TCB_StateNode.CoroNode_List; // 待删除任务的状态链表
+    if (state_list != NULL) op_res = EK_rKernelRemove(state_list, &target_tcb->TCB_StateNode);
 
-        // 标记等待删除，然后请求调度
-        EK_vKernelSetDeleteTCB(target_tcb);
-        op_res = EK_rKernelRemove(target_tcb->TCB_StateNode.CoroNode_List, &target_tcb->TCB_StateNode);
-        if (result) *result = op_res;
-        EK_EXIT_CRITICAL();
-        EK_vKernelYield(); // 此调用不会返回
-    }
-    else
-    {
-        // 删除其他任务
-        op_res = EK_rKernelRemove(target_tcb->TCB_StateNode.CoroNode_List, &target_tcb->TCB_StateNode);
-        if (op_res == EK_OK)
-        {
-            EK_CORO_FREE(target_tcb->TCB_StackStart);
-            EK_CORO_FREE(target_tcb);
-        }
-        if (result) *result = op_res;
-        EK_EXIT_CRITICAL();
-    }
+#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1)
+
+    EK_CoroList_t *event_list = target_tcb->TCB_EventNode.CoroNode_List; // 待删除任务的事件链表
+    if (event_list != NULL) op_res = EK_rKernelRemove(event_list, &target_tcb->TCB_EventNode);
+
+#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 || EK_CORO_SEMAPHORE_ENABLE == 1 */
+
+    // 标记为待删除 让空闲任务来删除
+    if (op_res == EK_OK) EK_vKernelSetDeleteTCB(target_tcb);
+
+    // 退出临界区：恢复中断
+    EK_EXIT_CRITICAL();
+    return EK_OK;
 }
 
 /**
@@ -805,7 +807,7 @@ EK_Result_t EK_rCoroSendNotify(EK_CoroHandler_t task_handle, uint8_t bit)
     {
         EK_vSetBit(&task_handle->TCB_NotifyState, bit);
     }
-    task_handle->TCB_NotifyValue[bit] = EK_CLAMP(++task_handle->TCB_NotifyValue[bit], UINT8_MAX, 0);
+    task_handle->TCB_NotifyValue[bit] = EK_CLAMP(++task_handle->TCB_NotifyValue[bit], 0, UINT8_MAX);
 
     // 唤醒任务
     EK_Result_t res = r_task_notify_wake(task_handle);
@@ -837,7 +839,7 @@ EK_Result_t EK_rCoroWaitNotify(uint8_t bit, uint32_t timeout)
         // 查看响应位是否有标记
         if (EK_bTestBit(&target_tcb->TCB_NotifyState, bit) == true)
         {
-            target_tcb->TCB_NotifyValue[bit] = EK_CLAMP(--target_tcb->TCB_NotifyValue[bit], UINT8_MAX, 0);
+            target_tcb->TCB_NotifyValue[bit] = EK_CLAMP(--target_tcb->TCB_NotifyValue[bit], 0, UINT8_MAX);
             if (target_tcb->TCB_NotifyValue[bit] == 0)
             {
                 EK_vClearBit(&target_tcb->TCB_NotifyState, bit);

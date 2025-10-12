@@ -49,15 +49,15 @@
 EK_CoroHandler_t task = EK_pCoroCreate(TaskFunc, arg, priority, stack_size);
 
 // 删除任务
-EK_vCoroDelete(task, &result);
+EK_rCoroDelete(task, &result);
 
 // 延时操作
 EK_vCoroDelay(ticks);
 EK_vCoroDelayUntil(wake_time);
 
 // 任务控制
-EK_vCoroSuspend(task, &result);
-EK_vCoroResume(task, &result);
+EK_rCoroSuspend(task, &result);
+EK_rCoroResume(task, &result);
 EK_vCoroYield();
 
 // 任务信息

@@ -176,17 +176,17 @@ typedef unsigned char bool;
 /**
  * @brief 限制表达式值在指定范围内的宏
  * @param __expression__ 要限制的表达式
- * @param __max__        最大值（上界）
- * @param __min__        最小值（下界）
+ * @param __min__        最大值（下界）
+ * @param __max__        最小值（上界）
  * @return 限制后的值，确保在 [__min__, __max__] 范围内
  * @warning 使用 ++/-- 操作符到时候 务必保证: ++/-- expression 否则宏不会奏效
  *
  */
-#define EK_CLAMP(__expression__, __max__, __min__)                        \
+#define EK_CLAMP(__expression__, __min__, __max__)                        \
     ({                                                                    \
         EK_TYPE_OF(__expression__) _val = (__expression__);               \
-        EK_TYPE_OF(__max__) _max_val = (__max__);                         \
         EK_TYPE_OF(__min__) _min_val = (__min__);                         \
+        EK_TYPE_OF(__max__) _max_val = (__max__);                         \
         _val < _min_val ? _min_val : (_val > _max_val ? _max_val : _val); \
     })
 

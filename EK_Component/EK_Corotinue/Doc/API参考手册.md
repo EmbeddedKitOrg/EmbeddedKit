@@ -249,9 +249,9 @@ EK_CoroStaticHandler_t critical_task = EK_pCoroCreateStatic(
 
 ---
 
-### EK_vCoroDelete
+### EK_rCoroDelete
 
-**函数原型**: `void EK_vCoroDelete(EK_CoroHandler_t task_handle, EK_Result_t *result)`
+**函数原型**: `void EK_rCoroDelete(EK_CoroHandler_t task_handle, EK_Result_t *result)`
 
 **功能描述**: 删除指定的协程任务。
 
@@ -268,7 +268,7 @@ EK_CoroHandler_t temp_task = EK_pCoroCreate(TempTask, NULL, 5, 256);
 
 // 删除任务
 EK_Result_t result;
-EK_vCoroDelete(temp_task, &result);
+EK_rCoroDelete(temp_task, &result);
 
 if (result == EK_OK) {
     // 删除成功
@@ -285,9 +285,9 @@ if (result == EK_OK) {
 
 ---
 
-### EK_vCoroSuspend
+### EK_rCoroSuspend
 
-**函数原型**: `void EK_vCoroSuspend(EK_CoroHandler_t task_handle, EK_Result_t *result)`
+**函数原型**: `void EK_rCoroSuspend(EK_CoroHandler_t task_handle, EK_Result_t *result)`
 
 **功能描述**: 挂起指定的协程任务。
 
@@ -301,7 +301,7 @@ if (result == EK_OK) {
 ```c
 // 挂起任务
 EK_Result_t result;
-EK_vCoroSuspend(task_handle, &result);
+EK_rCoroSuspend(task_handle, &result);
 
 if (result == EK_OK) {
     // 任务已挂起
@@ -311,13 +311,13 @@ if (result == EK_OK) {
 **注意事项**:
 - 挂起的任务不会被调度器调度
 - 可以挂起自己（自挂起）
-- 需要调用 `EK_vCoroResume` 恢复
+- 需要调用 `EK_rCoroResume` 恢复
 
 ---
 
-### EK_vCoroResume
+### EK_rCoroResume
 
-**函数原型**: `void EK_vCoroResume(EK_CoroHandler_t task_handle, EK_Result_t *result)`
+**函数原型**: `void EK_rCoroResume(EK_CoroHandler_t task_handle, EK_Result_t *result)`
 
 **功能描述**: 恢复被挂起的协程任务。
 
@@ -331,7 +331,7 @@ if (result == EK_OK) {
 ```c
 // 恢复任务
 EK_Result_t result;
-EK_vCoroResume(task_handle, &result);
+EK_rCoroResume(task_handle, &result);
 
 if (result == EK_OK) {
     // 任务已恢复

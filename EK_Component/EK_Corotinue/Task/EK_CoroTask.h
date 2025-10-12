@@ -29,9 +29,9 @@ EK_CoroStaticHandler_t EK_pCoroCreateStatic(EK_CoroTCB_t *static_tcb,
                                             void *stack,
                                             EK_Size_t stack_size);
 
-void EK_vCoroSuspend(EK_CoroHandler_t task_handle, EK_Result_t *result);
-void EK_vCoroResume(EK_CoroHandler_t task_handle, EK_Result_t *result);
-void EK_vCoroDelete(EK_CoroHandler_t task_handle, EK_Result_t *result);
+EK_Result_t EK_rCoroSuspend(EK_CoroHandler_t task_handle);
+EK_Result_t EK_rCoroResume(EK_CoroHandler_t task_handle);
+EK_Result_t EK_rCoroDelete(EK_CoroHandler_t task_handle);
 void EK_vCoroDelay(uint32_t xticks);
 void EK_vCoroDelayUntil(uint32_t xticks);
 void EK_vCoroYield(void);

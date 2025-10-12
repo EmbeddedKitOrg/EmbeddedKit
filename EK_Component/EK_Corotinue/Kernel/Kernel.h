@@ -226,6 +226,7 @@ EK_Result_t EK_rKernelMove_WakeUpTime(EK_CoroList_t *list, EK_CoroListNode_t *no
 EK_Result_t EK_rKernelMove_Tail(EK_CoroList_t *list, EK_CoroListNode_t *node);
 EK_Result_t EK_rKernelMove_Prio(EK_CoroList_t *list, EK_CoroListNode_t *node);
 EK_Result_t EK_rKernelMove_Head(EK_CoroList_t *list, EK_CoroListNode_t *node);
+EK_Size_t EK_uKernelGetFreeHeap(void);
 void EK_vKernelInit(void);
 void EK_vKernelStart(void);
 void EK_vTickHandler(void);
