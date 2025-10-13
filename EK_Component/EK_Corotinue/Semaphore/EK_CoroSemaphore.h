@@ -74,6 +74,10 @@ EK_Result_t EK_rSemGive(EK_CoroSemHanlder_t sem);
 EK_Result_t EK_rSemClean(EK_CoroSemHanlder_t sem);
 EK_Result_t EK_rSemDelete(EK_CoroSem_t *sem);
 
+/* ========================= ISR版本函数声明 ========================= */
+bool EK_bSemGive_FromISR(EK_CoroSemHanlder_t sem, bool *higher_prio_wake);
+bool EK_bSemTake_FromISR(EK_CoroSemHanlder_t sem, bool *higher_prio_wake);
+
 /* ========================= 计数信号量宏 ========================= */
 /**
  * @brief 创建计数信号量（动态分配）
@@ -124,6 +128,22 @@ EK_Result_t EK_rSemDelete(EK_CoroSem_t *sem);
  */
 #define EK_rSemBinaryGive(mutex_ptr) EK_rSemGive(mutex_ptr)
 
+/**
+ * @brief 释放二值信号量（中断版本）
+ * @param mutex_ptr 信号量句柄
+ * @param higher_prio_wake 指向bool变量的指针，用于指示是否需要上下文切换
+ * @return true 成功，false 失败
+ */
+#define EK_bSemBinaryGive_FromISR(mutex_ptr, higher_prio_wake) EK_bSemGive_FromISR(mutex_ptr, higher_prio_wake)
+
+/**
+ * @brief 获取二值信号量（中断版本）
+ * @param mutex_ptr 信号量句柄
+ * @param higher_prio_wake 指向bool变量的指针，用于指示是否需要上下文切换
+ * @return true 成功，false 失败
+ */
+#define EK_bSemBinaryTake_FromISR(mutex_ptr, higher_prio_wake) EK_bSemTake_FromISR(mutex_ptr, higher_prio_wake)
+
 #if (EK_CORO_MUTEX_ENABLE == 1)
 
 /* ========================= 互斥量宏 ========================= */
@@ -155,6 +175,15 @@ EK_Result_t EK_rSemDelete(EK_CoroSem_t *sem);
  */
 #define EK_rMutexGive(mutex_ptr) EK_rSemGive(mutex_ptr)
 
+/**
+ * @brief 释放互斥量（中断版本）
+ * @param mutex_ptr 互斥量句柄
+ * @param higher_prio_wake 指向bool变量的指针，用于指示是否需要上下文切换
+ * @return true 成功，false 失败
+ * @note 中断中不处理优先级继承逻辑
+ */
+#define EK_bMutexGive_FromISR(mutex_ptr, higher_prio_wake) EK_bSemGive_FromISR(mutex_ptr, higher_prio_wake)
+
 /* ========================= 递归互斥量宏 ========================= */
 /**
  * @brief 创建递归互斥量（动态分配）
@@ -183,6 +212,15 @@ EK_Result_t EK_rSemDelete(EK_CoroSem_t *sem);
  * @return EK_OK 成功，其他值表示错误
  */
 #define EK_rMutexRecursiveGive(mutex_ptr) EK_rSemGive(mutex_ptr)
+
+/**
+ * @brief 释放递归互斥量（中断版本）
+ * @param mutex_ptr 递归互斥量句柄
+ * @param higher_prio_wake 指向bool变量的指针，用于指示是否需要上下文切换
+ * @return true 成功，false 失败
+ * @note 中断中不处理优先级继承逻辑，但会处理基本的递归计数
+ */
+#define EK_bMutexRecursiveGive_FromISR(mutex_ptr, higher_prio_wake) EK_bSemGive_FromISR(mutex_ptr, higher_prio_wake)
 
 #endif /* EK_CORO_MUTEX_ENABLE == 1 */
 

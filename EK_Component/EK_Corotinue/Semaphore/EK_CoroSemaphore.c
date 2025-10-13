@@ -429,6 +429,7 @@ EK_Result_t EK_rSemTake(EK_CoroSemHanlder_t sem, uint32_t timeout)
 EK_Result_t EK_rSemGive(EK_CoroSemHanlder_t sem)
 {
     // 参数有效性检查
+    if (EK_IS_IN_INTERRUPT() == true) EK_ERROR;
     if (sem == NULL) return EK_NULL_POINTER;
 
     EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB(); // 获取当前的TCB
@@ -604,6 +605,137 @@ EK_Result_t EK_rSemDelete(EK_CoroSem_t *sem)
     }
 
     return EK_OK;
+}
+
+/**
+ * @brief 释放信号量（中断服务程序版本）
+ * @details 此函数专用于中断服务程序中释放信号量，支持快速的非阻塞操作。
+ *          与普通版本的区别：
+ *          1. 只能在中断上下文中调用，非中断环境会返回失败
+ *          2. 不会阻塞调用者，信号量操作立即完成
+ *          3. 通过higher_prio_wake参数通知是否需要进行任务切换
+ *          4. 不处理互斥锁的递归逻辑和优先级继承（中断中不适合处理复杂逻辑）
+ *
+ *          释放流程：
+ *          1. 验证中断上下文和参数有效性
+ *          2. 进入临界区保护共享数据
+ *          3. 如果有任务等待获取信号量，直接唤醒最高优先级任务
+ *          4. 否则增加信号量计数
+ *          5. 更新higher_prio_wake标志指示是否需要调度
+ *
+ *          中断安全性：此函数使用临界区保护，确保中断环境下的安全访问
+ *          非阻塞特性：中断中不能阻塞，所有操作都是原子性的
+ *          调度提示：通过higher_prio_wake提示内核是否需要立即进行任务切换
+ *
+ * @param sem 信号量句柄，必须为有效的信号量指针
+ * @param higher_prio_wake 输出参数，用于指示是否唤醒了更高优先级的任务：
+ *                        - true: 唤醒了更高优先级任务，建议在中断退出后进行任务切换
+ *                        - false: 未唤醒更高优先级任务，无需特殊处理
+ *
+ * @return bool 操作结果：
+ *         - true: 信号量释放成功
+ *         - false: 释放失败（非中断上下文、sem为空、互斥量持有者不匹配等）
+ *
+ * @note 此函数只能在中断服务程序中调用
+ * @note 调用者需要检查higher_prio_wake参数，如果为true则应该触发任务切换
+ * @note 此函数不会阻塞调用者，适合在中断上下文中使用
+ * @note 对于互斥量，需要检查持有者匹配（但不在中断中处理优先级继承）
+ *
+ * @warning 不要在非中断上下文中调用此函数
+ * @warning higher_prio_wake参数必须指向有效的bool变量
+ * @warning 互斥量的递归逻辑在中断中不适用
+ *
+ * @see EK_rSemGive() 普通版本的信号量释放函数
+ * @see EK_rSemTake() 信号量获取函数
+ */
+bool EK_bSemGive_FromISR(EK_CoroSemHanlder_t sem, bool *higher_prio_wake)
+{
+    // 参数有效性检查
+    if (EK_IS_IN_INTERRUPT() == false) return false;
+    if (sem == NULL || higher_prio_wake == NULL) return false;
+
+    EK_ENTER_CRITICAL();
+
+    EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB(); // 获取当前的TCB
+    EK_Result_t op_res;
+    bool need_yield = false;
+    bool sem_count_plus_flag = true; // 是否需要增加信号量计数
+
+    // 处理互斥锁相关逻辑（简化版，不处理优先级继承）
+#if (EK_CORO_MUTEX_ENABLE == 1)
+    if (sem->Sem_isMutex == true)
+    {
+        // 检查持有者：只有持有者才可以给出互斥量
+        if (sem->Mutex_Holder != current_tcb)
+        {
+            EK_EXIT_CRITICAL();
+            return false;
+        }
+
+        // 中断中不处理递归互斥锁的复杂逻辑，直接处理基本逻辑
+        if (sem->Mutex_isRecursive == true)
+        {
+            // 递归释放：减少递归计数器
+            sem->Mutex_RecursiveCount--;
+
+            // 如果递归计数器仍然大于0，说明还在持有锁，不增加信号量计数
+            if (sem->Mutex_RecursiveCount > 0)
+            {
+                sem_count_plus_flag = false;
+            }
+        }
+
+        // 中断中不处理优先级恢复逻辑，只清除持有者
+        if (sem->Mutex_isRecursive == false || sem->Mutex_RecursiveCount == 0)
+        {
+            sem->Mutex_Holder = NULL;
+        }
+    }
+#endif /* EK_CORO_MUTEX_ENABLE == 1 */
+
+    // 有协程在等待信号量，直接唤醒等待时间最长的协程（FIFO）
+    if (sem->Sem_WaitList.List_Count > 0)
+    {
+        // 只有需要增加计数时才调用底层函数
+        if (sem_count_plus_flag)
+        {
+            op_res = r_sem_give(sem);
+            if (op_res != EK_OK)
+            {
+                EK_EXIT_CRITICAL();
+                return false;
+            }
+        }
+
+        // 获取等待链表头部的协程（等待时间最长）
+        EK_CoroTCB_t *wait_tcb = p_sem_take_waiter(sem);
+
+        // 设置唤醒原因并加入就绪链表
+        v_sem_wake(wait_tcb, EK_CORO_EVENT_OK);
+
+        // 如果唤醒的任务的优先级比当前任务的优先级高 则申请一次调度
+        if (wait_tcb->TCB_Priority < current_tcb->TCB_Priority) need_yield = true;
+    }
+    // 没有协程等待，直接增加计数
+    else
+    {
+        if (sem_count_plus_flag)
+        {
+            op_res = r_sem_give(sem);
+            if (op_res != EK_OK)
+            {
+                EK_EXIT_CRITICAL();
+                return false;
+            }
+        }
+        // 递归释放但不增加计数的情况，直接成功
+    }
+
+    *higher_prio_wake |= need_yield;
+
+    EK_EXIT_CRITICAL();
+
+    return true;
 }
 
 #endif /* EK_CORO_SEMAPHORE_ENABLE == 1 */

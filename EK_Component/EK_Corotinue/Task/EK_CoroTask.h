@@ -43,6 +43,7 @@ EK_Size_t EK_uCoroGetStack(EK_CoroHandler_t task_handle);
 #if (EK_CORO_TASK_NOTIFY_ENABLE == 1)
 EK_Result_t EK_rCoroSendNotify(EK_CoroHandler_t task_handle, uint8_t bit);
 EK_Result_t EK_rCoroWaitNotify(uint8_t bit, uint32_t timeout);
+bool EK_bCoroSendNotify_FromISR(EK_CoroHandler_t task_handle, uint8_t bit, bool *higher_prio_wake);
 #endif /* EK_CORO_TASK_NOTIFY_ENABLE == 1 */
 
 // 高水位值

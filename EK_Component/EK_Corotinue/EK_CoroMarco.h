@@ -85,7 +85,7 @@
 #define EK_KERNEL_CLZ(__BITMAP__) ((__BITMAP__) == 0 ? 0 : (uint8_t)(31 - __CLZ(__BITMAP__)))
 #else
 // 软件实现作为备用
-STATIC_INLINE uint8_t v_kernel_find_msb_index(EK_BitMap_t val)
+ALWAYS_INLINE uint8_t v_kernel_find_msb_index(EK_BitMap_t val)
 {
     if (val == 0) return 0;
     uint8_t msb_idx = 0;
@@ -109,6 +109,29 @@ STATIC_INLINE uint8_t v_kernel_find_msb_index(EK_BitMap_t val)
  * 
  */
 #define EK_KERNEL_GET_HIGHEST_PRIO(__BITMAP__) (EK_BITMAP_MAX_BIT - EK_KERNEL_CLZ(__BITMAP__))
+
+/**
+ * @brief 将毫秒时间转换为系统时钟节拍数(Ticks)
+ * @details 此宏用于将用户指定的时间(毫秒)转换为协程系统内部使用的时钟节拍数。
+ *          系统时钟节拍是协程调度器的基本时间单位，由SysTick定时器定期产生中断。
+ *
+ * @param X 要转换的毫秒时间，必须是正整数或0
+ * @return uint32_t 对应的系统时钟节拍数
+ *
+ * @note 此宏在编译时计算，无运行时开销
+ * @note 当EK_CORO_TICK_RATE_HZ为1000时，转换结果等于输入值
+ * @note 建议使用整数毫秒值以获得最佳精度
+ * @note 对于小数毫秒值，建议四舍五入到最接近的整数
+ *
+ * @warning 传入负数会导致未定义行为
+ * @warning 传入过大的值可能导致整数溢出
+ * @warning 确保EK_CORO_TICK_RATE_HZ已正确配置
+ *
+ * @see EK_CORO_TICK_RATE_HZ 系统时钟节拍率配置
+ * @see EK_vCoroDelay() 协程延时函数
+ * @see EK_rMsgSend() 消息发送函数
+ */
+#define EK_MS_TO_TICKS(X) (((X) * EK_CORO_TICK_RATE_HZ) / 1000U)
 
 /* ================================ 协程系统基础配置 ================================ */
 /**
@@ -139,11 +162,11 @@ STATIC_INLINE uint8_t v_kernel_find_msb_index(EK_BitMap_t val)
 #define EK_CORO_IDLE_TASK_STACK_SIZE (512) // 定义空闲任务的堆栈大小 (字节)
 #endif /* EK_CORO_IDLE_TASK_STACK_SIZE */
 
-#define EK_MAX_DELAY (UINT32_MAX) // 最大阻塞时间，表示无限期阻塞
+#define EK_MAX_DELAY          (UINT32_MAX) // 最大阻塞时间，表示无限期阻塞
 
 #define EK_STACK_FILL_PATTERN (0xA5) // 栈填充模式，用于栈溢出检测和高水位计算
 
-#define EK_IS_IN_INTERRUPT() (__get_IPSR() != 0U) // 中断上下文检测，适用于Cortex-M3/M4/M7
+#define EK_IS_IN_INTERRUPT()  (__get_IPSR() != 0U) // 中断上下文检测，适用于Cortex-M3/M4/M7
 
 /* ================================ 协程优先级管理配置 ================================ */
 /**
@@ -171,17 +194,17 @@ STATIC_INLINE uint8_t v_kernel_find_msb_index(EK_BitMap_t val)
  *                               平衡内存使用和操作效率
  */
 #if (EK_CORO_PRIORITY_GROUPS <= 8)
-#define EK_CORO_PRIORITY_MOUNT   (8)                          // 支持8个优先级级别
-#define EK_CORO_MAX_PRIORITY_NBR (0x80UL)                     // 最高优先级位掩码
-typedef uint8_t EK_BitMap_t;                                  // 8位位图类型
+#define EK_CORO_PRIORITY_MOUNT   (8) // 支持8个优先级级别
+#define EK_CORO_MAX_PRIORITY_NBR (0x80UL) // 最高优先级位掩码
+typedef uint8_t EK_BitMap_t; // 8位位图类型
 #elif (EK_CORO_PRIORITY_GROUPS <= 16)
-#define EK_CORO_PRIORITY_MOUNT   (16)                         // 支持16个优先级级别
-#define EK_CORO_MAX_PRIORITY_NBR (0x8000UL)                   // 最高优先级位掩码
-typedef uint16_t EK_BitMap_t;                                 // 16位位图类型
+#define EK_CORO_PRIORITY_MOUNT   (16) // 支持16个优先级级别
+#define EK_CORO_MAX_PRIORITY_NBR (0x8000UL) // 最高优先级位掩码
+typedef uint16_t EK_BitMap_t; // 16位位图类型
 #else
-#define EK_CORO_PRIORITY_MOUNT   (32)                         // 支持32个优先级级别
-#define EK_CORO_MAX_PRIORITY_NBR (0x80000000UL)               // 最高优先级位掩码
-typedef uint32_t EK_BitMap_t;                                 // 32位位图类型
+#define EK_CORO_PRIORITY_MOUNT   (32) // 支持32个优先级级别
+#define EK_CORO_MAX_PRIORITY_NBR (0x80000000UL) // 最高优先级位掩码
+typedef uint32_t EK_BitMap_t; // 32位位图类型
 #endif /* EK_CORO_PRIORITY_GROUPS selection */
 
 /* ================================ 协程任务通知配置 ================================ */
@@ -212,11 +235,11 @@ typedef uint32_t EK_BitMap_t;                                 // 32位位图类�
  */
 #if (EK_CORO_TASK_NOTIFY_ENABLE == 1)
 #if (EK_CORO_TASK_NOTIFY_GROUP <= 8)
-typedef uint8_t EK_CoroTaskNotifyState_t;                     // 支持8个通知位
+typedef uint8_t EK_CoroTaskNotifyState_t; // 支持8个通知位
 #elif (EK_CORO_TASK_NOTIFY_GROUP <= 16)
-typedef uint16_t EK_CoroTaskNotifyState_t;                    // 支持16个通知位
+typedef uint16_t EK_CoroTaskNotifyState_t; // 支持16个通知位
 #else
-typedef uint32_t EK_CoroTaskNotifyState_t;                    // 支持32个通知位
+typedef uint32_t EK_CoroTaskNotifyState_t; // 支持32个通知位
 #endif /* EK_CORO_TASK_NOTIFY_GROUP implementation */
 #endif /* EK_CORO_TASK_NOTIFY_ENABLE == 1 */
 

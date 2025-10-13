@@ -644,6 +644,7 @@ EK_Result_t EK_rKernelInsert_Prio(EK_CoroList_t *list, EK_CoroListNode_t *node)
     }
 
     EK_EXIT_CRITICAL();
+
     return EK_OK;
 }
 
@@ -727,6 +728,41 @@ EK_Result_t EK_rKernelMove_Head(EK_CoroList_t *list, EK_CoroListNode_t *node)
 }
 
 /* ========================= 内核核心API函数 ========================= */
+
+/**
+ * @brief 内核调度逻辑函数（在PendSV中断中执行）。
+ * @details
+ *  此函数负责执行实际的调度逻辑，包括：
+ *  1. 从就绪位图中找到最高优先级的就绪任务
+ *  2. 设置下一个要运行的任务 (KernelNextTCB)
+ *  3. 从就绪链表中移除该任务
+ *  4. 执行栈溢出检测和高水位标记计算
+ *
+ *  此函数设计为在PendSV中断上下文中调用，确保调度逻辑在中断环境中安全执行。
+ *  调用者必须确保在中断上下文中且已进入临界区。
+ */
+static void v_kernel_task_switch(void)
+{
+    // 检查是否有调度请求且就绪位图不为空
+
+    // 找到最高优先级
+    uint8_t highest_prio = EK_KERNEL_GET_HIGHEST_PRIO(KernelReadyBitMap);
+
+    // 更新链表
+    KernelCurrentTCB = (EK_CoroTCB_t *)EK_pListGetFirst(&KernelReadyList[highest_prio])->CoroNode_Owner;
+    KernelCurrentTCB->TCB_State = EK_CORO_RUNNING;
+
+    // 在任务切换前检查下一个任务的栈溢出情况并计算高水位标记
+    // 注意：这里检查的是即将运行的任务，确保它在运行前栈是安全的
+    // 执行栈溢出检测（如果启用）
+#if (EK_CORO_STACK_OVERFLOW_CHECK_ENABLE > 0)
+    v_check_stack_overflow(KernelCurrentTCB);
+#endif /* EK_CORO_STACK_OVERFLOW_CHECK_ENABLE > 0 */
+    // 执行高水位标记计算（如果启用）
+#if (EK_HIGH_WATER_MARK_ENABLE == 1)
+    v_calculate_stack_high_water_mark(KernelCurrentTCB);
+#endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
+}
 
 __naked ALWAYS_STATIC_INLINE void v_kernel_start(void)
 {
@@ -853,10 +889,7 @@ void EK_vKernelStart(void)
     }
 
     // 找到优先级最高的TCB 启动
-    uint8_t highest_prio = EK_KERNEL_GET_HIGHEST_PRIO(KernelReadyBitMap);
-    KernelCurrentTCB = (EK_CoroTCB_t *)EK_pListGetFirst(&KernelReadyList[highest_prio])->CoroNode_Owner;
-    KernelCurrentTCB->TCB_State = EK_CORO_RUNNING;
-    EK_rKernelRemove(&KernelReadyList[highest_prio], &KernelCurrentTCB->TCB_StateNode);
+    v_kernel_task_switch();
 
     EK_EXIT_CRITICAL();
 
@@ -865,41 +898,6 @@ void EK_vKernelStart(void)
 
     // 此函数不应返回
     while (1);
-}
-
-/**
- * @brief 内核调度逻辑函数（在PendSV中断中执行）。
- * @details
- *  此函数负责执行实际的调度逻辑，包括：
- *  1. 从就绪位图中找到最高优先级的就绪任务
- *  2. 设置下一个要运行的任务 (KernelNextTCB)
- *  3. 从就绪链表中移除该任务
- *  4. 执行栈溢出检测和高水位标记计算
- *
- *  此函数设计为在PendSV中断上下文中调用，确保调度逻辑在中断环境中安全执行。
- *  调用者必须确保在中断上下文中且已进入临界区。
- */
-static void v_kernel_task_switch(void)
-{
-    // 检查是否有调度请求且就绪位图不为空
-
-    // 找到最高优先级
-    uint8_t highest_prio = EK_KERNEL_GET_HIGHEST_PRIO(KernelReadyBitMap);
-
-    // 更新链表
-    KernelCurrentTCB = (EK_CoroTCB_t *)EK_pListGetFirst(&KernelReadyList[highest_prio])->CoroNode_Owner;
-    KernelCurrentTCB->TCB_State = EK_CORO_RUNNING;
-
-    // 在任务切换前检查下一个任务的栈溢出情况并计算高水位标记
-    // 注意：这里检查的是即将运行的任务，确保它在运行前栈是安全的
-    // 执行栈溢出检测（如果启用）
-#if (EK_CORO_STACK_OVERFLOW_CHECK_ENABLE > 0)
-    v_check_stack_overflow(KernelCurrentTCB);
-#endif /* EK_CORO_STACK_OVERFLOW_CHECK_ENABLE > 0 */
-    // 执行高水位标记计算（如果启用）
-#if (EK_HIGH_WATER_MARK_ENABLE == 1)
-    v_calculate_stack_high_water_mark(KernelCurrentTCB);
-#endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
 }
 
 /**
