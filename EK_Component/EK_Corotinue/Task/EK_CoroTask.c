@@ -406,7 +406,7 @@ EK_Result_t EK_rCoroResume(EK_CoroHandler_t task_handle)
 EK_Result_t EK_rCoroDelete(EK_CoroHandler_t task_handle)
 {
     EK_CoroTCB_t *target_tcb = (EK_CoroTCB_t *)task_handle;
-
+    bool self_delete = false;
     // 进入临界区：保护任务删除过程
     EK_ENTER_CRITICAL();
 
@@ -426,6 +426,7 @@ EK_Result_t EK_rCoroDelete(EK_CoroHandler_t task_handle)
             EK_EXIT_CRITICAL();
             return EK_ERROR;
         }
+        self_delete = true;
     }
 
     // 静态任务 无法释放内存，改为挂起操作
@@ -450,6 +451,14 @@ EK_Result_t EK_rCoroDelete(EK_CoroHandler_t task_handle)
 
     // 标记为待删除 让空闲任务来删除
     if (op_res == EK_OK) EK_vKernelSetDeleteTCB(target_tcb);
+
+    if (self_delete == true)
+    {
+        // 退出临界区：恢复中断
+        EK_EXIT_CRITICAL();
+        EK_vKernelYield();
+        return EK_OK;
+    }
 
     // 退出临界区：恢复中断
     EK_EXIT_CRITICAL();
