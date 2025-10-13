@@ -36,10 +36,10 @@ ALWAYS_STATIC_INLINE EK_Result_t r_mutex_inherit_priority(EK_CoroSem_t *sem)
     }
 
     // 如果等待链表非空
-    if (sem->Sem_WaitList.List_Head != NULL)
+    if (EK_bListIsEmpty(&sem->Sem_WaitList) != true)
     {
         // 等待链表已按优先级排序，头部即为最高优先级任务
-        uint8_t highest_prio = ((EK_CoroTCB_t *)(sem->Sem_WaitList.List_Head->CoroNode_Owner))->TCB_Priority;
+        uint8_t highest_prio = ((EK_CoroTCB_t *)(EK_pListGetFirst(&sem->Sem_WaitList)->CoroNode_Owner))->TCB_Priority;
 
         // 优先级继承
         if (highest_prio < sem->Mutex_Holder->TCB_Priority)
@@ -159,7 +159,7 @@ ALWAYS_STATIC_INLINE EK_CoroTCB_t *p_sem_take_waiter(EK_CoroSem_t *sem)
 {
     if (sem == NULL || sem->Sem_WaitList.List_Count == 0) return NULL;
 
-    EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)sem->Sem_WaitList.List_Head->CoroNode_Owner;
+    EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)EK_pListGetFirst(&sem->Sem_WaitList)->CoroNode_Owner;
     EK_rKernelRemove(&sem->Sem_WaitList, &tcb->TCB_EventNode);
 
     return tcb;
@@ -236,9 +236,7 @@ EK_CoroSem_t *EK_pSemGenericCreate(uint16_t init_count, uint16_t max_count, bool
 #endif /* EK_CORO_MUTEX_ENABLE == 1 */
 
     // 初始化等待列表
-    sem->Sem_WaitList.List_Count = 0;
-    sem->Sem_WaitList.List_Head = NULL;
-    sem->Sem_WaitList.List_Tail = NULL;
+    EK_vKernelListInit(&sem->Sem_WaitList);
 
     EK_EXIT_CRITICAL();
 
@@ -290,9 +288,8 @@ EK_pSemGenericCreateStatic(EK_CoroSem_t *sem, uint32_t init_count, uint32_t max_
 #endif /* EK_CORO_MUTEX_ENABLE == 1 */
 
     // 初始化等待列表
-    sem->Sem_WaitList.List_Count = 0;
-    sem->Sem_WaitList.List_Head = NULL;
-    sem->Sem_WaitList.List_Tail = NULL;
+    // 初始化等待列表
+    EK_vKernelListInit(&sem->Sem_WaitList);
 
     EK_EXIT_CRITICAL();
 

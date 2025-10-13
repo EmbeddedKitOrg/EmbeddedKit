@@ -456,6 +456,12 @@ EK_Result_t EK_rCoroDelete(EK_CoroHandler_t task_handle)
     {
         // 退出临界区：恢复中断
         EK_EXIT_CRITICAL();
+
+        // 中断上下文中禁止触发调度切换
+        if (EK_IS_IN_INTERRUPT() == true)
+        {
+            return EK_ERROR;
+        }
         EK_vKernelYield();
         return EK_OK;
     }

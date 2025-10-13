@@ -56,7 +56,7 @@ ALWAYS_STATIC_INLINE EK_CoroTCB_t *p_msg_take_waiter(EK_CoroList_t *wait_list)
 {
     if (wait_list == NULL || wait_list->List_Count == 0) return NULL;
 
-    EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)wait_list->List_Head->CoroNode_Owner;
+    EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)EK_pListGetFirst(wait_list)->CoroNode_Owner;
     EK_rKernelRemove(wait_list, &tcb->TCB_EventNode);
 
     return tcb;
@@ -110,14 +110,10 @@ EK_CoroMsgHanler_t EK_pMsgCreate(EK_Size_t item_size, EK_Size_t item_amount)
     msg->Msg_ItemSize = item_size; // 每条消息的字节大小
 
     // 初始化等待发送链表
-    msg->Msg_SendWaitList.List_Count = 0;
-    msg->Msg_SendWaitList.List_Head = NULL;
-    msg->Msg_SendWaitList.List_Tail = NULL;
+    EK_vKernelListInit(&msg->Msg_SendWaitList);
 
     // 初始化等待接收链表
-    msg->Msg_RecvWaitList.List_Count = 0;
-    msg->Msg_RecvWaitList.List_Head = NULL;
-    msg->Msg_RecvWaitList.List_Tail = NULL;
+    EK_vKernelListInit(&msg->Msg_RecvWaitList);
 
     msg->Msg_isDynamic = true; // 来源于动态创建
 
@@ -157,14 +153,10 @@ EK_pMsgCreateStatic(EK_CoroMsg_t *msg, void *buffer, EK_Size_t item_size, EK_Siz
     msg->Msg_ItemSize = item_size; // 每条消息的字节大小
 
     // 初始化等待发送链表
-    msg->Msg_SendWaitList.List_Count = 0;
-    msg->Msg_SendWaitList.List_Head = NULL;
-    msg->Msg_SendWaitList.List_Tail = NULL;
+    EK_vKernelListInit(&msg->Msg_SendWaitList);
 
     // 初始化等待接收链表
-    msg->Msg_RecvWaitList.List_Count = 0;
-    msg->Msg_RecvWaitList.List_Head = NULL;
-    msg->Msg_RecvWaitList.List_Tail = NULL;
+    EK_vKernelListInit(&msg->Msg_RecvWaitList);
 
     msg->Msg_isDynamic = false; // 来源于静态创建
 
