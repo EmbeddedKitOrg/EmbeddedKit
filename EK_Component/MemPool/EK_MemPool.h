@@ -19,14 +19,15 @@ extern "C"
 
 /* ========================= 类型定义区 ========================= */
 /**
- * @brief 内存块节点结构体 (仿照heap4设计)
- * @note 用于管理空闲内存块的双向链表，每个块包含大小和链表指针
+ * @brief 内存块节点结构体 (仿照heap4设计，优化版本)
+ * @note 用于管理空闲内存块的双向链表，每个块包含大小、链表指针和前驱块信息
  */
 typedef struct MemBlock
 {
     struct MemBlock *MemPool_NextFree; /**< 指向下一个空闲块 */
     struct MemBlock *MemPool_PrevFree; /**< 指向上一个空闲块 */
     EK_Size_t MemPool_BlockSize; /**< 块大小，最高位用作分配标记 */
+    EK_Size_t PrevBlockOffset; /**< 前驱块的字节偏移量，0表示没有前驱块 */
 } MemBlock_t;
 
 /**
