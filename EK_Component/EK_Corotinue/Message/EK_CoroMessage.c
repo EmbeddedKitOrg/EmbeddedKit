@@ -56,7 +56,7 @@ ALWAYS_STATIC_INLINE EK_CoroTCB_t *p_msg_take_waiter(EK_CoroList_t *wait_list)
 {
     if (wait_list == NULL || wait_list->List_Count == 0) return NULL;
 
-    EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)wait_list->List_Head->CoroNode_Owner;
+    EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)EK_pListGetFirst(wait_list)->CoroNode_Owner;
     EK_rKernelRemove(wait_list, &tcb->TCB_EventNode);
 
     return tcb;
@@ -110,14 +110,10 @@ EK_CoroMsgHanler_t EK_pMsgCreate(EK_Size_t item_size, EK_Size_t item_amount)
     msg->Msg_ItemSize = item_size; // 每条消息的字节大小
 
     // 初始化等待发送链表
-    msg->Msg_SendWaitList.List_Count = 0;
-    msg->Msg_SendWaitList.List_Head = NULL;
-    msg->Msg_SendWaitList.List_Tail = NULL;
+    EK_vKernelListInit(&msg->Msg_SendWaitList);
 
     // 初始化等待接收链表
-    msg->Msg_RecvWaitList.List_Count = 0;
-    msg->Msg_RecvWaitList.List_Head = NULL;
-    msg->Msg_RecvWaitList.List_Tail = NULL;
+    EK_vKernelListInit(&msg->Msg_RecvWaitList);
 
     msg->Msg_isDynamic = true; // 来源于动态创建
 
@@ -157,14 +153,10 @@ EK_pMsgCreateStatic(EK_CoroMsg_t *msg, void *buffer, EK_Size_t item_size, EK_Siz
     msg->Msg_ItemSize = item_size; // 每条消息的字节大小
 
     // 初始化等待发送链表
-    msg->Msg_SendWaitList.List_Count = 0;
-    msg->Msg_SendWaitList.List_Head = NULL;
-    msg->Msg_SendWaitList.List_Tail = NULL;
+    EK_vKernelListInit(&msg->Msg_SendWaitList);
 
     // 初始化等待接收链表
-    msg->Msg_RecvWaitList.List_Count = 0;
-    msg->Msg_RecvWaitList.List_Head = NULL;
-    msg->Msg_RecvWaitList.List_Tail = NULL;
+    EK_vKernelListInit(&msg->Msg_RecvWaitList);
 
     msg->Msg_isDynamic = false; // 来源于静态创建
 
@@ -494,6 +486,97 @@ EK_Result_t EK_rMsgClean(EK_CoroMsgHanler_t msg)
     }
 
     return EK_OK;
+}
+
+/**
+ * @brief 向消息队列发送消息（中断服务程序版本）
+ * @details 此函数专用于中断服务程序中向消息队列发送消息，支持FIFO和覆盖两种模式。
+ *          与普通版本的区别：
+ *          1. 只能在中断上下文中调用，非中断环境会返回失败
+ *          2. 不会阻塞调用者，队列满时根据over_write参数决定行为
+ *          3. 通过higher_prio_wake参数通知是否需要进行任务切换
+ *
+ *          发送流程：
+ *          1. 验证中断上下文和参数有效性
+ *          2. 进入临界区保护共享数据
+ *          3. 根据over_write参数选择发送策略：
+ *             - FIFO模式：队列满时失败返回
+ *             - 覆盖模式：直接覆盖最旧消息
+ *          4. 如果有任务等待接收，直接唤醒最高优先级任务
+ *          5. 否则将消息加入队列
+ *          6. 更新higher_prio_wake标志指示是否需要调度
+ *
+ *          中断安全性：此函数使用临界区保护，确保中断环境下的安全访问
+ *          非阻塞特性：中断中不能阻塞，队列满时直接返回失败或覆盖
+ *          调度提示：通过higher_prio_wake提示内核是否需要立即进行任务切换
+ *
+ * @param msg 消息队列句柄，必须为有效的消息队列指针
+ * @param tx_buffer 指向要发送数据的缓冲区，数据将被复制到队列中
+ * @param higher_prio_wake 输出参数，用于指示是否唤醒了更高优先级的任务：
+ *                        - true: 唤醒了更高优先级任务，建议在中断退出后进行任务切换
+ *                        - false: 未唤醒更高优先级任务，无需特殊处理
+ * @param over_write 发送模式选择：
+ *                   - false：FIFO模式，队列满时返回false
+ *                   - true：覆盖模式，队列满时覆盖最旧消息
+ *
+ * @return bool 操作结果：
+ *         - true: 消息发送成功
+ *         - false: 发送失败（非中断上下文、msg为空、队列满且非覆盖模式）
+ *
+ * @note 此函数只能在中断服务程序中调用
+ * @note 调用者需要检查higher_prio_wake参数，如果为true则应该触发任务切换
+ * @note 覆盖模式下不会失败（除非参数无效），timeout概念在中断中不适用
+ * @note 此函数不会阻塞调用者，适合在中断上下文中使用
+ *
+ * @warning 不要在非中断上下文中调用此函数
+ * @warning 确保tx_buffer指向的数据在中断处理期间保持有效
+ * @warning higher_prio_wake参数必须指向有效的bool变量
+ *
+ * @see EK_rMsgSend() 普通版本的消息发送函数
+ * @see EK_rMsgSendToBack() FIFO模式发送宏
+ * @see EK_rMsgOverWrite() 覆盖模式发送宏
+ * @see EK_rMsgReceive() 消息接收函数
+ */
+bool EK_bMsgSend_FromISR(EK_CoroMsgHanler_t msg, void *tx_buffer, bool *higher_prio_wake, bool over_write)
+{
+    if (EK_IS_IN_INTERRUPT() == false) return false;
+    if (msg == NULL) return false;
+
+    EK_ENTER_CRITICAL();
+
+    EK_Queue_t *queue = EK_MSG_GET_QUEUE(msg); // 获取该消息队列的队列
+    EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB(); // 获取当前任务TCB
+
+    bool need_yield = false;
+
+    // 写队列模式
+    msg_send_t r_msg_send_queue = (over_write == true) ? EK_rQueueOverWrite : EK_rQueueEnqueue;
+
+    // 如果消息队列未满 或者是覆写模式  正常将数据写进去 并且唤醒一个任务
+    if (EK_bMsgIsFull(msg) != true || over_write == true)
+    {
+        // 当前的等待接收的列表中有等待任务
+        if (msg->Msg_RecvWaitList.List_Count > 0)
+        {
+            // 从等待链表中找到等待的TCB
+            EK_CoroTCB_t *waiter_tcb = p_msg_take_waiter(&msg->Msg_RecvWaitList);
+
+            // 将其唤醒
+            v_msg_wake(waiter_tcb, EK_CORO_EVENT_OK);
+
+            // 如果唤醒的任务的优先级比当前任务的优先级高 则申请一次调度
+            if (waiter_tcb->TCB_Priority < current_tcb->TCB_Priority) need_yield = true;
+        }
+
+        // 将消息直接入队
+        r_msg_send_queue(queue, tx_buffer, msg->Msg_ItemSize);
+    }
+
+    *higher_prio_wake |= need_yield;
+
+    EK_EXIT_CRITICAL();
+
+    return need_yield;
 }
 
 #endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */

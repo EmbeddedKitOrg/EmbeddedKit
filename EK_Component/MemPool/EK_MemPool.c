@@ -63,18 +63,20 @@ static PoolStats_t pool_statistics = {0};
 static bool pool_initialized = false;
 
 /* ========================= 内部函数前置声明区 ========================= */
-static void v_init_heap(void);
-static void v_insert_free_block(MemBlock_t *block_to_insert);
-static MemBlock_t *p_find_suitable_block(EK_Size_t wanted_size);
-static void v_split_block(MemBlock_t *block, EK_Size_t wanted_size);
-static void v_merge_blocks(void *ptr);
+STATIC_INLINE void v_init_heap(void);
+STATIC_INLINE void v_insert_free_block(MemBlock_t *block_to_insert);
+STATIC_INLINE MemBlock_t *p_find_suitable_block(EK_Size_t wanted_size);
+STATIC_INLINE void v_split_block(MemBlock_t *block, EK_Size_t wanted_size);
+STATIC_INLINE void v_merge_blocks(void *ptr);
+STATIC_INLINE MemBlock_t *p_get_physical_prev_block(MemBlock_t *block);
+STATIC_INLINE void v_update_prev_block_info(MemBlock_t *block);
 
 /* ========================= 内部函数定义区 ========================= */
 /**
- * @brief 初始化内存堆
+ * @brief 初始化内存堆 (优化版本)
  * @param 无
  * @retval 无
- * @note 设置初始空闲块和链表结构
+ * @note 设置初始空闲块和链表结构，初始化前驱块信息
  */
 static void v_init_heap(void)
 {
@@ -93,6 +95,7 @@ static void v_init_heap(void)
     free_list_head.MemPool_NextFree = (MemBlock_t *)aligned_heap;
     free_list_head.MemPool_PrevFree = NULL;
     free_list_head.MemPool_BlockSize = 0;
+    free_list_head.PrevBlockOffset = 0;
 
     // 设置结束标记块的位置
     free_list_end = (MemBlock_t *)(aligned_heap + total_heap_size - sizeof(MemBlock_t));
@@ -100,20 +103,20 @@ static void v_init_heap(void)
     free_list_end->MemPool_PrevFree = (MemBlock_t *)aligned_heap; // Initially points to the first block
     free_list_end->MemPool_BlockSize = 0;
     free_list_end->MemPool_BlockSize = SET_ALLOCATED(free_list_end->MemPool_BlockSize);
+    free_list_end->PrevBlockOffset = 0;
 
     // 创建第一个大的空闲块
     first_block = (MemBlock_t *)aligned_heap;
     first_block->MemPool_PrevFree = &free_list_head;
     first_block->MemPool_NextFree = free_list_end;
     first_block->MemPool_BlockSize = total_heap_size - sizeof(MemBlock_t);
-
-    // 确保第一个块大小不会与结束标记冲突
     first_block->MemPool_BlockSize = SET_FREE(first_block->MemPool_BlockSize);
+    first_block->PrevBlockOffset = 0; // 第一个块没有前驱块
 
     // 初始化统计信息
     pool_statistics.Pool_TotalSize = total_heap_size;
-    pool_statistics.Pool_FreeBytes = first_block->MemPool_BlockSize;
-    pool_statistics.Pool_MinFreeBytes = first_block->MemPool_BlockSize;
+    pool_statistics.Pool_FreeBytes = GET_SIZE(first_block->MemPool_BlockSize);
+    pool_statistics.Pool_MinFreeBytes = GET_SIZE(first_block->MemPool_BlockSize);
     pool_statistics.Pool_AllocCount = 0;
     pool_statistics.Pool_FreeCount = 0;
 }
@@ -201,7 +204,7 @@ STATIC_INLINE MemBlock_t *p_find_suitable_block(EK_Size_t wanted_size)
  * @param block 要分割的块
  * @param wanted_size 需要的大小
  * @retval 无
- * @note 如果剩余部分足够大，将其作为新的空闲块
+ * @note 如果剩余部分足够大，将其作为新的空闲块，并更新前驱块信息
  */
 STATIC_INLINE void v_split_block(MemBlock_t *block, EK_Size_t wanted_size)
 {
@@ -219,21 +222,81 @@ STATIC_INLINE void v_split_block(MemBlock_t *block, EK_Size_t wanted_size)
         // 更新原块大小
         block->MemPool_BlockSize = wanted_size;
 
+        // 更新新块的前驱块信息
+        v_update_prev_block_info(new_block);
+
         // 将新块插入空闲链表
         v_insert_free_block(new_block);
     }
 }
 
 /**
- * @brief 合并相邻的空闲块
+ * @brief 更新前驱块信息
+ * @param block 要更新的块
+ * @retval 无
+ * @note 通过遍历空闲链表找到物理前驱块并设置偏移量
+ */
+STATIC_INLINE void v_update_prev_block_info(MemBlock_t *block)
+{
+    if (block == NULL)
+    {
+        return;
+    }
+
+    MemBlock_t *current;
+    MemBlock_t *prev_candidate = NULL;
+    EK_Size_t min_distance = (EK_Size_t)-1;
+
+    // 遍历空闲链表寻找最接近的前驱块
+    for (current = free_list_head.MemPool_NextFree; current != free_list_end; current = current->MemPool_NextFree)
+    {
+        if (current < block)
+        {
+            EK_Size_t distance = (EK_Size_t)block - (EK_Size_t)current;
+            if (distance < min_distance)
+            {
+                min_distance = distance;
+                prev_candidate = current;
+            }
+        }
+    }
+
+    // 设置前驱块偏移量
+    if (prev_candidate != NULL)
+    {
+        block->PrevBlockOffset = (EK_Size_t)block - (EK_Size_t)prev_candidate;
+    }
+    else
+    {
+        block->PrevBlockOffset = 0; // 没有前驱块
+    }
+}
+
+/**
+ * @brief 获取物理前驱块（O(1)操作）
+ * @param block 当前块
+ * @return 前驱块指针，NULL表示没有前驱块
+ * @note 使用块头中存储的偏移量直接计算前驱块地址
+ */
+STATIC_INLINE MemBlock_t *p_get_physical_prev_block(MemBlock_t *block)
+{
+    if (block == NULL || block->PrevBlockOffset == 0)
+    {
+        return NULL; // 没有前驱块
+    }
+
+    return (MemBlock_t *)((uint8_t *)block - block->PrevBlockOffset);
+}
+
+/**
+ * @brief 合并相邻的空闲块 (优化版本)
  * @param ptr 要释放的内存指针
  * @retval 无
- * @note 检查前后相邻块并进行合并
+ * @note 使用块头偏移量实现O(1)合并操作
  */
 STATIC_INLINE void v_merge_blocks(void *ptr)
 {
     MemBlock_t *block = (MemBlock_t *)((uint8_t *)ptr - sizeof(MemBlock_t));
-    MemBlock_t *current;
     EK_Size_t MemPool_BlockSize;
 
     // 设置为空闲状态
@@ -253,25 +316,28 @@ STATIC_INLINE void v_merge_blocks(void *ptr)
         MemPool_BlockSize = GET_SIZE(block->MemPool_BlockSize);
     }
 
-    // 尝试与前面的物理块合并
-    // 遍历空闲链表寻找可能的前驱块 (此部分仍然是 O(N) )
-    for (current = free_list_head.MemPool_NextFree; current != free_list_end; current = current->MemPool_NextFree)
+    // 使用O(1)算法查找前驱块
+    MemBlock_t *prev_block = p_get_physical_prev_block(block);
+    if (prev_block != NULL && !IS_ALLOCATED(prev_block->MemPool_BlockSize))
     {
-        EK_Size_t current_size = GET_SIZE(current->MemPool_BlockSize);
-        MemBlock_t *current_next_physical = (MemBlock_t *)((uint8_t *)current + current_size);
-
-        if (current_next_physical == block)
+        // 验证是否真的是物理相邻
+        MemBlock_t *prev_next_physical =
+            (MemBlock_t *)((uint8_t *)prev_block + GET_SIZE(prev_block->MemPool_BlockSize));
+        if (prev_next_physical == block)
         {
-            // 从空闲链表中移除 current (O(1) 操作)
-            current->MemPool_PrevFree->MemPool_NextFree = current->MemPool_NextFree;
-            current->MemPool_NextFree->MemPool_PrevFree = current->MemPool_PrevFree;
+            // 从空闲链表中移除 prev_block (O(1) 操作)
+            prev_block->MemPool_PrevFree->MemPool_NextFree = prev_block->MemPool_NextFree;
+            prev_block->MemPool_NextFree->MemPool_PrevFree = prev_block->MemPool_PrevFree;
 
             // 合并到前驱块
-            current->MemPool_BlockSize += MemPool_BlockSize;
-            block = current; // 更新块指针为合并后的块
-            break; // 找到后即可退出循环
+            prev_block->MemPool_BlockSize += MemPool_BlockSize;
+            block = prev_block; // 更新块指针为合并后的块
+            MemPool_BlockSize = GET_SIZE(block->MemPool_BlockSize);
         }
     }
+
+    // 更新合并块的前驱块信息
+    v_update_prev_block_info(block);
 
     // 将最终的合并块插入到空闲链表
     v_insert_free_block(block);

@@ -456,6 +456,12 @@ EK_Result_t EK_rCoroDelete(EK_CoroHandler_t task_handle)
     {
         // 退出临界区：恢复中断
         EK_EXIT_CRITICAL();
+
+        // 中断上下文中禁止触发调度切换
+        if (EK_IS_IN_INTERRUPT() == true)
+        {
+            return EK_ERROR;
+        }
         EK_vKernelYield();
         return EK_OK;
     }
@@ -695,7 +701,7 @@ void EK_vCoroYield(void)
     // 设置当前的TCB状态为就绪
     current->TCB_State = EK_CORO_READY;
     // 插入到就绪链表
-    EK_rKernelInsert_Tail(EK_pKernelGetReadyList(current->TCB_Priority), &current->TCB_StateNode);
+    EK_rKernelMove_Tail(EK_pKernelGetReadyList(current->TCB_Priority), &current->TCB_StateNode);
 
     EK_EXIT_CRITICAL();
     // 请求调度
@@ -800,6 +806,7 @@ EK_Result_t EK_rCoroSendNotify(EK_CoroHandler_t task_handle, uint8_t bit)
 {
     // 超过位图长度
     if (bit >= EK_CORO_TASK_NOTIFY_GROUP) return EK_INVALID_PARAM;
+    if (EK_IS_IN_INTERRUPT() == true) return EK_ERROR;
 
     EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB(); // 获取当前的
 
@@ -871,6 +878,63 @@ EK_Result_t EK_rCoroWaitNotify(uint8_t bit, uint32_t timeout)
             // 不是超时就重试
         }
     }
+}
+
+/**
+ * @brief 在中断服务程序中向指定任务发送通知
+ * @details
+ *  此函数专用于在中断上下文中向目标任务发送通知信号。它会：
+ *  1. 验证函数是否在中断上下文中调用
+ *  2. 设置目标任务的对应通知位，并递增通知计数
+ *  3. 将目标任务从阻塞状态唤醒并插入就绪队列
+ *  4. 根据优先级判断是否需要进行任务切换
+ *
+ *  与普通版本的区别：
+ *  - 只能在中断上下文中调用，非中断环境会返回失败
+ *  - 不会主动触发任务调度，而是返回布尔值指示是否需要调度
+ *  - 调用者根据返回值决定是否需要设置PendSV中断
+ *
+ * @param task_handle 要通知的目标任务句柄
+ * @param bit 要设置的通知位位置 (0 ~ EK_CORO_TASK_NOTIFY_GROUP-1)
+ * @param higher_prio_wake 是否有更高优先级任务唤醒(当多个ISR的API调用的时候是或逻辑)
+ * @return bool 操作结果：
+ *         - true：通知成功，且需要切换上下文（被唤醒任务优先级更高）
+ *         - false：通知失败或无需切换上下文
+ */
+bool EK_bCoroSendNotify_FromISR(EK_CoroHandler_t task_handle, uint8_t bit, bool *higher_prio_wake)
+{
+    // 参数有效性检查
+    if (bit >= EK_CORO_TASK_NOTIFY_GROUP) return false;
+    if (EK_IS_IN_INTERRUPT() != true) return false;
+    if (task_handle == NULL) return false;
+
+    EK_ENTER_CRITICAL();
+
+    bool need_yield = false;
+    EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB(); // 获取当前的TCB
+
+    // 置位通知状态并递增计数
+    if (EK_bTestBit(&task_handle->TCB_NotifyState, bit) == false)
+    {
+        EK_vSetBit(&task_handle->TCB_NotifyState, bit);
+    }
+    task_handle->TCB_NotifyValue[bit] = EK_CLAMP(++task_handle->TCB_NotifyValue[bit], 0, UINT8_MAX);
+
+    // 唤醒对应任务
+    if (r_task_notify_wake(task_handle) != EK_OK)
+    {
+        EK_EXIT_CRITICAL();
+        return false;
+    }
+
+    need_yield = (current_tcb->TCB_Priority > task_handle->TCB_Priority) ? true : false;
+
+    *higher_prio_wake |= need_yield;
+
+    EK_EXIT_CRITICAL();
+
+    // 返回是否需要切换一次上下文（被唤醒任务优先级更高）
+    return need_yield;
 }
 
 #endif /* EK_CORO_TASK_NOTIFY_ENABLE == 1 */

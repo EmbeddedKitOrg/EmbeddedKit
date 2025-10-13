@@ -15,7 +15,7 @@
 #ifndef __KERNEL_H
 #define __KERNEL_H
 
-#include "../EK_CoroConfig.h"
+#include "../EK_CoroMarco.h"
 #if (EK_CORO_ENABLE == 1)
 
 #ifdef __cplusplus
@@ -24,45 +24,67 @@ extern "C"
 #endif /* __cplusplus */
 
 /* ========================= 宏定义 ========================= */
-/**
- * @brief 优先级相关变量
- * @details EK_CORO_PRIORITY_MOUNT:优先级数目
- *          EK_CORO_MAX_PRIORITY_NBR:最高优先级对应的值
- *          EK_BitMap_t:位图类型
- */
-#if (EK_CORO_PRIORITY_GROUPS <= 8)
-#define EK_CORO_PRIORITY_MOUNT   (8)
-#define EK_CORO_MAX_PRIORITY_NBR (0x80UL)
-typedef uint8_t EK_BitMap_t;
-#elif (EK_CORO_PRIORITY_GROUPS <= 16)
-#define EK_CORO_PRIORITY_MOUNT   (16)
-#define EK_CORO_MAX_PRIORITY_NBR (0x8000UL)
-typedef uint16_t EK_BitMap_t;
-#else
-#define EK_CORO_PRIORITY_MOUNT   (32)
-#define EK_CORO_MAX_PRIORITY_NBR (0x80000000UL)
-typedef uint32_t EK_BitMap_t;
-#endif /* EK_CORO_PRIORITY_GROUPS selection */
 
 /**
- * @brief 最大阻塞时间，设置这个代表一直阻塞
- * 
+ * @brief 请求一次任务调度。
+ * @details
+ *  此函数用于触发一次任务调度。它仅设置调度请求标志并触发PendSV异常。
+ *  实际的调度逻辑将在PendSV中断处理中执行。
+ *  当前正在运行的任务在调用此函数之前，应该已经被放回了某个链表（如就绪链表或阻塞链表）。
  */
-#define EK_MAX_DELAY (UINT32_MAX)
+#define EK_vKernelYield()                   \
+    do                                      \
+    {                                       \
+        SCB->ICSR = SCB_ICSR_PENDSVSET_Msk; \
+        __DSB();                            \
+        __ISB();                            \
+    } while (0)
 
 /**
- * @brief 任务通知相关
- * 
+ * @brief 在中断中判断是否需要切换上下文
+ * @details
+ *  根据传入的 X 来判断是否需要切换上下文，X为true的时候会切换
  */
-#if (EK_CORO_TASK_NOTIFY_ENABLE == 1)
-#if (EK_CORO_TASK_NOTIFY_GROUP <= 8)
-typedef uint8_t EK_CoroTaskNotifyState_t;
-#elif (EK_CORO_TASK_NOTIFY_GROUP <= 16)
-typedef uint16_t EK_CoroTaskNotifyState_t;
-#else
-typedef uint32_t EK_CoroTaskNotifyState_t;
-#endif /* EK_CORO_TASK_NOTIFY_GROUP implementation */
-#endif /* EK_CORO_TASK_NOTIFY_ENABLE == 1 */
+#define EK_vKernelYield_From_ISR(X) \
+    if (X == true) EK_vKernelYield()
+
+/**
+ * @brief 获取链表的第一个有效节点。
+ * @details
+ *  使用哨兵节点设计，快速获取链表的第一个有效节点。
+ *  如果链表为空，返回哨兵节点本身。
+ * @param list 链表指针
+ * @return 第一个有效节点的指针，如果链表为空则返回哨兵节点
+ */
+#define EK_pListGetFirst(list) ((list)->List_Dummy.CoroNode_Next)
+
+/**
+ * @brief 获取链表的最后一个有效节点。
+ * @details
+ *  使用哨兵节点设计，快速获取链表的最后一个有效节点。
+ *  如果链表为空，返回哨兵节点本身。
+ * @param list 链表指针
+ * @return 最后一个有效节点的指针，如果链表为空则返回哨兵节点
+ */
+#define EK_pListGetLast(list) ((list)->List_Dummy.CoroNode_Prev)
+
+/**
+ * @brief 检查链表是否为空。
+ * @details
+ *  使用哨兵节点设计，快速检查链表是否为空。
+ * @param list 链表指针
+ * @return true 表示链表为空，false 表示链表不为空
+ */
+#define EK_bListIsEmpty(list) ((list)->List_Count == 0)
+
+/**
+ * @brief 获取哨兵节点指针。
+ * @details
+ *  返回链表的哨兵节点指针，用于链表遍历的起始或结束标记。
+ * @param list 链表指针
+ * @return 哨兵节点的指针
+ */
+#define EK_pListGetDummy(list) ((EK_CoroListNode_t *)&(list)->List_Dummy)
 
 // 临界区函数声明
 void EK_vEnterCritical(void);
@@ -80,14 +102,6 @@ void EK_vExitCritical(void);
  */
 #define EK_EXIT_CRITICAL() EK_vExitCritical()
 
-/**
- * @brief 判断当前是否在中断函数中
- * @details 通过读取 Cortex-M 的中断控制状态寄存器 (ICSR) 来判断
- *          返回值为 true 表示在中断上下文中，false 表示在任务上下文中
- * @note 适用于 Cortex-M3/M4/M7 架构
- */
-#define EK_IS_IN_INTERRUPT() (__get_IPSR() != 0U)
-
 // 内存 申请/释放 函数
 extern void *EK_Coro_Malloc(EK_Size_t size);
 extern void EK_Coro_Free(void *ptr);
@@ -103,12 +117,6 @@ extern void EK_Coro_Free(void *ptr);
  * 
  */
 #define EK_CORO_FREE(X) EK_Coro_Free(X)
-
-/**
- * @brief 协程任务栈填充值
- * @details 用于检测栈使用高水位
- */
-#define EK_STACK_FILL_PATTERN (0xA5)
 
 /* ========================= 数据结构 ========================= */
 typedef void (*EK_CoroFunction_t)(void *arg); //协程任务的入口函数指针类型
@@ -137,13 +145,22 @@ typedef struct EK_CoroListNode_t
 } EK_CoroListNode_t;
 
 /**
+ * @brief 协程链表Mini节点结构体.
+ * @details 用于链表中的哨兵节点
+ */
+typedef struct EK_CoroListMiniNode_t
+{
+    EK_CoroListNode_t *CoroNode_Next; /**< 指向链表中的下一个节点. */
+    EK_CoroListNode_t *CoroNode_Prev; /**< 指向链表中的上一个节点. */
+} EK_CoroListMiniNode_t;
+
+/**
  * @brief 协程链表管理结构体.
  * @details 用于管理一组协程，例如就绪链表、阻塞链表等。
  */
 typedef struct EK_CoroList_t
 {
-    EK_CoroListNode_t *List_Head; /**< 指向链表的头节点. */
-    EK_CoroListNode_t *List_Tail; /**< 指向链表的尾节点. */
+    EK_CoroListMiniNode_t List_Dummy; /**< 哨兵节点 */
     uint16_t List_Count; /**< 链表中节点的数量. */
 } EK_CoroList_t;
 
@@ -217,15 +234,24 @@ EK_CoroTCB_t *EK_pKernelGetDeleteTCB(void);
 void EK_vKernelSetDeleteTCB(EK_CoroTCB_t *tcb);
 
 /* ========================= 内核核心API函数 ========================= */
-void EK_vKernelYield(void);
+// 链表初始化
+void EK_vKernelListInit(EK_CoroList_t *list);
+
+// 链表插入函数
 EK_Result_t EK_rKernelInsert_WakeUpTime(EK_CoroList_t *list, EK_CoroListNode_t *node);
+EK_Result_t EK_rKernelInsert_Prio(EK_CoroList_t *list, EK_CoroListNode_t *node);
 EK_Result_t EK_rKernelInsert_Head(EK_CoroList_t *list, EK_CoroListNode_t *node);
 EK_Result_t EK_rKernelInsert_Tail(EK_CoroList_t *list, EK_CoroListNode_t *node);
+
+// 链表删除函数
 EK_Result_t EK_rKernelRemove(EK_CoroList_t *list, EK_CoroListNode_t *node);
+
+// 链表移动函数
 EK_Result_t EK_rKernelMove_WakeUpTime(EK_CoroList_t *list, EK_CoroListNode_t *node);
-EK_Result_t EK_rKernelMove_Tail(EK_CoroList_t *list, EK_CoroListNode_t *node);
 EK_Result_t EK_rKernelMove_Prio(EK_CoroList_t *list, EK_CoroListNode_t *node);
 EK_Result_t EK_rKernelMove_Head(EK_CoroList_t *list, EK_CoroListNode_t *node);
+EK_Result_t EK_rKernelMove_Tail(EK_CoroList_t *list, EK_CoroListNode_t *node);
+
 EK_Size_t EK_uKernelGetFreeHeap(void);
 void EK_vKernelInit(void);
 void EK_vKernelStart(void);

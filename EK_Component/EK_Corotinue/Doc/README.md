@@ -107,7 +107,7 @@ void PendSV_Handler(void) { EK_vPendSVHandler(); }
 #define EK_CORO_MESSAGE_QUEUE_ENABLE (1)         // 消息队列支持
 ```
 
-### 协程配置 (EK_CoroConfig.h)
+### 协程配置 (EK_CoroMarco.h)
 ```c
 #include "stm32f4xx_hal.h"                   // MCU头文件
 #define EK_CORO_SYSTEM_FREQ (SystemCoreClock) // 系统时钟
