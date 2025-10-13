@@ -890,9 +890,6 @@ static void v_kernel_task_switch(void)
     KernelCurrentTCB = (EK_CoroTCB_t *)EK_pListGetFirst(&KernelReadyList[highest_prio])->CoroNode_Owner;
     KernelCurrentTCB->TCB_State = EK_CORO_RUNNING;
 
-    // 将TCB移除
-    EK_rKernelRemove(&KernelReadyList[highest_prio], &KernelCurrentTCB->TCB_StateNode);
-
     // 在任务切换前检查下一个任务的栈溢出情况并计算高水位标记
     // 注意：这里检查的是即将运行的任务，确保它在运行前栈是安全的
     // 执行栈溢出检测（如果启用）

@@ -40,7 +40,11 @@ extern "C"
         __ISB();                            \
     } while (0)
 
-
+/**
+ * @brief 在中断中判断是否需要切换上下文
+ * @details
+ *  根据传入的 X 来判断是否需要切换上下文，X为true的时候会切换
+ */
 #define EK_vKernelYield_From_ISR(X) \
     if (X == true) EK_vKernelYield()
 

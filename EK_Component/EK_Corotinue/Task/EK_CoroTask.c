@@ -701,7 +701,7 @@ void EK_vCoroYield(void)
     // 设置当前的TCB状态为就绪
     current->TCB_State = EK_CORO_READY;
     // 插入到就绪链表
-    EK_rKernelInsert_Tail(EK_pKernelGetReadyList(current->TCB_Priority), &current->TCB_StateNode);
+    EK_rKernelMove_Tail(EK_pKernelGetReadyList(current->TCB_Priority), &current->TCB_StateNode);
 
     EK_EXIT_CRITICAL();
     // 请求调度
