@@ -1,5 +1,6 @@
 # Claude Code configuration
 .claude/
+.specify/
 
 # Common IDE files
 .vscode/
