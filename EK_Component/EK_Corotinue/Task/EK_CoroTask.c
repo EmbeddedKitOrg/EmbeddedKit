@@ -487,6 +487,8 @@ void EK_vCoroDelay(uint32_t xticks)
 
     EK_ENTER_CRITICAL();
 
+    uint32_t kernel_tick = EK_uKernelGetTick(); // 当前Tick
+
     // 获取当前的TCB
     EK_CoroTCB_t *current = EK_pKernelGetCurrentTCB();
     if (current == NULL)
@@ -510,22 +512,21 @@ void EK_vCoroDelay(uint32_t xticks)
     else // 否则就是普通延时
     {
         // 计算唤醒时间
-        uint32_t kernel_tick = EK_uKernelGetTick();
         uint32_t temp = xticks + kernel_tick;
 
         // 设置当前TCB的唤醒时间
         current->TCB_WakeUpTime = (temp == EK_MAX_DELAY ? EK_MAX_DELAY + 1 : temp);
+    }
 
-        if (current->TCB_WakeUpTime < kernel_tick)
-        {
-            // 唤醒时间小于当前时基，说明是溢出后的链表
-            EK_rKernelMove_WakeUpTime(EK_pKernelGetNextBlockList(), &current->TCB_StateNode);
-        }
-        else
-        {
-            // 唤醒时间大于等于当前时基，说明是当前周期链表
-            EK_rKernelMove_WakeUpTime(EK_pKernelGetCurrentBlockList(), &current->TCB_StateNode);
-        }
+    if (current->TCB_WakeUpTime < kernel_tick)
+    {
+        // 唤醒时间小于当前时基，说明是溢出后的链表
+        EK_rKernelMove_WakeUpTime(EK_pKernelGetNextBlockList(), &current->TCB_StateNode);
+    }
+    else
+    {
+        // 唤醒时间大于等于当前时基，说明是当前周期链表
+        EK_rKernelMove_WakeUpTime(EK_pKernelGetCurrentBlockList(), &current->TCB_StateNode);
     }
 
     // 设置当前的TCB状态为阻塞
