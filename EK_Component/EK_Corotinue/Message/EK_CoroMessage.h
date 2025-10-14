@@ -13,7 +13,6 @@
 #define __EK_COROMESSAGE_H
 
 #include "../Kernel/Kernel.h"
-#include "../../DataStruct/Queue/EK_Queue.h"
 
 #if (EK_CORO_ENABLE == 1)
 #if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
@@ -22,30 +21,35 @@
 extern "C"
 {
 #endif /* __cplusplus */
-/* ========================= 辅助宏 ========================= */
+/* ========================= 内部环形缓冲区操作函数 ========================= */
 /**
- * @brief 安全获取消息队列的队列指针
- * @details 根据创建类型返回正确的队列指针
+ * @brief 安全获取消息队列的缓冲区指针
+ * @details 根据创建类型返回正确的缓冲区指针
  */
-#define EK_MSG_GET_QUEUE(msg_handler) \
-    ((msg_handler)->Msg_isDynamic ? (msg_handler)->Msg_Queue : &(msg_handler)->Msg_QueueStatic)
+#define EK_MSG_GET_BUFFER(msg_handler) \
+    ((msg_handler)->Msg_isDynamic ? (msg_handler)->Msg_Buffer : (msg_handler)->Msg_BufferStatic)
 
 /* ========================= 数据结构 ========================= */
 
 /**
  * @brief 消息队列结构体
- * @details 用于管理一组消息队列。
- *          支持动态和静态创建，静态创建时内嵌队列结构体避免动态分配。
+ * @details 内置环形缓冲区实现消息队列，支持动态和静态创建。
+ *          不再依赖外部队列模块，直接管理内存提高性能。
  */
 typedef struct EK_CoroMsg_t
 {
     union
     {
-        EK_Queue_t *Msg_Queue; /**< 动态创建时的队列指针 */
-        EK_Queue_t Msg_QueueStatic; /**< 静态创建时的内嵌队列结构体 */
+        uint8_t *Msg_Buffer; /**< 动态创建时的缓冲区指针 */
+        uint8_t Msg_BufferStatic[1]; /**< 静态创建时的内嵌缓冲区（柔性数组） */
     };
 
-    EK_Size_t Msg_ItemSize; /**< 队列中每个消息的大小（字节） */
+    EK_Size_t Msg_BufferSize; /**< 缓冲区总容量（字节） */
+    EK_Size_t Msg_Front; /**< 读指针位置（字节偏移） */
+    EK_Size_t Msg_Rear; /**< 写指针位置（字节偏移） */
+    EK_Size_t Msg_Size; /**< 当前数据大小（字节） */
+
+    EK_Size_t Msg_ItemSize; /**< 单个消息大小（字节） */
     bool Msg_isDynamic; /**< 是否来源于动态创建 */
 
     EK_CoroList_t Msg_SendWaitList; /**< 因队列满而等待发送的任务列表 */
@@ -55,12 +59,46 @@ typedef struct EK_CoroMsg_t
 typedef EK_CoroMsg_t *EK_CoroMsgHanler_t; /**< 动态类型消息队列句柄 */
 typedef EK_CoroMsg_t *EK_CoroMsgStaticHanler_t; /**< 静态类型消息队列句柄 */
 
-/* ========================= 消息队列状态查询函数 ========================= */
-#define EK_bMsgIsFull(msg_handler)      EK_bQueueIsFull(EK_MSG_GET_QUEUE(msg_handler))
-#define EK_bMsgIsEmpty(msg_handler)     EK_bQueueIsEmpty(EK_MSG_GET_QUEUE(msg_handler))
-#define EK_uMsgGetCount(msg_handler)    (EK_uQueueGetSize(EK_MSG_GET_QUEUE(msg_handler)) / msg_handler->Msg_ItemSize)
-#define EK_uMsgGetFree(msg_handler)     (EK_uQueueGetRemain(EK_MSG_GET_QUEUE(msg_handler)) / msg_handler->Msg_ItemSize)
-#define EK_uMsgGetCapacity(msg_handler) (EK_MSG_GET_QUEUE(msg_handler)->Queue_Capacity / msg_handler->Msg_ItemSize)
+/* ========================= 消息队列状态查询宏 ========================= */
+/**
+ * @brief 检查消息队列是否已满
+ * @param msg_handler 消息队列句柄
+ * @return bool 队列已满返回true，未满返回false
+ */
+#define EK_bMsgIsFull(msg_handler) \
+    ((msg_handler) != NULL ? ((msg_handler)->Msg_Size >= (msg_handler)->Msg_BufferSize) : false)
+
+/**
+ * @brief 检查消息队列是否为空
+ * @param msg_handler 消息队列句柄
+ * @return bool 队列为空返回true，非空返回false
+ */
+#define EK_bMsgIsEmpty(msg_handler) ((msg_handler) != NULL ? ((msg_handler)->Msg_Size == 0) : true)
+
+/**
+ * @brief 获取消息队列中消息数量
+ * @param msg_handler 消息队列句柄
+ * @return EK_Size_t 返回当前消息数量
+ */
+#define EK_uMsgGetCount(msg_handler) \
+    ((msg_handler) != NULL ? ((msg_handler)->Msg_Size / (msg_handler)->Msg_ItemSize) : 0)
+
+/**
+ * @brief 获取消息队列剩余空间（消息数量）
+ * @param msg_handler 消息队列句柄
+ * @return EK_Size_t 返回剩余可容纳的消息数量
+ */
+#define EK_uMsgGetFree(msg_handler)                                                                                    \
+    ((msg_handler) != NULL ? (((msg_handler)->Msg_BufferSize - (msg_handler)->Msg_Size) / (msg_handler)->Msg_ItemSize) \
+                           : 0)
+
+/**
+ * @brief 获取消息队列总容量（消息数量）
+ * @param msg_handler 消息队列句柄
+ * @return EK_Size_t 返回队列总容量（消息数量）
+ */
+#define EK_uMsgGetCapacity(msg_handler) \
+    ((msg_handler) != NULL ? ((msg_handler)->Msg_BufferSize / (msg_handler)->Msg_ItemSize) : 0)
 
 /* ========================= 函数声明区 ========================= */
 EK_CoroMsgHanler_t EK_pMsgCreate(EK_Size_t item_size, EK_Size_t item_amount);

@@ -17,9 +17,10 @@
 
 #include "../Task/EK_CoroTask.h"
 
-typedef EK_Result_t (*msg_send_t)(EK_Queue_t *, void *, EK_Size_t); // 写队列的函数指针
+typedef EK_Result_t (*msg_send_t)(EK_CoroMsg_t *, void *, EK_Size_t); // 写消息队列的函数指针
 
 /* ========================= 内部函数 ========================= */
+
 /**
  * @brief 将当前任务阻塞，并根据是发送还是接收操作，将其放入相应的等待列表。
  * 
@@ -56,7 +57,7 @@ ALWAYS_STATIC_INLINE EK_CoroTCB_t *p_msg_take_waiter(EK_CoroList_t *wait_list)
 {
     if (wait_list == NULL || wait_list->List_Count == 0) return NULL;
 
-    EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)EK_pListGetFirst(wait_list)->CoroNode_Owner;
+    EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)EK_pKernelListGetFirst(wait_list)->CoroNode_Owner;
     EK_rKernelRemove(wait_list, &tcb->TCB_EventNode);
 
     return tcb;
@@ -80,6 +81,221 @@ ALWAYS_STATIC_INLINE void v_msg_wake(EK_CoroTCB_t *tcb, EK_CoroEventResult_t res
     EK_rKernelMove_Head(EK_pKernelGetReadyList(tcb->TCB_Priority), &tcb->TCB_StateNode);
 }
 
+/**
+ * @brief 向消息队列尾部添加数据（入队操作）
+ * @param msg 消息队列指针
+ * @param data 要添加的数据指针
+ * @param data_size 数据大小（字节数）
+ * @return EK_Result_t 操作结果
+ */
+ALWAYS_STATIC_INLINE EK_Result_t v_msg_queue_send_to_back(EK_CoroMsg_t *msg, void *data, EK_Size_t data_size)
+{
+    // 参数有效性检查
+    if (msg == NULL || data == NULL || data_size == 0) return EK_INVALID_PARAM;
+
+    // 检查队列是否满了
+    if (EK_bMsgIsFull(msg)) return EK_FULL;
+
+    // 检测剩余空间是否足够
+    if (EK_uMsgGetFree(msg) * msg->Msg_ItemSize < data_size) return EK_INSUFFICIENT_SPACE;
+
+    // 获取缓冲区指针
+    uint8_t *buffer = EK_MSG_GET_BUFFER(msg);
+
+    // 计算写入位置
+    uint8_t *write_addr = buffer + msg->Msg_Rear;
+
+    // 检查是否需要分段复制（跨越缓冲区边界）
+    if (msg->Msg_Rear + data_size <= msg->Msg_BufferSize)
+    {
+        // 数据不跨界，直接复制
+        EK_vMemCpy(write_addr, data, data_size);
+    }
+    else
+    {
+        // 数据跨界，分两段复制
+        EK_Size_t first_part = msg->Msg_BufferSize - msg->Msg_Rear;
+        EK_Size_t second_part = data_size - first_part;
+
+        EK_vMemCpy(write_addr, data, first_part);
+        EK_vMemCpy(buffer, (uint8_t *)data + first_part, second_part);
+    }
+
+    // 更新写指针和大小
+    msg->Msg_Rear = (msg->Msg_Rear + data_size) % msg->Msg_BufferSize;
+    msg->Msg_Size += data_size;
+
+    return EK_OK;
+}
+
+/**
+ * @brief 向消息队列尾部覆写数据（强制入队操作）
+ * @details 当队列已满时，会自动覆盖最旧的数据以腾出空间
+ * @param msg 消息队列指针
+ * @param data 要写入的数据指针
+ * @param data_size 数据大小（字节数）
+ * @return EK_Result_t 覆写结果
+ */
+ALWAYS_STATIC_INLINE EK_Result_t v_msg_queue_over_write(EK_CoroMsg_t *msg, void *data, EK_Size_t data_size)
+{
+    // 参数有效性检查
+    if (msg == NULL || data == NULL || data_size == 0) return EK_INVALID_PARAM;
+
+    // 检查数据大小是否超过队列容量
+    if (data_size > msg->Msg_BufferSize) return EK_INSUFFICIENT_SPACE;
+
+    // 检查剩余空间是否足够，不足时丢弃最旧的数据
+    while (EK_uMsgGetFree(msg) * msg->Msg_ItemSize < data_size)
+    {
+        // 计算需要丢弃的数据大小
+        EK_Size_t discard_size = EK_uMsgGetCount(msg) * msg->Msg_ItemSize;
+        if (discard_size > data_size)
+        {
+            discard_size = data_size;
+        }
+
+        // 更新读指针，相当于丢弃最旧的数据
+        msg->Msg_Front = (msg->Msg_Front + discard_size) % msg->Msg_BufferSize;
+        msg->Msg_Size -= discard_size;
+    }
+
+    // 获取缓冲区指针
+    uint8_t *buffer = EK_MSG_GET_BUFFER(msg);
+
+    // 计算写入位置
+    uint8_t *write_addr = buffer + msg->Msg_Rear;
+
+    // 检查是否需要分段复制（跨越缓冲区边界）
+    if (msg->Msg_Rear + data_size <= msg->Msg_BufferSize)
+    {
+        // 数据不跨界，直接复制
+        EK_vMemCpy(write_addr, data, data_size);
+    }
+    else
+    {
+        // 数据跨界，分两段复制
+        EK_Size_t first_part = msg->Msg_BufferSize - msg->Msg_Rear;
+        EK_Size_t second_part = data_size - first_part;
+
+        EK_vMemCpy(write_addr, data, first_part);
+        EK_vMemCpy(buffer, (uint8_t *)data + first_part, second_part);
+    }
+
+    // 更新写指针和大小
+    msg->Msg_Rear = (msg->Msg_Rear + data_size) % msg->Msg_BufferSize;
+    msg->Msg_Size += data_size;
+
+    return EK_OK;
+}
+
+/**
+ * @brief 从消息队列头部取出数据（出队操作）
+ * @param msg 消息队列指针
+ * @param data_buffer 用于接收出队数据的缓冲区指针
+ * @param data_size 要取出的数据大小（字节数）
+ * @return EK_Result_t 操作结果
+ */
+ALWAYS_STATIC_INLINE EK_Result_t v_msg_queue_receive(EK_CoroMsg_t *msg, void *data_buffer, EK_Size_t data_size)
+{
+    // 参数有效性检查
+    if (msg == NULL || data_buffer == NULL || data_size == 0) return EK_INVALID_PARAM;
+
+    // 检查队列是否为空
+    if (EK_bMsgIsEmpty(msg)) return EK_EMPTY;
+
+    // 检查队列是否有所需的数据数目
+    if (EK_uMsgGetCount(msg) * msg->Msg_ItemSize < data_size) return EK_INSUFFICIENT_SPACE;
+
+    // 获取缓冲区指针
+    uint8_t *buffer = EK_MSG_GET_BUFFER(msg);
+
+    // 计算读取位置
+    uint8_t *read_addr = buffer + msg->Msg_Front;
+
+    // 检查是否需要分段读取（跨越缓冲区边界）
+    if (msg->Msg_Front + data_size <= msg->Msg_BufferSize)
+    {
+        // 数据不跨界，直接复制
+        EK_vMemCpy(data_buffer, read_addr, data_size);
+    }
+    else
+    {
+        // 数据跨界，分两段读取
+        EK_Size_t first_part = msg->Msg_BufferSize - msg->Msg_Front;
+        EK_Size_t second_part = data_size - first_part;
+
+        EK_vMemCpy(data_buffer, read_addr, first_part);
+        EK_vMemCpy((uint8_t *)data_buffer + first_part, buffer, second_part);
+    }
+
+    // 更新读指针和大小
+    msg->Msg_Front = (msg->Msg_Front + data_size) % msg->Msg_BufferSize;
+    msg->Msg_Size -= data_size;
+
+    return EK_OK;
+}
+
+/**
+ * @brief 查看消息队列头部数据但不移除（窥视操作）
+ * @param msg 消息队列指针
+ * @param data_buffer 用于接收数据的缓冲区指针
+ * @param data_size 要查看的数据大小（字节数）
+ * @return EK_Result_t 操作结果
+ */
+ALWAYS_STATIC_INLINE EK_Result_t v_msg_queue_peek(EK_CoroMsg_t *msg, void *data_buffer, EK_Size_t data_size)
+{
+    // 参数有效性检查
+    if (msg == NULL || data_buffer == NULL || data_size == 0) return EK_INVALID_PARAM;
+
+    // 检查队列是否为空
+    if (EK_bMsgIsEmpty(msg)) return EK_EMPTY;
+
+    // 检查队列是否有所需的数据数目
+    if (EK_uMsgGetCount(msg) * msg->Msg_ItemSize < data_size) return EK_INSUFFICIENT_SPACE;
+
+    // 获取缓冲区指针
+    uint8_t *buffer = EK_MSG_GET_BUFFER(msg);
+
+    // 计算读取位置
+    uint8_t *read_addr = buffer + msg->Msg_Front;
+
+    // 检查是否需要分段读取（跨越缓冲区边界）
+    if (msg->Msg_Front + data_size <= msg->Msg_BufferSize)
+    {
+        // 数据不跨界，直接复制
+        EK_vMemCpy(data_buffer, read_addr, data_size);
+    }
+    else
+    {
+        // 数据跨界，分两段读取
+        EK_Size_t first_part = msg->Msg_BufferSize - msg->Msg_Front;
+        EK_Size_t second_part = data_size - first_part;
+
+        EK_vMemCpy(data_buffer, read_addr, first_part);
+        EK_vMemCpy((uint8_t *)data_buffer + first_part, buffer, second_part);
+    }
+
+    return EK_OK;
+}
+
+/**
+ * @brief 清空消息队列中的全部数据
+ * @param msg 消息队列指针
+ * @return EK_Result_t 操作结果
+ */
+ALWAYS_STATIC_INLINE EK_Result_t v_msg_queue_clean(EK_CoroMsg_t *msg)
+{
+    // 参数有效性检查
+    if (msg == NULL) return EK_NULL_POINTER;
+
+    // 重置队列状态为空
+    msg->Msg_Front = 0;
+    msg->Msg_Rear = 0;
+    msg->Msg_Size = 0;
+
+    return EK_OK;
+}
+
 /* ========================= 公开API ========================= */
 /**
  * @brief 使用动态内存创建一个消息队列。
@@ -98,14 +314,21 @@ EK_CoroMsgHanler_t EK_pMsgCreate(EK_Size_t item_size, EK_Size_t item_amount)
     EK_CoroMsg_t *msg = (EK_CoroMsg_t *)EK_CORO_MALLOC(sizeof(EK_CoroMsg_t));
     if (msg == NULL) return NULL;
 
-    // 为消息队列分配内存（动态创建时使用指针成员）
-    EK_Queue_t *dynamic_queue = EK_pQueueCreate(item_size * item_amount);
-    if (dynamic_queue == NULL)
+    // 为消息缓冲区分配内存
+    EK_Size_t buffer_size = item_size * item_amount;
+    uint8_t *dynamic_buffer = (uint8_t *)EK_CORO_MALLOC(buffer_size);
+    if (dynamic_buffer == NULL)
     {
         EK_CORO_FREE(msg);
         return NULL;
     }
-    msg->Msg_Queue = dynamic_queue; // 设置指针成员
+    msg->Msg_Buffer = dynamic_buffer; // 设置缓冲区指针
+
+    // 初始化环形缓冲区控制字段
+    msg->Msg_BufferSize = buffer_size; // 缓冲区总容量
+    msg->Msg_Front = 0; // 读指针位置
+    msg->Msg_Rear = 0; // 写指针位置
+    msg->Msg_Size = 0; // 当前数据大小
 
     msg->Msg_ItemSize = item_size; // 每条消息的字节大小
 
@@ -138,19 +361,19 @@ EK_pMsgCreateStatic(EK_CoroMsg_t *msg, void *buffer, EK_Size_t item_size, EK_Siz
     if (msg == NULL || buffer == NULL) return NULL;
     if (item_size == 0 || item_amount == 0) return NULL;
 
-    // 直接使用内嵌的队列结构体，完全避免动态分配
-    EK_Queue_t *queue = &msg->Msg_QueueStatic;
-
-    // 创建静态队列，完全使用静态内存
-    EK_Result_t op_res = EK_rQueueCreateStatic(queue, buffer, item_amount * item_size);
-    if (op_res != EK_OK)
-    {
-        return NULL; // 静态创建失败，无需释放内存
-    }
+    // 直接使用用户提供的缓冲区，完全避免动态分配
+    uint8_t *static_buffer = (uint8_t *)buffer;
+    EK_Size_t buffer_size = item_size * item_amount;
 
     // 设置消息队列属性
-    msg->Msg_Queue = queue; // 指向内嵌的队列结构体
+    msg->Msg_BufferSize = buffer_size; // 缓冲区总容量
+    msg->Msg_Front = 0; // 读指针位置
+    msg->Msg_Rear = 0; // 写指针位置
+    msg->Msg_Size = 0; // 当前数据大小
     msg->Msg_ItemSize = item_size; // 每条消息的字节大小
+
+    // 注意：静态创建时不需要设置缓冲区指针，因为缓冲区在联合体的第二个成员中
+    // 柔性数组会直接使用消息队列结构体后面的内存空间
 
     // 初始化等待发送链表
     EK_vKernelListInit(&msg->Msg_SendWaitList);
@@ -194,19 +417,22 @@ EK_Result_t EK_rMsgDelete(EK_CoroMsg_t *msg)
         v_msg_wake(tcb_waiter, EK_CORO_EVENT_DELETED);
     }
 
-    // 释放队列结构体内存
+    // 释放缓冲区内存
     if (msg->Msg_isDynamic)
     {
-        // 动态创建：释放底层队列和消息队列控制块
-        EK_Queue_t *queue = EK_MSG_GET_QUEUE(msg); // 安全获取队列指针
-        EK_rQueueDelete(queue); // 释放底层队列
+        // 动态创建：释放底层缓冲区和消息队列控制块
+        uint8_t *buffer = EK_MSG_GET_BUFFER(msg); // 安全获取缓冲区指针
+        if (buffer != NULL)
+        {
+            EK_CORO_FREE(buffer); // 释放底层缓冲区
+        }
         EK_CORO_FREE(msg); // 释放消息队列控制块
     }
     else
     {
         // 静态创建：不需要释放任何内存
-        // 内嵌的队列结构体是消息队列结构体的一部分，由用户管理其生命周期
-        // 用户缓冲区也由用户自己管理
+        // 内嵌的缓冲区是消息队列结构体的一部分，由用户管理其生命周期
+        // 用户提供的缓冲区也由用户自己管理
         // 所以这里什么都不用做
     }
 
@@ -261,11 +487,10 @@ EK_Result_t EK_rMsgSend(EK_CoroMsgHanler_t msg, void *tx_buffer, uint32_t timeou
     if (EK_pKernelGetCurrentTCB() == EK_pKernelGetIdleHandler()) return EK_ERROR;
     if (EK_IS_IN_INTERRUPT() == true) return EK_ERROR;
 
-    EK_Queue_t *queue = EK_MSG_GET_QUEUE(msg); // 获取该消息队列的队列
     EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB(); // 获取当前任务TCB
 
-    // 写队列模式
-    msg_send_t r_msg_send_queue = (over_write == true) ? EK_rQueueOverWrite : EK_rQueueEnqueue;
+    // 写消息队列模式
+    msg_send_t r_msg_send_queue = (over_write == true) ? v_msg_queue_over_write : v_msg_queue_send_to_back;
 
     while (1)
     {
@@ -290,13 +515,13 @@ EK_Result_t EK_rMsgSend(EK_CoroMsgHanler_t msg, void *tx_buffer, uint32_t timeou
             }
 
             // 将消息直接入队
-            r_msg_send_queue(queue, tx_buffer, msg->Msg_ItemSize);
+            EK_Result_t send_result = r_msg_send_queue(msg, tx_buffer, msg->Msg_ItemSize);
 
             EK_EXIT_CRITICAL();
 
             if (need_yield == true) EK_vCoroYield();
 
-            return EK_OK;
+            return send_result;
         }
 
         // 剩余空间不够
@@ -344,7 +569,6 @@ EK_Result_t EK_rMsgReceive(EK_CoroMsgHanler_t msg, void *rx_buffer, uint32_t tim
     if (EK_pKernelGetCurrentTCB() == EK_pKernelGetIdleHandler()) return EK_ERROR;
     if (EK_IS_IN_INTERRUPT() == true) return EK_ERROR;
 
-    EK_Queue_t *queue = EK_MSG_GET_QUEUE(msg); // 获取该消息队列的队列
     EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB(); // 获取当前任务TCB
 
     while (1)
@@ -356,8 +580,8 @@ EK_Result_t EK_rMsgReceive(EK_CoroMsgHanler_t msg, void *rx_buffer, uint32_t tim
         {
             bool need_yield = false;
 
-            // 读取当前的队列
-            EK_Result_t op_res = EK_rQueueDequeue(queue, rx_buffer, msg->Msg_ItemSize);
+            // 读取当前的消息队列
+            EK_Result_t op_res = v_msg_queue_receive(msg, rx_buffer, msg->Msg_ItemSize);
 
             // 当前的等待发送的列表中有等待任务
             if (msg->Msg_SendWaitList.List_Count > 0)
@@ -420,19 +644,17 @@ EK_Result_t EK_rMsgPeek(EK_CoroMsgHanler_t msg, void *rx_buffer)
 
     EK_ENTER_CRITICAL();
 
-    // 安全获取底层队列指针
-    EK_Queue_t *queue = EK_MSG_GET_QUEUE(msg);
     EK_Result_t op_res;
 
     // 如果队列中没有完整的一条消息则返回空
-    if (EK_uQueueGetSize(queue) < msg->Msg_ItemSize)
+    if (EK_uMsgBufferGetSize(msg) < msg->Msg_ItemSize)
     {
         op_res = EK_EMPTY;
     }
     else
     {
-        // 调用底层Peek接口复制但不移除队列内容
-        op_res = EK_rQueuePeekFront(queue, rx_buffer, msg->Msg_ItemSize);
+        // 调用内部Peek接口复制但不移除队列内容
+        op_res = v_msg_queue_peek(msg, rx_buffer, msg->Msg_ItemSize);
     }
 
     EK_EXIT_CRITICAL();
@@ -460,9 +682,8 @@ EK_Result_t EK_rMsgClean(EK_CoroMsgHanler_t msg)
 
     EK_ENTER_CRITICAL();
 
-    // 重置队列读写指针
-    EK_Queue_t *queue = EK_MSG_GET_QUEUE(msg);
-    EK_Result_t op_res = EK_rQueueClean(queue);
+    // 重置消息队列读写指针
+    EK_Result_t op_res = v_msg_queue_clean(msg);
 
     if (op_res != EK_OK)
     {
@@ -544,13 +765,12 @@ bool EK_bMsgSend_FromISR(EK_CoroMsgHanler_t msg, void *tx_buffer, bool *higher_p
 
     EK_ENTER_CRITICAL();
 
-    EK_Queue_t *queue = EK_MSG_GET_QUEUE(msg); // 获取该消息队列的队列
     EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB(); // 获取当前任务TCB
 
     bool need_yield = false;
 
-    // 写队列模式
-    msg_send_t r_msg_send_queue = (over_write == true) ? EK_rQueueOverWrite : EK_rQueueEnqueue;
+    // 写消息队列模式
+    msg_send_t r_msg_send_queue = (over_write == true) ? v_msg_queue_over_write : v_msg_queue_send_to_back;
 
     // 如果消息队列未满 或者是覆写模式  正常将数据写进去 并且唤醒一个任务
     if (EK_bMsgIsFull(msg) != true || over_write == true)
@@ -569,7 +789,7 @@ bool EK_bMsgSend_FromISR(EK_CoroMsgHanler_t msg, void *tx_buffer, bool *higher_p
         }
 
         // 将消息直接入队
-        r_msg_send_queue(queue, tx_buffer, msg->Msg_ItemSize);
+        r_msg_send_queue(msg, tx_buffer, msg->Msg_ItemSize);
     }
 
     *higher_prio_wake |= need_yield;

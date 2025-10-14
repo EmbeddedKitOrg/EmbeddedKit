@@ -22,7 +22,21 @@
 
 #if (EK_CORO_MUTEX_PRIORITY_INHERITANCE_ENABLE == 1)
 
-// 继承当前任务的优先级
+/**
+ * @brief 继承当前任务的优先级
+ *
+ * 当高优先级任务等待互斥锁时，该函数将提升互斥锁持有者的优先级
+ * 以避免优先级反转问题。该函数仅在互斥锁模式下有效。
+ *
+ * @param sem 指向互斥锁信号量的指针
+ * @return EK_Result_t 操作结果
+ *         - EK_OK: 优先级继承成功
+ *         - EK_NULL_POINTER: 信号量指针为空
+ *         - EK_INVALID_PARAM: 参数无效（非互斥锁或持有者为空）
+ *
+ * @note 该函数会检查等待链表，如果有更高优先级的任务在等待，
+ *       则将互斥锁持有者的优先级提升到最高等待任务的优先级
+ */
 ALWAYS_STATIC_INLINE EK_Result_t r_mutex_inherit_priority(EK_CoroSem_t *sem)
 {
     // 参数有效性检查
@@ -36,23 +50,45 @@ ALWAYS_STATIC_INLINE EK_Result_t r_mutex_inherit_priority(EK_CoroSem_t *sem)
     }
 
     // 如果等待链表非空
-    if (EK_bListIsEmpty(&sem->Sem_WaitList) != true)
+    if (EK_bKernelListIsEmpty(&sem->Sem_WaitList) != true)
     {
         // 等待链表已按优先级排序，头部即为最高优先级任务
-        uint8_t highest_prio = ((EK_CoroTCB_t *)(EK_pListGetFirst(&sem->Sem_WaitList)->CoroNode_Owner))->TCB_Priority;
+        uint8_t highest_prio =
+            ((EK_CoroTCB_t *)(EK_pKernelListGetFirst(&sem->Sem_WaitList)->CoroNode_Owner))->TCB_Priority;
 
         // 优先级继承
         if (highest_prio < sem->Mutex_Holder->TCB_Priority)
         {
-            // 修改优先级
-            sem->Mutex_Holder->TCB_Priority = highest_prio;
+            EK_CoroTCB_t *holder = sem->Mutex_Holder;
+
+            holder->TCB_Priority = highest_prio;
+
+            // 如果任务在就绪态，插入到新优先级链表
+            if (holder->TCB_State == EK_CORO_READY)
+            {
+                EK_rKernelMove_Head(EK_pKernelGetReadyList(highest_prio), &holder->TCB_StateNode);
+            }
         }
     }
 
     return EK_OK;
 }
 
-// 恢复当前任务的优先级
+/**
+ * @brief 恢复当前任务的优先级
+ *
+ * 当互斥锁被释放时，该函数将互斥锁持有者的优先级恢复到原始值
+ * 以完成优先级继承机制。该函数仅在互斥锁模式下有效。
+ *
+ * @param sem 指向互斥锁信号量的指针
+ * @return EK_Result_t 操作结果
+ *         - EK_OK: 优先级恢复成功
+ *         - EK_NULL_POINTER: 信号量指针为空
+ *         - EK_INVALID_PARAM: 参数无效（非互斥锁、持有者为空或原始优先级未设置）
+ *
+ * @note 该函数仅在任务持有互斥锁且原始优先级已保存时才执行恢复操作
+ *       恢复后会将任务重新插入到对应优先级的就绪链表中（如果任务处于就绪态）
+ */
 ALWAYS_STATIC_INLINE EK_Result_t r_mutex_restore_priority(EK_CoroSem_t *sem)
 {
     // 参数有效性检查
@@ -62,14 +98,23 @@ ALWAYS_STATIC_INLINE EK_Result_t r_mutex_restore_priority(EK_CoroSem_t *sem)
         return EK_INVALID_PARAM;
     }
 
-    if (sem->Mutex_Holder->TCB_Priority != sem->Mutex_OriginalPriority)
+    EK_CoroTCB_t *holder = sem->Mutex_Holder; // 获取持有者TCB
+    uint8_t current_prio = holder->TCB_Priority; // 当前任务的优先级
+    uint8_t original_prio = sem->Mutex_OriginalPriority; // 原优先级
+
+    // 发生了优先级继承 要恢复
+    if (current_prio != original_prio)
     {
-        // 恢复优先级
-        sem->Mutex_Holder->TCB_Priority = sem->Mutex_OriginalPriority;
+        holder->TCB_Priority = original_prio;
+
+        // 如果任务在就绪态，插入到原始优先级链表
+        if (holder->TCB_State == EK_CORO_READY)
+        {
+            EK_rKernelMove_Head(EK_pKernelGetReadyList(original_prio), &holder->TCB_StateNode);
+        }
     }
 
     sem->Mutex_OriginalPriority = -1;
-
     return EK_OK;
 }
 
@@ -159,7 +204,7 @@ ALWAYS_STATIC_INLINE EK_CoroTCB_t *p_sem_take_waiter(EK_CoroSem_t *sem)
 {
     if (sem == NULL || sem->Sem_WaitList.List_Count == 0) return NULL;
 
-    EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)EK_pListGetFirst(&sem->Sem_WaitList)->CoroNode_Owner;
+    EK_CoroTCB_t *tcb = (EK_CoroTCB_t *)EK_pKernelListGetFirst(&sem->Sem_WaitList)->CoroNode_Owner;
     EK_rKernelRemove(&sem->Sem_WaitList, &tcb->TCB_EventNode);
 
     return tcb;

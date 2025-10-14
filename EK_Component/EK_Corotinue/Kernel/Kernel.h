@@ -56,7 +56,7 @@ extern "C"
  * @param list 链表指针
  * @return 第一个有效节点的指针，如果链表为空则返回哨兵节点
  */
-#define EK_pListGetFirst(list) ((list)->List_Dummy.CoroNode_Next)
+#define EK_pKernelListGetFirst(list) ((list)->List_Dummy.CoroNode_Next)
 
 /**
  * @brief 获取链表的最后一个有效节点。
@@ -66,7 +66,7 @@ extern "C"
  * @param list 链表指针
  * @return 最后一个有效节点的指针，如果链表为空则返回哨兵节点
  */
-#define EK_pListGetLast(list) ((list)->List_Dummy.CoroNode_Prev)
+#define EK_pKernelListGetLast(list) ((list)->List_Dummy.CoroNode_Prev)
 
 /**
  * @brief 检查链表是否为空。
@@ -75,7 +75,7 @@ extern "C"
  * @param list 链表指针
  * @return true 表示链表为空，false 表示链表不为空
  */
-#define EK_bListIsEmpty(list) ((list)->List_Count == 0)
+#define EK_bKernelListIsEmpty(list) ((list)->List_Count == 0)
 
 /**
  * @brief 获取哨兵节点指针。
@@ -84,7 +84,7 @@ extern "C"
  * @param list 链表指针
  * @return 哨兵节点的指针
  */
-#define EK_pListGetDummy(list) ((EK_CoroListNode_t *)&(list)->List_Dummy)
+#define EK_pKernelListGetDummy(list) ((EK_CoroListNode_t *)&(list)->List_Dummy)
 
 // 临界区函数声明
 void EK_vEnterCritical(void);
@@ -233,7 +233,7 @@ EK_CoroStaticHandler_t EK_pKernelGetIdleHandler(void);
 EK_CoroTCB_t *EK_pKernelGetDeleteTCB(void);
 void EK_vKernelSetDeleteTCB(EK_CoroTCB_t *tcb);
 
-/* ========================= 内核核心API函数 ========================= */
+/* ========================= 链表操作函数 ========================= */
 // 链表初始化
 void EK_vKernelListInit(EK_CoroList_t *list);
 
@@ -252,6 +252,7 @@ EK_Result_t EK_rKernelMove_Prio(EK_CoroList_t *list, EK_CoroListNode_t *node);
 EK_Result_t EK_rKernelMove_Head(EK_CoroList_t *list, EK_CoroListNode_t *node);
 EK_Result_t EK_rKernelMove_Tail(EK_CoroList_t *list, EK_CoroListNode_t *node);
 
+/* ========================= 内核核心API函数 ========================= */
 EK_Size_t EK_uKernelGetFreeHeap(void);
 void EK_vKernelInit(void);
 void EK_vKernelStart(void);
