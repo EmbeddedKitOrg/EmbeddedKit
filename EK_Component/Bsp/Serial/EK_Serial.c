@@ -11,7 +11,10 @@
  * @date 2025-09-13
  * @version 1.0
  */
+
+/* BSP 模块条件编译 */
 #include "EK_Serial.h"
+#if (EK_BSP_ENABLE == 1)
 
 /* ========================= 宏定义区 ========================= */
 /**
@@ -509,3 +512,5 @@ EK_Result_t EK_rSerialPoll(uint32_t (*get_tick)(void))
     }
     return EK_OK;
 }
+
+#endif /* EK_BSP_ENABLE */

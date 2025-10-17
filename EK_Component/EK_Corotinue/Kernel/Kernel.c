@@ -37,13 +37,12 @@ static EK_CoroList_t *KernelNextBlockPointer; // 用于指向溢出的就绪的�
 static EK_CoroTCB_t *KernelCurrentTCB; // 当前正在运行的任务TCB指针
 static EK_CoroTCB_t *KernelToDeleteTCB; // 等待被删除的任务TCB指针
 static EK_CoroTCB_t *KernelNextTCB; // 下一个任务TCB
-static EK_CoroTCB_t *KernelIdleTCB; // 空闲任务TCB指针
 static EK_CoroStaticHandler_t KernelIdleTCB_Handler; // 空闲任务句柄
 
 /*标志位*/
 static bool KernelIdleYield = false; // 调度请求标志位, 由TickHandler在唤醒任务时设置
 static bool KernelIsInited = false; // 内核初始化状态标志
-volatile EK_BitMap_t KernelReadyBitMap; // 就绪链表位图
+EK_BitMap_t KernelReadyBitMap; // 就绪链表位图
 static volatile uint32_t KernelTick; //时基
 
 /*临界区*/
@@ -452,7 +451,7 @@ static void v_kernel_task_switch(void)
 #endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
 }
 
-__naked ALWAYS_STATIC_INLINE void v_kernel_start(void)
+__naked static void v_kernel_start(void)
 {
     __ASM volatile(
         // 加载第一个任务的堆栈指针到 PSP

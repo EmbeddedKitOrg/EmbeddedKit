@@ -6,8 +6,12 @@
  * @date 2025-09-08
  * @version 1.0
  */
-
 #include "EK_List.h"
+
+/* 数据结构模块条件编译 */
+#if (EK_DATASTRUCT_ENABLE == 1)
+#if (EK_LIST_ENABLE == 1)
+
 /* ========================= 宏定义区 ========================= */
 #ifndef LIST_RECURSION_SORT
 #define LIST_RECURSION_SORT 1
@@ -1062,3 +1066,6 @@ EK_Result_t EK_rListSort(EK_List_t *list, bool is_descend)
     }
 #endif /* LIST_RECURSION_SORT != 0 */
 }
+
+#endif /* EK_LIST_ENABLE */
+#endif /* EK_DATASTRUCT_ENABLE */

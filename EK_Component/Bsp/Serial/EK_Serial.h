@@ -11,6 +11,9 @@
 #define __EK_SERIAL_H
 
 #include "../../EK_Config.h"
+
+/* BSP 模块条件编译 */
+#if (EK_BSP_ENABLE == 1)
 #include "../../DataStruct/Queue/EK_Queue.h"
 #include "../../DataStruct/List/EK_List.h"
 
@@ -59,5 +62,7 @@ EK_Result_t EK_rSerialDeleteQueue(EK_pSeiralQueue_t serial_fifo);
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
+
+#endif /* EK_BSP_ENABLE */
 
 #endif /* __EK_SERIAL_H */

@@ -6,13 +6,16 @@
  *          以及栈状态检查和空间管理功能。
  * @note 栈采用字节流方式存储数据，支持任意类型数据的存储
  * @warning 使用前请确保正确初始化栈结构
- * 
+ *
  * @author N1ntyNine99
  * @date 2025-09-12
  * @version 1.0
  */
-
 #include "EK_Stack.h"
+
+/* 数据结构模块条件编译 */
+#if (EK_DATASTRUCT_ENABLE == 1)
+#if (EK_STACK_ENABLE == 1)
 
 /* ========================= 内部函数定义区 ========================= */
 
@@ -228,3 +231,6 @@ EK_Result_t EK_rStackPop(EK_Stack_t *stack, void *data_buffer, EK_Size_t data_si
 
     return EK_OK;
 }
+
+#endif /* EK_STACK_ENABLE */
+#endif /* EK_DATASTRUCT_ENABLE */

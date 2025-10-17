@@ -12,6 +12,10 @@
 
 #include "../../EK_Config.h"
 
+/* 数据结构模块条件编译 */
+#if (EK_DATASTRUCT_ENABLE == 1)
+#if (EK_QUEUE_ENABLE == 1)
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -45,5 +49,8 @@ EK_Result_t EK_rQueuePeekFront(EK_Queue_t *queue, void *data_buffer, EK_Size_t d
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
+
+#endif /* EK_QUEUE_ENABLE */
+#endif /* EK_DATASTRUCT_ENABLE */
 
 #endif /* __EK_QUEUE_H */

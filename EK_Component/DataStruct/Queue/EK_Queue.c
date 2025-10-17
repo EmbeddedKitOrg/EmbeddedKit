@@ -6,13 +6,16 @@
  *          以及队列状态检查和空间管理功能。
  * @note 队列采用字节流方式存储数据，支持任意类型数据的存储
  * @warning 使用前请确保正确初始化队列结构
- * 
+ *
  * @author N1ntyNine99
  * @date 2025-09-08
  * @version 1.0
  */
-
 #include "EK_Queue.h"
+
+/* 数据结构模块条件编译 */
+#if (EK_DATASTRUCT_ENABLE == 1)
+#if (EK_QUEUE_ENABLE == 1)
 
 /**
  * @brief 检查队列是否为空
@@ -378,3 +381,6 @@ EK_Result_t EK_rQueuePeekFront(EK_Queue_t *queue, void *data_buffer, EK_Size_t d
 
     return EK_OK;
 }
+
+#endif /* EK_QUEUE_ENABLE */
+#endif /* EK_DATASTRUCT_ENABLE */
