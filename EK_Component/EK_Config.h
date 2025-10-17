@@ -49,9 +49,36 @@ extern bool EK_bMemPool_Free(void *ptr);
 
 #define LIST_RECURSION_SORT (1)
 
+/**
+ * @brief 数据结构模块开关配置
+ *
+ * EK_DATASTRUCT_ENABLE  - 数据结构总开关，1:启用 0:禁用
+ * EK_LIST_ENABLE        - 链表模块开关，1:启用 0:禁用
+ * EK_QUEUE_ENABLE       - 队列模块开关，1:启用 0:禁用
+ * EK_STACK_ENABLE       - 栈模块开关，1:启用 0:禁用
+ *
+ * 注意：当 EK_DATASTRUCT_ENABLE 为 0 时，所有数据结构模块都会被禁用
+ *       当各子模块为 0 时，对应模块不会被编译
+ */
+
+#define EK_DATASTRUCT_ENABLE (0)
+#define EK_LIST_ENABLE       (0)
+#define EK_QUEUE_ENABLE      (0)
+#define EK_STACK_ENABLE      (0)
+
+#if (EK_QUEUE_ENABLE == 1 && EK_LIST_ENABLE == 1)
+/* ================================ BSP 模块配置 ================================ */
+/**
+ * @brief BSP 模块配置选项 需要开启队列和链表模块才能生效
+ *
+ * EK_BSP_ENABLE - BSP 模块总开关，1:启用 0:禁用
+ *               禁用时所有 BSP 相关功能不会被编译
+ */
+
+#define EK_BSP_ENABLE (0)
 /* ================================ 串口通信配置 ================================ */
 /**
- * @brief 串口通信配置选项
+ * @brief 串口通信配置选项 (仅在 EK_BSP_ENABLE == 1 && EK_QUEUE_ENABLE == 1 && EK_LIST_ENABLE == 1 时生效)
  *
  * SERIAL_TX_BUFFER     - 串口发送缓冲区大小 (字节)
  * SERIAL_MAX_SEND_SIZE - 每次轮询发送的最大字节数，限制单次发送数据量，确保消息顺序和实时性
@@ -63,6 +90,7 @@ extern bool EK_bMemPool_Free(void *ptr);
 #define SERIAL_MAX_SEND_SIZE (128)
 #define SERIAL_FULL_STRATEGY (1)
 #define SERIAL_OVER_TIME     (20)
+#endif /* EK_BSP_ENABLE */
 
 /* ================================ 调度器配置 ================================ */
 /**

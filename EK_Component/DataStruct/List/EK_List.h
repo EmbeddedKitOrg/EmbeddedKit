@@ -12,6 +12,10 @@
 
 #include "../../EK_Config.h"
 
+/* 数据结构模块条件编译 */
+#if (EK_DATASTRUCT_ENABLE == 1)
+#if (EK_LIST_ENABLE == 1)
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -56,5 +60,8 @@ EK_Result_t EK_rListSort(EK_List_t *list, bool is_descend);
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
+
+#endif /* EK_LIST_ENABLE */
+#endif /* EK_DATASTRUCT_ENABLE */
 
 #endif /* __EK_LIST_H */

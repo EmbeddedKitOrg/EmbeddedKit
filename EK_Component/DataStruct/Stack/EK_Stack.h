@@ -1,7 +1,20 @@
+/**
+ * @file EK_Stack.h
+ * @brief 栈数据结构头文件
+ * @details 定义了栈的数据结构和操作接口
+ * @author N1ntyNine99
+ * @date 2025-09-08
+ * @version 1.0
+ */
+
 #ifndef __EK_STACK_H
 #define __EK_STACK_H
 
 #include "../../EK_Config.h"
+
+/* 数据结构模块条件编译 */
+#if (EK_DATASTRUCT_ENABLE == 1)
+#if (EK_STACK_ENABLE == 1)
 
 #ifdef __cplusplus
 extern "C"
@@ -31,5 +44,8 @@ EK_Result_t EK_rStackPop(EK_Stack_t *stack, void *data_buffer, EK_Size_t data_si
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
+
+#endif /* EK_STACK_ENABLE */
+#endif /* EK_DATASTRUCT_ENABLE */
 
 #endif /* __EK_STACK_H */
