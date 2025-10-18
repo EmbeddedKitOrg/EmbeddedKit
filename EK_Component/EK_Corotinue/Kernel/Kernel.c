@@ -36,7 +36,6 @@ static EK_CoroList_t *KernelNextBlockPointer; // 用于指向溢出的就绪的�
 /*TCB 相关*/
 static EK_CoroTCB_t *KernelCurrentTCB; // 当前正在运行的任务TCB指针
 static EK_CoroTCB_t *KernelToDeleteTCB; // 等待被删除的任务TCB指针
-static EK_CoroTCB_t *KernelNextTCB; // 下一个任务TCB
 static EK_CoroStaticHandler_t KernelIdleTCB_Handler; // 空闲任务句柄
 
 /*标志位*/
@@ -254,10 +253,12 @@ STATIC_INLINE void v_calculate_stack_high_water_mark(EK_CoroTCB_t *tcb)
         used_bytes = sizeof(EK_CoroTCB_t);
     }
 
+    EK_Size_t high_water_mark = tcb->TCB_StackSize - used_bytes; // 高水位值
+
     // 更新高水位标记（只有在当前使用量更大时才更新）
-    if (used_bytes > tcb->TCB_StackHighWaterMark)
+    if (high_water_mark < tcb->TCB_StackHighWaterMark || tcb->TCB_StackHighWaterMark == 0)
     {
-        tcb->TCB_StackHighWaterMark = used_bytes;
+        tcb->TCB_StackHighWaterMark = high_water_mark;
     }
 }
 #endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
@@ -421,7 +422,7 @@ void EK_vKernelSetDeleteTCB(EK_CoroTCB_t *tcb)
  * @details
  *  此函数负责执行实际的调度逻辑，包括：
  *  1. 从就绪位图中找到最高优先级的就绪任务
- *  2. 设置下一个要运行的任务 (KernelNextTCB)
+ *  2. 设置下一个要运行的任务
  *  3. 从就绪链表中移除该任务
  *  4. 执行栈溢出检测和高水位标记计算
  *
@@ -527,7 +528,6 @@ void EK_vKernelInit(void)
     // 初始化指针
     KernelCurrentTCB = NULL;
     KernelToDeleteTCB = NULL;
-    KernelNextTCB = NULL;
 
     // 初始化当前就绪链表的指针
     KernelCurrentBlockPointer = &KernelBlockList1;
