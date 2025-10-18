@@ -10,10 +10,6 @@
 #include "EK_CoroTask.h"
 #include "../../EK_Common.h"
 
-#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
-#include "../Message/EK_CoroMessage.h"
-#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
-
 #if (EK_CORO_ENABLE == 1)
 
 /**

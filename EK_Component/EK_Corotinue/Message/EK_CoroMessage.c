@@ -647,7 +647,7 @@ EK_Result_t EK_rMsgPeek(EK_CoroMsgHanler_t msg, void *rx_buffer)
     EK_Result_t op_res;
 
     // 如果队列中没有完整的一条消息则返回空
-    if (EK_uMsgBufferGetSize(msg) < msg->Msg_ItemSize)
+    if (EK_bMsgIsEmpty(msg) == true)
     {
         op_res = EK_EMPTY;
     }
