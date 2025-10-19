@@ -52,7 +52,7 @@
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+EK_DISABLE_HAL_HANDLER();
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
@@ -176,7 +176,6 @@ void DebugMon_Handler(void)
 void PendSV_Handler(void)
 {
     /* USER CODE BEGIN PendSV_IRQn 0 */
-    EK_vPendSVHandler();
     /* USER CODE END PendSV_IRQn 0 */
     /* USER CODE BEGIN PendSV_IRQn 1 */
 
@@ -189,7 +188,6 @@ void PendSV_Handler(void)
 void SysTick_Handler(void)
 {
     /* USER CODE BEGIN SysTick_IRQn 0 */
-    EK_vTickHandler();
     /* USER CODE END SysTick_IRQn 0 */
 
     /* USER CODE BEGIN SysTick_IRQn 1 */

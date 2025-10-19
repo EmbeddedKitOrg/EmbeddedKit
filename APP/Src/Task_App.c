@@ -45,10 +45,24 @@ void Task_OLED(void *arg)
 
     while (1)
     {
+        // 首先运行测试函数诊断问题
+        float test_value = 123.456f;
+
+        // 测试1：直接传递浮点数字面量
+        MyPrintf("Test1: %.2f\r\n", 123.456f);
+
+        // 测试2：传递变量
+        MyPrintf("Test2: %.2f\r\n", test_value);
+
+        // 测试3：强制转换为double（ARM Cortex-M浮点数传递约定）
+        MyPrintf("Test3: %.2f\r\n", (double)test_value);
+
+        // 测试4：使用临时变量复制
+        float temp = test_value;
+        MyPrintf("Test4: %.2f\r\n", temp);
+        // 原有的测试代码
         float num_f = randm_float(1.1f, 100.0f);
-        MyPrintf("%.2f\r\n", num_f);
-        // OLED_Printf(0, 0, OLED_8X16, "%.2f Int:%lu", num_f, EK_uKernelGetTick());
-        // OLED_Update();
+        MyPrintf("Random: %.2f\r\n", num_f);
 
         EK_vCoroDelay(1000);
     }
@@ -92,10 +106,10 @@ void TaskCreation(void)
 
     // while (1)
     // {
+    //     srand(uwTick);
     //     float num_f = randm_float(1.1f, 100.0f);
-    //     MyPrintf("%.2f\r\n", num_f);
-    //     OLED_Printf(0, 0, OLED_8X16, "%.2f Int:%lu", num_f, EK_uKernelGetTick());
-    //     OLED_Update();
+    //     MyPrintf("uwTick:%.2f\r\n", num_f);
+
     //     HAL_Delay(500);
     // }
 }

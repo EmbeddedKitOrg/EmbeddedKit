@@ -18,10 +18,6 @@
 
 #if (EK_CORO_ENABLE == 1)
 
-#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
-#include "../Message/EK_CoroMessage.h"
-#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
-
 /* ========================= 全局变量(内部)定义区 ========================= */
 /*状态链表*/
 EK_CoroList_t KernelReadyList[EK_CORO_PRIORITY_GROUPS]; // 就绪任务列表
@@ -452,29 +448,66 @@ static void v_kernel_task_switch(void)
 #endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
 }
 
+/**
+ * @brief 启动协程内核，开始执行第一个任务
+ * @details
+ *  这是一个裸函数，负责从操作系统初始化代码切换到第一个协程任务。
+ *  其主要职责是：
+ *  1. 设置进程栈指针(PSP)指向第一个任务的栈顶
+ *  2. 修改CONTROL寄存器，使线程模式使用PSP而不是MSP
+ *  3. 从任务栈中恢复完整的CPU上下文
+ *  4. 跳转到第一个任务的入口点，开始任务执行
+ *
+ * @note 此函数只在内核启动时调用一次，调用后不再返回
+ */
 __naked static void v_kernel_start(void)
 {
     __ASM volatile(
         // 加载第一个任务的堆栈指针到 PSP
-        "ldr r0, =KernelCurrentTCB \n"
-        "ldr r0, [r0] \n"
-        "ldr r0, [r0] \n"
-        "msr psp, r0 \n"
+        "ldr r0, =KernelCurrentTCB \n"    // r0 = &KernelCurrentTCB
+        "ldr r0, [r0] \n"                // r0 = KernelCurrentTCB (当前任务TCB指针)
+        "ldr r0, [r0] \n"                // r0 = *(KernelCurrentTCB) (任务栈指针)
+        "msr psp, r0 \n"                 // 设置PSP = 任务栈指针
 
         // 切换 CONTROL 寄存器，使用 PSP 作为线程堆栈指针
-        "mov r0, #2 \n"
-        "msr control, r0 \n"
-        "isb \n"
+        "mov r0, #2 \n"                  // CONTROL[1] = 1 (使用PSP), CONTROL[0] = 0 (特权模式)
+        "msr control, r0 \n"             // 设置CONTROL寄存器
+        "isb \n"                         // 指令同步屏障，确保设置生效
 
         // 恢复手动保存的上下文 (R4-R11 和 EXC_RETURN)
-        "pop {r4-r11, lr} \n"
+        "pop {r4-r11, lr} \n"            // 从栈中恢复r4-r11和EXC_RETURN
 
         // 恢复硬件保存的通用寄存器和任务的返回地址 (v_coro_exit)
-        "pop {r0-r3, r12, lr} \n"
+        "pop {r0-r3, r12, lr} \n"        // 从栈中恢复r0-r3, r12, lr(v_coro_exit)
 
         // 此时，栈顶正好是任务的入口地址(PC)。直接将其弹出到 PC 寄存器，
         // 这将导致 CPU 立即跳转到该地址，开始执行第一个任务。
-        "pop {pc} \n");
+        "pop {pc} \n");                  // 弹出PC，跳转到任务入口函数
+}
+
+/**
+ * @brief 启用浮点处理单元(FPU)
+ * @details
+ *  这是一个裸函数，负责启用Cortex-M4F的FPU功能。
+ *  其主要职责是配置CPACR(协处理器访问控制寄存器)，允许CPU访问FPU指令。
+ *
+ *  CPACR寄存器bits 20-23控制FPU访问权限：
+ *  - bits 20-21: CP11 (FPU高寄存器) 访问权限
+ *  - bits 22-23: CP10 (FPU低寄存器) 访问权限
+ *  - 11b: 完全访问权限 (特权和非特权模式都可以使用FPU)
+ *
+ * @note 此函数必须在内核初始化时调用，确保任务可以使用FPU指令
+ * @note 直接使用寄存器地址和位操作值，避免内联汇编中的宏解析问题
+ */
+__naked static void v_kernel_enbale_vfp(void)
+{
+    __ASM volatile("   ldr.w r0, =0xE000ED88   \n" /* 加载CPACR寄存器地址 */
+                   "   ldr r1, [r0]            \n" /* 读取当前CPACR值 */
+                   "                               \n"
+                   "   orr r1, r1, #( 0xf << 20 ) \n" /* 设置bits 20-23 = 1111，启用CP10和CP11完全访问 */
+                   "   str r1, [r0]            \n" /* 写回CPACR寄存器 */
+                   "   bx r14                  \n" /* 返回调用者 */
+                   "   .ltorg                  \n"); /* 字符串池，用于地址常量 */
 }
 
 /**
@@ -503,6 +536,12 @@ void EK_vKernelInit(void)
 
     // 初始化内存池
     while (EK_bMemPool_Init() != true);
+
+#if (EK_CORO_FPU_ENABLE == 1)
+    v_kernel_enbale_vfp();
+
+    *(FPCCR_ADDR) |= ASPEN_AND_LSPEN_BITS;
+#endif /* EK_CORO_FPU_ENABLE == 1 */
 
     // 初始化就绪链表
     for (uint8_t i = 0; i < EK_CORO_PRIORITY_GROUPS; i++)
@@ -596,7 +635,7 @@ void EK_vKernelStart(void)
  *  如果一个任务的 `TCB_WakeUpTime` 小于或等于当前Tick，该任务将被唤醒并移至就绪链表。
  *  此函数能够正确处理系统Tick值的溢出情况。
  */
-void EK_vTickHandler(void)
+void SysTick_Handler(void)
 {
     static uint32_t last_tick = 0;
     EK_ENTER_CRITICAL();
@@ -679,28 +718,21 @@ void EK_vTickHandler(void)
  *  5. 从新任务的堆栈中恢复其CPU寄存器。
  *  6. 异常返回，CPU开始执行新任务的代码。
  */
-__naked void EK_vKernelPendSV_Handler(void)
+__naked void PendSV_Handler(void)
 {
     __ASM volatile(
         // 保存当前任务的上下文
         "mrs r0, psp \n"
+        "isb \n"
 
-#if (EK_CORO_FPU_ENABLE == 1)
-        // 检查是否需要保存FPU状态
-        "ldr r2, =0xE000EF34 \n" // FPCCR寄存器
-        "ldr r3, [r2] \n"
-        "tst r3, #0x01 \n" // 检查LSPACT位
-        "beq no_fpu_save \n"
+        // 检查是否使用了FPU（通过EXC_RETURN的bit 4判断）
+        // bit 4 = 0: 硬件已保存基本FPU上下文，需要额外保存扩展寄存器S16-S31
+        // bit 4 = 1: 未使用FPU，不需要保存FPU寄存器
+        "tst r14, #0x10 \n"
+        "it eq \n"
+        "vstmdbeq r0!, {s16-s31} \n"
 
-        // 保存FPU寄存器S16-S31
-        "vstmdb r0!, {s16-s31} \n"
-        "vmrs r2, fpscr \n"
-        "stmdb r0!, {r2} \n"
-
-        "no_fpu_save: \n"
-#endif /* EK_CORO_FPU_ENABLE == 1 */
-
-        // 保存通用寄存器
+        // 保存通用寄存器（与任务初始化的栈布局匹配）
         "stmdb r0!, {r4-r11, lr} \n"
 
         // 保存栈指针到TCB
@@ -719,20 +751,15 @@ __naked void EK_vKernelPendSV_Handler(void)
         // 恢复通用寄存器
         "ldmia r0!, {r4-r11, lr} \n"
 
-#if (EK_CORO_FPU_ENABLE == 1)
-        // 检查是否需要恢复FPU状态
-        "tst lr, #0x10 \n" // 检查EXC_RETURN的bit 4
-        "bne no_fpu_restore \n"
+        // 检查新任务是否需要FPU上下文（通过EXC_RETURN的bit 4判断）
+        "tst r14, #0x10 \n"
+        "it eq \n"
+        "vldmiaeq r0!, {s16-s31} \n"
 
-        // 恢复FPU状态
-        "ldmia r0!, {r2} \n"
-        "vmsr fpscr, r2 \n"
-        "vldmia r0!, {s16-s31} \n"
-
-        "no_fpu_restore: \n"
-#endif /* EK_CORO_FPU_ENABLE == 1 */
-
+        // 设置PSP并返回
+        // Lazy Stacking处理基本FPU上下文(S0-S15)，软件处理扩展寄存器(S16-S31)
         "msr psp, r0 \n"
+        "isb \n"
         "bx lr \n");
 }
 

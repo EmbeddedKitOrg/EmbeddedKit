@@ -9,6 +9,8 @@
     "files.associations": {
         "key_led.h": "c",
         "common.h": "c",
-        "stdarg.h": "c"
+        "stdarg.h": "c",
+        "kernel.h": "c",
+        "cstdint": "c"
     }
 }

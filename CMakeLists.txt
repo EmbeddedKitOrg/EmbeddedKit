@@ -40,6 +40,7 @@ add_subdirectory(cmake/stm32cubemx)
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined library search paths
+
 )
 
 # Add sources to executable
@@ -105,7 +106,11 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
 
     # Add user defined libraries
+
+)
+
+# 开启打印浮点
+target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
     # 使能printf浮点输出、输入
     -u _printf_float
-    -u _scanf_float
 )

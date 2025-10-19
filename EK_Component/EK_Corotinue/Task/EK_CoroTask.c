@@ -73,28 +73,23 @@ ALWAYS_STATIC_INLINE void v_task_init_context(EK_CoroTCB_t *tcb)
     stk = (EK_CoroStack_t *)((uint8_t *)tcb->TCB_StackStart + tcb->TCB_StackSize); // 计算栈顶地址
 #endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
     // 确保堆栈8字节对齐
-    stk = (EK_CoroStack_t *)(((uintptr_t)stk) & ~0x07UL);
+
+#if (EK_CORO_FPU_ENABLE == 0)
+    stk = (EK_CoroStack_t *)(((uintptr_t)stk) & ~0x07UL); // 8字节对齐
+#elif (EK_CORO_FPU_ENABLE == 1)
+    stk = (EK_CoroStack_t *)(((uintptr_t)stk) & ~0x0FUL); // 16字节对齐
+#endif /* EK_CORO_FPU_ENABLE == 0 */
 
     // 伪造硬件自动保存的上下文
     *(--stk) = 0x01000000UL; // xPSR (T-bit = 1)
     *(--stk) = ((uintptr_t)tcb->TCB_Entry) | 0x01UL; // PC (任务入口点, Thumb-bit = 1)
     *(--stk) = (uintptr_t)v_coro_exit; // LR (任务返回地址)
-    *(--stk) = 0; // R12
-    *(--stk) = 0; // R3
-    *(--stk) = 0; // R2
-    *(--stk) = 0; // R1
-    *(--stk) = (uintptr_t)tcb->TCB_Arg; // R0 (任务参数)
+    stk -= 5; // R12、R3、R2、R1
+    *stk = (uintptr_t)tcb->TCB_Arg; // R0 (任务参数)
 
     // 伪造软件手动保存的上下文
-    *(--stk) = INITIAL_EXC_RETURN; // EXC_RETURN:无FPU 初始化不需要管FPU
-    *(--stk) = 0; // R11
-    *(--stk) = 0; // R10
-    *(--stk) = 0; // R9
-    *(--stk) = 0; // R8
-    *(--stk) = 0; // R7
-    *(--stk) = 0; // R6
-    *(--stk) = 0; // R5
-    *(--stk) = 0; // R4
+    *(--stk) = INITIAL_EXC_RETURN; // EXC_RETURN
+    stk -= 8; // R11, R10, R9, R8, R7, R6, R5 and R4
 
     // 更新TCB中的堆栈指针
     tcb->TCB_StackPointer = stk;
