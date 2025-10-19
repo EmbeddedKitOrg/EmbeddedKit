@@ -1,5 +1,6 @@
 # Claude Code configuration
 .claude/
+.specify/
 
 # Common IDE files
 .vscode/
@@ -35,3 +36,6 @@ CLAUDE.md
 
 # gemini.md
 GEMINI.md
+
+#.clangd
+.clangd

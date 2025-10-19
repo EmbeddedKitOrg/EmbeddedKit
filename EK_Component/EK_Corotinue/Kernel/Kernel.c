@@ -18,10 +18,6 @@
 
 #if (EK_CORO_ENABLE == 1)
 
-#if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
-#include "../Message/EK_CoroMessage.h"
-#endif /* EK_CORO_MESSAGE_QUEUE_ENABLE == 1 */
-
 /* ========================= 全局变量(内部)定义区 ========================= */
 /*状态链表*/
 EK_CoroList_t KernelReadyList[EK_CORO_PRIORITY_GROUPS]; // 就绪任务列表
@@ -452,30 +448,63 @@ static void v_kernel_task_switch(void)
 #endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
 }
 
-__naked static void v_kernel_start(void)
+/**
+ * @brief 启动第一个任务的裸函数
+ * @details
+ *  这是一个裸函数，负责启动第一个任务。参考FreeRTOS的实现方式，
+ *  使用SVC异常来启动第一个任务，确保正确的上下文切换和异常处理。
+ *
+ *  操作步骤：
+ *  1. 重置MSP向量表指向栈顶
+ *  2. 清除FPU使用标志
+ *  3. 全局启用中断
+ *  4. 触发SVC异常启动第一个任务
+ *
+ * @note 此函数只在内核启动时调用一次，调用后不再返回
+ */
+__naked static void v_kernel_start_first(void)
 {
-    __ASM volatile(
-        // 加载第一个任务的堆栈指针到 PSP
-        "ldr r0, =KernelCurrentTCB \n"
-        "ldr r0, [r0] \n"
-        "ldr r0, [r0] \n"
-        "msr psp, r0 \n"
-
-        // 切换 CONTROL 寄存器，使用 PSP 作为线程堆栈指针
-        "mov r0, #2 \n"
-        "msr control, r0 \n"
-        "isb \n"
-
-        // 恢复手动保存的上下文 (R4-R11 和 EXC_RETURN)
-        "pop {r4-r11, lr} \n"
-
-        // 恢复硬件保存的通用寄存器和任务的返回地址 (v_coro_exit)
-        "pop {r0-r3, r12, lr} \n"
-
-        // 此时，栈顶正好是任务的入口地址(PC)。直接将其弹出到 PC 寄存器，
-        // 这将导致 CPU 立即跳转到该地址，开始执行第一个任务。
-        "pop {pc} \n");
+    __ASM volatile("ldr r0, =0xE000ED08  \n" /* 使用NVIC偏移寄存器定位栈地址 */
+                   "ldr r0, [r0]            \n"
+                   "ldr r0, [r0]            \n"
+                   "msr msp, r0             \n" /* 将MSP设置为栈的起始位置 */
+                   "mov r0, #0              \n" /* 清除FPU使用标志位 */
+                   "msr control, r0         \n"
+                   "cpsie i                 \n" /* 全局启用中断 */
+                   "cpsie f                 \n"
+                   "dsb                     \n"
+                   "isb                     \n"
+                   "svc 0                   \n" /* 系统调用，启动第一个任务 */
+                   "nop                     \n"
+                   ".ltorg                  \n");
 }
+
+#if (EK_CORO_FPU_ENABLE == 1)
+/**
+ * @brief 启用浮点处理单元(FPU)
+ * @details
+ *  这是一个裸函数，负责启用Cortex-M4F的FPU功能。
+ *  其主要职责是配置CPACR(协处理器访问控制寄存器)，允许CPU访问FPU指令。
+ *
+ *  CPACR寄存器bits 20-23控制FPU访问权限：
+ *  - bits 20-21: CP11 (FPU高寄存器) 访问权限
+ *  - bits 22-23: CP10 (FPU低寄存器) 访问权限
+ *  - 11b: 完全访问权限 (特权和非特权模式都可以使用FPU)
+ *
+ * @note 此函数必须在内核初始化时调用，确保任务可以使用FPU指令
+ * @note 直接使用寄存器地址和位操作值，避免内联汇编中的宏解析问题
+ */
+__naked static void v_kernel_enbale_vfp(void)
+{
+    __ASM volatile("   ldr.w r0, =0xE000ED88   \n" /* 加载CPACR寄存器地址 */
+                   "   ldr r1, [r0]            \n" /* 读取当前CPACR值 */
+                   "                               \n"
+                   "   orr r1, r1, #( 0xf << 20 ) \n" /* 设置bits 20-23 = 1111，启用CP10和CP11完全访问 */
+                   "   str r1, [r0]            \n" /* 写回CPACR寄存器 */
+                   "   bx r14                  \n" /* 返回调用者 */
+                   "   .ltorg                  \n"); /* 字符串池，用于地址常量 */
+}
+#endif /* EK_CORO_FPU_ENABLE == 1 */
 
 /**
  * @brief 获取内存池的剩余内存
@@ -503,6 +532,13 @@ void EK_vKernelInit(void)
 
     // 初始化内存池
     while (EK_bMemPool_Init() != true);
+
+    // 设置ASPEN和LSPEN位，使能懒惰堆栈
+#if (EK_CORO_FPU_ENABLE == 1)
+    v_kernel_enbale_vfp();
+
+    *FPCCR |= ASPEN_LSPEN_BITS;
+#endif /* EK_CORO_FPU_ENABLE == 1 */
 
     // 初始化就绪链表
     for (uint8_t i = 0; i < EK_CORO_PRIORITY_GROUPS; i++)
@@ -547,6 +583,9 @@ void EK_vKernelInit(void)
     // 设置PendSV中断优先级为最低
     NVIC_SetPriority(PendSV_IRQn, 0xFF);
 
+    // SVC中断优先级为最高
+    NVIC_SetPriority(SVCall_IRQn, 0x00);
+
     // 配置SysTick
     while (SysTick_Config(EK_CORO_SYSTEM_FREQ / EK_CORO_TICK_RATE_HZ));
 
@@ -561,7 +600,7 @@ void EK_vKernelInit(void)
  * @details
  *  此函数启动整个协程系统。它会选择就绪列表中优先级最高的任务作为第一个任务来运行。
  *  在启动之前，它会检查内核是否已初始化，并保存用户提供的获取系统Tick的函数。
- *  一旦调用，它将通过 `v_kernel_start` 执行第一次上下文切换，并且不会返回。
+ *  一旦调用，它将通过 `v_kernel_start_first` 执行第一次上下文切换，并且不会返回。
  * @note 此函数永不返回。
  */
 void EK_vKernelStart(void)
@@ -580,23 +619,65 @@ void EK_vKernelStart(void)
 
     EK_EXIT_CRITICAL();
 
-    // 手动触发一次调度来启动第一个任务
-    v_kernel_start();
+    // 通过SVC启动第一个任务
+    v_kernel_start_first();
 
     // 此函数不应返回
     while (1);
 }
 
 /**
- * @brief 内核时钟节拍处理函数。
+ * @brief SVC异常处理函数 - 启动第一个任务
  * @details
- *  此函数应在系统的时钟节拍中断（如 SysTick_Handler）中被周期性调用。
- *  它负责处理所有带超时的阻塞。它会遍历延时阻塞列表
- *  以及所有等待消息队列的阻塞列表，检查是否有任务的延时已经到期。
- *  如果一个任务的 `TCB_WakeUpTime` 小于或等于当前Tick，该任务将被唤醒并移至就绪链表。
- *  此函数能够正确处理系统Tick值的溢出情况。
+ *  这是一个裸函数，用于启动第一个任务。它在SVC异常被触发时调用，
+ *  负责从第一个任务的堆栈中恢复CPU寄存器并开始执行任务。
+ *  此函数只会在系统启动时调用一次。
+ *
+ *  操作步骤：
+ *  1. 获取当前TCB的任务栈顶指针
+ *  2. 恢复R4-R11和LR寄存器
+ *  3. 设置PSP为新的栈顶
+ *  4. 清除basepri优先级屏蔽
+ *  5. 异常返回到任务入口点
+ *
+ * @note 此函数为裸函数，直接处理SVC异常，不需要在其他地方调用
  */
-void EK_vTickHandler(void)
+__naked void SVC_Handler(void)
+{
+    __ASM volatile("ldr r3, =KernelCurrentTCB           \n" /* 获取当前TCB的位置 */
+                   "ldr r1, [r3]                        \n" /* 获取当前TCB */
+                   "ldr r0, [r1]                        \n" /* 获取任务栈顶指针 */
+                   "ldmia r0!, {r4-r11, r14}            \n" /* 恢复核心寄存器和链接寄存器 */
+                   "msr psp, r0                         \n" /* 设置PSP为新的栈顶 */
+                   "isb                                 \n" /* 指令同步屏障 */
+                   "mov r0, #0                          \n" /* 清除basepri优先级屏蔽 */
+                   "msr basepri, r0                     \n" /* 允许所有中断 */
+                   "bx r14                              \n" /* 异常返回到任务 */
+                   "                                    \n"
+                   ".align 4                            \n");
+}
+
+/**
+ * @brief 内核时钟节拍处理函数
+ * @details
+ *  这是EK_Corotinue内核的系统时钟节拍处理函数，用于处理任务延时和超时。
+ *  此函数直接由硬件SysTick中断调用，不需要在其他地方调用。
+ *
+ *  主要功能：
+ *  1. 递增系统Tick计数器
+ *  2. 遍历延时阻塞列表，检查是否有任务延时到期
+ *  3. 将到期任务从阻塞状态移至就绪状态
+ *  4. 处理等待事件的任务超时情况
+ *  5. 更新就绪任务位图，触发PendSV进行调度
+ *
+ *  超时处理：
+ *  - 延时到期的任务会被自动唤醒
+ *  - 等待事件的任务超时后设置TCB_EventResult为EK_CORO_EVENT_TIMEOUT
+ *  - 永久阻塞任务(EK_MAX_DELAY)不会被自动唤醒
+ *
+ * @note 此函数为裸函数，直接处理SysTick中断，调用EK_DISABLE_HAL_HANDLER()宏
+ */
+void SysTick_Handler(void)
 {
     static uint32_t last_tick = 0;
     EK_ENTER_CRITICAL();
@@ -668,72 +749,100 @@ void EK_vTickHandler(void)
 }
 
 /**
- * @brief Coroutine内核的PendSV处理函数 (上下文切换核心)。
+ * @brief PendSV异常处理函数 - 上下文切换核心
  * @details
- *  这是一个裸函数，实现了实际的上下文切换逻辑。它必须由用户在实际的 `PendSV_Handler` 中调用。
- *  其主要职责是：
- *  1. 保存当前任务的CPU寄存器（R4-R11, LR）到其堆栈。
- *  2. 将更新后的堆栈指针保存到当前任务的TCB中。
- *  3. 调用调度逻辑函数确定下一个要运行的任务（直接更新KernelCurrentTCB）。
- *  4. 从新任务的TCB中加载其堆栈指针。
- *  5. 从新任务的堆栈中恢复其CPU寄存器。
- *  6. 异常返回，CPU开始执行新任务的代码。
+ *  这是EK_Corotinue内核的上下文切换核心实现，是一个裸函数，直接处理PendSV异常。
+ *  此函数负责在不同任务之间进行上下文切换，是整个协程系统的核心。
+ *
+ *  操作流程：
+ *  1. 获取当前PSP，指向当前任务的栈顶
+ *  2. 保存当前任务的CPU寄存器到堆栈
+ *  3. 将新栈顶保存到当前任务的TCB
+ *  4. 调用调度函数确定下一个要运行的任务
+ *  5. 从新任务的TCB获取栈顶指针
+ *  6. 恢复新任务的CPU寄存器
+ *  7. 异常返回到新任务
+ *
+ *  FPU支持：
+ *  - 有FPU版本：自动检测并保存/恢复FPU寄存器(s16-s31)
+ *  - 无FPU版本：只处理核心寄存器，性能更优
+ *
+ * @note 此函数为裸函数，通过EK_DISABLE_HAL_HANDLER()宏弱定义HAL库的Handler
  */
-__naked void EK_vKernelPendSV_Handler(void)
+#if (EK_CORO_FPU_ENABLE == 1)
+/**
+ * @brief PendSV异常处理函数 - 支持FPU版本
+ * @details
+ *  此版本支持浮点处理单元，会自动检测任务是否使用了FPU，
+ *  并在需要时保存和恢复FPU寄存器(s16-s31)。
+ */
+__naked void PendSV_Handler(void)
 {
-    __ASM volatile(
-        // 保存当前任务的上下文
-        "mrs r0, psp \n"
-
-#if (EK_CORO_FPU_ENABLE == 1)
-        // 检查是否需要保存FPU状态
-        "ldr r2, =0xE000EF34 \n" // FPCCR寄存器
-        "ldr r3, [r2] \n"
-        "tst r3, #0x01 \n" // 检查LSPACT位
-        "beq no_fpu_save \n"
-
-        // 保存FPU寄存器S16-S31
-        "vstmdb r0!, {s16-s31} \n"
-        "vmrs r2, fpscr \n"
-        "stmdb r0!, {r2} \n"
-
-        "no_fpu_save: \n"
-#endif /* EK_CORO_FPU_ENABLE == 1 */
-
-        // 保存通用寄存器
-        "stmdb r0!, {r4-r11, lr} \n"
-
-        // 保存栈指针到TCB
-        "ldr r1, =KernelCurrentTCB \n"
-        "ldr r1, [r1] \n"
-        "str r0, [r1] \n"
-
-        // 调用调度逻辑函数，确定下一个要运行的任务
-        "bl v_kernel_task_switch \n"
-
-        // 恢复新任务的栈指针
-        "ldr r1, =KernelCurrentTCB \n"
-        "ldr r1, [r1] \n"
-        "ldr r0, [r1] \n"
-
-        // 恢复通用寄存器
-        "ldmia r0!, {r4-r11, lr} \n"
-
-#if (EK_CORO_FPU_ENABLE == 1)
-        // 检查是否需要恢复FPU状态
-        "tst lr, #0x10 \n" // 检查EXC_RETURN的bit 4
-        "bne no_fpu_restore \n"
-
-        // 恢复FPU状态
-        "ldmia r0!, {r2} \n"
-        "vmsr fpscr, r2 \n"
-        "vldmia r0!, {s16-s31} \n"
-
-        "no_fpu_restore: \n"
-#endif /* EK_CORO_FPU_ENABLE == 1 */
-
-        "msr psp, r0 \n"
-        "bx lr \n");
+    __ASM volatile("mrs r0, psp                         \n" /* 获取当前PSP */
+                   "isb                                 \n" /* 指令同步屏障 */
+                   "                                    \n"
+                   "ldr r3, =KernelCurrentTCB           \n" /* 获取当前TCB指针 */
+                   "ldr r2, [r3]                        \n" /* 获取当前TCB */
+                   "                                    \n"
+                   "tst r14, #0x10                      \n" /* 检查FPU使用标志 */
+                   "it eq                               \n" /* 如果为0则执行 */
+                   "vstmdbeq r0!, {s16-s31}             \n" /* 保存FPU寄存器 */
+                   "                                    \n"
+                   "stmdb r0!, {r4-r11, r14}            \n" /* 保存核心寄存器 */
+                   "str r0, [r2]                        \n" /* 保存新栈顶到TCB */
+                   "                                    \n"
+                   "stmdb sp!, {r0, r3}                 \n" /* 保存寄存器到MSP栈 */
+                   "bl v_kernel_task_switch             \n" /* 调用任务切换 */
+                   "ldmia sp!, {r0, r3}                 \n" /* 恢复寄存器 */
+                   "                                    \n"
+                   "ldr r1, [r3]                        \n" /* 获取新TCB */
+                   "ldr r0, [r1]                        \n" /* 获取新栈顶 */
+                   "                                    \n"
+                   "ldmia r0!, {r4-r11, r14}            \n" /* 恢复核心寄存器 */
+                   "                                    \n"
+                   "tst r14, #0x10                      \n" /* 检查FPU使用标志 */
+                   "it eq                               \n" /* 如果为0则执行 */
+                   "vldmiaeq r0!, {s16-s31}             \n" /* 恢复FPU寄存器 */
+                   "                                    \n"
+                   "msr psp, r0                         \n" /* 设置新PSP */
+                   "isb                                 \n" /* 指令同步屏障 */
+                   "bx r14                              \n" /* 异常返回 */
+                   "                                    \n"
+                   ".align 4                            \n");
 }
+#else
+/**
+ * @brief PendSV异常处理函数 - 无FPU版本
+ * @details
+ *  此版本不包含FPU支持，只处理核心寄存器的保存和恢复，
+ *  适用于没有FPU或不需要浮点运算的系统，性能更优。
+ */
+__naked void PendSV_Handler(void)
+{
+    __ASM volatile("mrs r0, psp                         \n" /* 获取当前PSP */
+                   "isb                                 \n" /* 指令同步屏障 */
+                   "                                    \n"
+                   "ldr r3, =KernelCurrentTCB           \n" /* 获取当前TCB指针 */
+                   "ldr r2, [r3]                        \n" /* 获取当前TCB */
+                   "                                    \n"
+                   "stmdb r0!, {r4-r11, r14}            \n" /* 保存核心寄存器 */
+                   "str r0, [r2]                        \n" /* 保存新栈顶到TCB */
+                   "                                    \n"
+                   "stmdb sp!, {r0, r3}                 \n" /* 保存寄存器到MSP栈 */
+                   "bl v_kernel_task_switch             \n" /* 调用任务切换 */
+                   "ldmia sp!, {r0, r3}                 \n" /* 恢复寄存器 */
+                   "                                    \n"
+                   "ldr r1, [r3]                        \n" /* 获取新TCB */
+                   "ldr r0, [r1]                        \n" /* 获取新栈顶 */
+                   "                                    \n"
+                   "ldmia r0!, {r4-r11, r14}            \n" /* 恢复核心寄存器 */
+                   "                                    \n"
+                   "msr psp, r0                         \n" /* 设置新PSP */
+                   "isb                                 \n" /* 指令同步屏障 */
+                   "bx r14                              \n" /* 异常返回 */
+                   "                                    \n"
+                   ".align 4                            \n");
+}
+#endif /* EK_CORO_FPU_ENABLE == 1 */
 
 #endif /*EK_CORO_ENABLE == 1*/
