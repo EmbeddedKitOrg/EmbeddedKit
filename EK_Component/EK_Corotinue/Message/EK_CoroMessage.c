@@ -100,7 +100,7 @@ ALWAYS_STATIC_INLINE EK_Result_t v_msg_queue_send_to_back(EK_CoroMsg_t *msg, voi
     if (EK_uMsgGetFree(msg) * msg->Msg_ItemSize < data_size) return EK_INSUFFICIENT_SPACE;
 
     // 获取缓冲区指针
-    uint8_t *buffer = EK_MSG_GET_BUFFER(msg);
+    uint8_t *buffer = msg->Msg_Buffer;
 
     // 计算写入位置
     uint8_t *write_addr = buffer + msg->Msg_Rear;
@@ -160,7 +160,7 @@ ALWAYS_STATIC_INLINE EK_Result_t v_msg_queue_over_write(EK_CoroMsg_t *msg, void 
     }
 
     // 获取缓冲区指针
-    uint8_t *buffer = EK_MSG_GET_BUFFER(msg);
+    uint8_t *buffer = msg->Msg_Buffer;
 
     // 计算写入位置
     uint8_t *write_addr = buffer + msg->Msg_Rear;
@@ -207,7 +207,7 @@ ALWAYS_STATIC_INLINE EK_Result_t v_msg_queue_receive(EK_CoroMsg_t *msg, void *da
     if (EK_uMsgGetCount(msg) * msg->Msg_ItemSize < data_size) return EK_INSUFFICIENT_SPACE;
 
     // 获取缓冲区指针
-    uint8_t *buffer = EK_MSG_GET_BUFFER(msg);
+    uint8_t *buffer = msg->Msg_Buffer;
 
     // 计算读取位置
     uint8_t *read_addr = buffer + msg->Msg_Front;
@@ -254,7 +254,7 @@ ALWAYS_STATIC_INLINE EK_Result_t v_msg_queue_peek(EK_CoroMsg_t *msg, void *data_
     if (EK_uMsgGetCount(msg) * msg->Msg_ItemSize < data_size) return EK_INSUFFICIENT_SPACE;
 
     // 获取缓冲区指针
-    uint8_t *buffer = EK_MSG_GET_BUFFER(msg);
+    uint8_t *buffer = msg->Msg_Buffer;
 
     // 计算读取位置
     uint8_t *read_addr = buffer + msg->Msg_Front;
@@ -346,7 +346,6 @@ EK_CoroMsgHanler_t EK_pMsgCreate(EK_Size_t item_size, EK_Size_t item_amount)
 /**
  * @brief 使用静态分配的内存来初始化一个消息队列。
  * @details 此函数使用用户提供的缓冲区和消息队列控制块进行初始化，完全避免了动态内存分配。
- *          使用内嵌的队列结构体，确保真正的静态创建。
  *
  * @param msg 指向静态消息队列结构体 `EK_CoroMsg_t` 的指针。
  * @param buffer 指向用于消息存储的静态缓冲区的指针。
@@ -372,8 +371,8 @@ EK_pMsgCreateStatic(EK_CoroMsg_t *msg, void *buffer, EK_Size_t item_size, EK_Siz
     msg->Msg_Size = 0; // 当前数据大小
     msg->Msg_ItemSize = item_size; // 每条消息的字节大小
 
-    // 注意：静态创建时不需要设置缓冲区指针，因为缓冲区在联合体的第二个成员中
-    // 柔性数组会直接使用消息队列结构体后面的内存空间
+    // 设置缓冲区指针为用户提供的静态缓冲区
+    msg->Msg_Buffer = static_buffer;
 
     // 初始化等待发送链表
     EK_vKernelListInit(&msg->Msg_SendWaitList);
@@ -421,7 +420,7 @@ EK_Result_t EK_rMsgDelete(EK_CoroMsg_t *msg)
     if (msg->Msg_isDynamic)
     {
         // 动态创建：释放底层缓冲区和消息队列控制块
-        uint8_t *buffer = EK_MSG_GET_BUFFER(msg); // 安全获取缓冲区指针
+        uint8_t *buffer = msg->Msg_Buffer; // 获取缓冲区指针
         if (buffer != NULL)
         {
             EK_CORO_FREE(buffer); // 释放底层缓冲区
@@ -431,8 +430,7 @@ EK_Result_t EK_rMsgDelete(EK_CoroMsg_t *msg)
     else
     {
         // 静态创建：不需要释放任何内存
-        // 内嵌的缓冲区是消息队列结构体的一部分，由用户管理其生命周期
-        // 用户提供的缓冲区也由用户自己管理
+        // 消息队列控制块和缓冲区都由用户管理其生命周期
         // 所以这里什么都不用做
     }
 

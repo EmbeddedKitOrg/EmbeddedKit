@@ -19,9 +19,9 @@
 
 /**
  * @warning: 此处必须要包含你的设备的文件头！其他的宏禁止修改!
- * @example: #include "stm32f4xx_hal.h"
+ * @example: #include "stm32f4xx.h" 、#include "stm32f1xx.h"
  */
-#include "stm32f4xx_hal.h"
+#include "stm32f4xx.h"
 
 /**
  * @brief CMSIS 头文件自动包含

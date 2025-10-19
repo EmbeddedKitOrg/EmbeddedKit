@@ -21,13 +21,6 @@
 extern "C"
 {
 #endif /* __cplusplus */
-/* ========================= 内部环形缓冲区操作函数 ========================= */
-/**
- * @brief 安全获取消息队列的缓冲区指针
- * @details 根据创建类型返回正确的缓冲区指针
- */
-#define EK_MSG_GET_BUFFER(msg_handler) \
-    ((msg_handler)->Msg_isDynamic ? (msg_handler)->Msg_Buffer : (msg_handler)->Msg_BufferStatic)
 
 /* ========================= 数据结构 ========================= */
 
@@ -38,11 +31,7 @@ extern "C"
  */
 typedef struct EK_CoroMsg_t
 {
-    union
-    {
-        uint8_t *Msg_Buffer; /**< 动态创建时的缓冲区指针 */
-        uint8_t Msg_BufferStatic[1]; /**< 静态创建时的内嵌缓冲区（柔性数组） */
-    };
+    uint8_t *Msg_Buffer; /**< 消息缓冲区指针 */
 
     EK_Size_t Msg_BufferSize; /**< 缓冲区总容量（字节） */
     EK_Size_t Msg_Front; /**< 读指针位置（字节偏移） */
@@ -54,6 +43,7 @@ typedef struct EK_CoroMsg_t
 
     EK_CoroList_t Msg_SendWaitList; /**< 因队列满而等待发送的任务列表 */
     EK_CoroList_t Msg_RecvWaitList; /**< 因队列空而等待接收的任务列表 */
+
 } EK_CoroMsg_t;
 
 typedef EK_CoroMsg_t *EK_CoroMsgHanler_t; /**< 动态类型消息队列句柄 */

@@ -68,7 +68,7 @@ EK_Result_t EK_rKernelRemove(EK_CoroList_t *list, EK_CoroListNode_t *node_to_rem
     // 如果就绪链表变为空，则清除对应的位图位
     if (EK_KERNEL_IS_READY_LIST(list) == true && list->List_Count == 0)
     {
-        EK_vClearBit(&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
+        EK_vClearBit((void *)&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
     }
 
     EK_EXIT_CRITICAL();
@@ -116,7 +116,7 @@ EK_Result_t EK_rKernelInsert_WakeUpTime(EK_CoroList_t *list, EK_CoroListNode_t *
     // 判断是不是就绪链表
     if (EK_KERNEL_IS_READY_LIST(list) == true)
     {
-        EK_vSetBit(&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
+        EK_vSetBit((void *)&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
     }
 
     EK_EXIT_CRITICAL();
@@ -153,7 +153,7 @@ EK_Result_t EK_rKernelInsert_Tail(EK_CoroList_t *list, EK_CoroListNode_t *node)
     // 判断是不是就绪链表
     if (EK_KERNEL_IS_READY_LIST(list) == true)
     {
-        EK_vSetBit(&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
+        EK_vSetBit((void *)&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
     }
 
     EK_EXIT_CRITICAL();
@@ -191,7 +191,7 @@ EK_Result_t EK_rKernelInsert_Head(EK_CoroList_t *list, EK_CoroListNode_t *node)
     // 判断是不是就绪链表
     if (EK_KERNEL_IS_READY_LIST(list) == true)
     {
-        EK_vSetBit(&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
+        EK_vSetBit((void *)&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
     }
 
     EK_EXIT_CRITICAL();
@@ -237,7 +237,7 @@ EK_Result_t EK_rKernelInsert_Prio(EK_CoroList_t *list, EK_CoroListNode_t *node)
     // 判断是不是就绪链表
     if (EK_KERNEL_IS_READY_LIST(list) == true)
     {
-        EK_vSetBit(&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
+        EK_vSetBit((void *)&KernelReadyBitMap, EK_BITMAP_MAX_BIT - tcb->TCB_Priority);
     }
 
     EK_EXIT_CRITICAL();
