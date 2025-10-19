@@ -1,0 +1,14 @@
+{
+    "cmake.cmakePath": "cube-cmake",
+    "cmake.configureArgs": [
+        "-DCMAKE_COMMAND=cube-cmake"
+    ],
+    "cmake.preferredGenerators": [
+        "Ninja"
+    ],
+    "files.associations": {
+        "key_led.h": "c",
+        "common.h": "c",
+        "stdarg.h": "c"
+    }
+}
