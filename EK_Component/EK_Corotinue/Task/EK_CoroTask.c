@@ -14,7 +14,7 @@
 
 /**
  * @brief 返回线程模式，使用PSP堆栈
- * @details EXC_RETURN with no FPU context.
+ * @details 0xFFFFFFFD -> 告诉硬件返回后，堆栈上没有FPU上下文
  */
 #define INITIAL_EXC_RETURN (0xFFFFFFFDUL)
 
@@ -45,23 +45,10 @@ static void v_coro_exit(void)
 }
 
 /**
- * @brief 初始化任务的初始上下文。
+ * @brief 初始化任务的初始上下文 (修正版本)。
  * @details
- *  在任务的堆栈顶部创建一个伪造的上下文帧。这个帧的布局必须精确匹配
- *  `EK_vKernelPendSV_Handler` 中上下文保存/恢复的顺序，以及Cortex-M硬件异常处理机制。
- *  当任务第一次被调度时，PendSV处理器会像恢复一个已存在的任务一样“恢复”这个伪造的上下文，
- *  从而使PC指针跳转到任务的入口函数，开始执行任务。
- *
- *  堆栈布局 (从高地址 -> 低地址):
- *  - xPSR: 初始程序状态寄存器 (Thumb模式, T-bit = 1)
- *  - PC  : 任务入口函数地址
- *  - LR  : 任务返回地址 (v_coro_exit)
- *  - R12, R3, R2, R1
- *  - R0  : 任务入口函数的参数
- *  --- 以上由硬件在异常进入时自动压栈 ---
- *  - EXC_RETURN: 特殊的连接寄存器值，指导异常如何返回
- *  - R11, R10, R9, R8, R7, R6, R5, R4: C函数调用需要保存的寄存器
- *  --- 以上由软件(PendSV_Handler)手动压栈 ---
+ *  为任务创建正确的初始堆栈帧。堆栈向下生长，因此地址最高的寄存器(xPSR)
+ *  最先入栈。硬件保存的上下文位于较高地址，软件保存的位于较低地址。
  * @param tcb 指向要初始化上下文的任务控制块 (TCB)。
  */
 ALWAYS_STATIC_INLINE void v_task_init_context(EK_CoroTCB_t *tcb)
@@ -72,24 +59,27 @@ ALWAYS_STATIC_INLINE void v_task_init_context(EK_CoroTCB_t *tcb)
 #else
     stk = (EK_CoroStack_t *)((uint8_t *)tcb->TCB_StackStart + tcb->TCB_StackSize); // 计算栈顶地址
 #endif /* EK_HIGH_WATER_MARK_ENABLE == 1 */
-    // 确保堆栈8字节对齐
 
-#if (EK_CORO_FPU_ENABLE == 0)
-    stk = (EK_CoroStack_t *)(((uintptr_t)stk) & ~0x07UL); // 8字节对齐
-#elif (EK_CORO_FPU_ENABLE == 1)
-    stk = (EK_CoroStack_t *)(((uintptr_t)stk) & ~0x0FUL); // 16字节对齐
-#endif /* EK_CORO_FPU_ENABLE == 0 */
-
-    // 伪造硬件自动保存的上下文
+    // 伪造硬件自动保存的上下文 (8个字, 位于高地址)
     *(--stk) = 0x01000000UL; // xPSR (T-bit = 1)
     *(--stk) = ((uintptr_t)tcb->TCB_Entry) | 0x01UL; // PC (任务入口点, Thumb-bit = 1)
     *(--stk) = (uintptr_t)v_coro_exit; // LR (任务返回地址)
-    stk -= 5; // R12、R3、R2、R1
-    *stk = (uintptr_t)tcb->TCB_Arg; // R0 (任务参数)
+    *(--stk) = 0x12121212UL; // R12
+    *(--stk) = 0x03030303UL; // R3
+    *(--stk) = 0x02020202UL; // R2
+    *(--stk) = 0x01010101UL; // R1
+    *(--stk) = (uintptr_t)tcb->TCB_Arg; // R0 (任务参数)
 
-    // 伪造软件手动保存的上下文
+    // 伪造软件手动保存的上下文 (9个字, 位于低地址)
     *(--stk) = INITIAL_EXC_RETURN; // EXC_RETURN
-    stk -= 8; // R11, R10, R9, R8, R7, R6, R5 and R4
+    *(--stk) = 0x11111111UL; // R11
+    *(--stk) = 0x10101010UL; // R10
+    *(--stk) = 0x09090909UL; // R9
+    *(--stk) = 0x08080808UL; // R8
+    *(--stk) = 0x07070707UL; // R7
+    *(--stk) = 0x06060606UL; // R6
+    *(--stk) = 0x05050505UL; // R5
+    *(--stk) = 0x04040404UL; // R4
 
     // 更新TCB中的堆栈指针
     tcb->TCB_StackPointer = stk;

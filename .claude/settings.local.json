@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "additionalDirectories": [
+      "F:\\.Datum\\MiddleWare\\FreeRTOS\\02_资料\\01_官方源码\\CM\\Source\\portable\\GCC\\ARM_CM4F\\"
+    ]
+  }
+}

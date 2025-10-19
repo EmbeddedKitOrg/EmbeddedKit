@@ -100,22 +100,9 @@
 #endif
 
 /* ================================ FPU 寄存器地址和位操作宏定义 ================================ */
-#define FPCCR_ADDR           ((volatile uint32_t *)0xe000ef34)
-#define ASPEN_AND_LSPEN_BITS (0x3UL << 30UL)
-
-/* 协程栈对齐要求 */
-#if (EK_CORO_FPU_ENABLE == 1)
-// 有FPU：16字节对齐确保FPU指令的正确执行
-#define EK_CORO_STACK_ALIGNMENT      (16)
-#define EK_CORO_STACK_ALIGNMENT_MASK (0x0FUL)
-#else
-// 无FPU：8字节对齐满足基本要求
-#define EK_CORO_STACK_ALIGNMENT      (8)
-#define EK_CORO_STACK_ALIGNMENT_MASK (0x07UL)
-#endif
-
-/* 调试宏：检查地址对齐 */
-#define EK_CORO_CHECK_ALIGNMENT(addr, alignment) (((uintptr_t)(addr) & ((alignment) - 1)) == 0)
+// 定义FPCCR寄存器地址和要设置的位
+#define FPCCR            ((volatile uint32_t *)(0xE000EF34UL))
+#define ASPEN_LSPEN_BITS (0x3UL << 30UL)
 
 /**
  * @brief 使用内置的CLZ(Count Leading Zeros)计算最高有效位(MSB)的索引
