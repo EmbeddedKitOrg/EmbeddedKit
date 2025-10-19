@@ -35,7 +35,7 @@ extern bool EK_bMemPool_Free(void *ptr);
             X = NULL;            \
         }                        \
     } while (0);
-#define MEMPOOL_SIZE      (1024 * 50)
+#define MEMPOOL_SIZE      (1024 * 10)
 #define MEMPOOL_ALIGNMENT (8)
 
 /* ================================ 数据结构配置 ================================ */
