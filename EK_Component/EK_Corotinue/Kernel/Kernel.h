@@ -118,6 +118,15 @@ extern void EK_Coro_Free(void *ptr);
  */
 #define EK_CORO_FREE(X) EK_Coro_Free(X)
 
+/**
+ * @brief 不使用HAL库生成的SysTick和PendSV和SVC Handler
+ * 
+ */
+#define EK_DISABLE_HAL_HANDLER()       \
+    __weak void PendSV_Handler(void);  \
+    __weak void SysTick_Handler(void); \
+    __weak void SVC_Handler(void)
+
 /* ========================= 数据结构 ========================= */
 typedef void (*EK_CoroFunction_t)(void *arg); //协程任务的入口函数指针类型
 typedef uint32_t EK_CoroStack_t; // 堆栈元素类型
@@ -256,12 +265,10 @@ EK_Result_t EK_rKernelMove_Tail(EK_CoroList_t *list, EK_CoroListNode_t *node);
 EK_Size_t EK_uKernelGetFreeHeap(void);
 void EK_vKernelInit(void);
 void EK_vKernelStart(void);
-void EK_vTickHandler(void);
-void EK_vKernelPendSV_Handler(void);
 
-/* ========================= PendSV ========================= */
-void PendSV_Handler(void) __naked;
-#define EK_vPendSVHandler() __ASM volatile("b EK_vKernelPendSV_Handler")
+/* ========================= 异常处理函数 ========================= */
+void SVC_Handler(void);
+void PendSV_Handler(void);
 
 #ifdef __cplusplus
 }
