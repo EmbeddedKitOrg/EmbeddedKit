@@ -1,3 +1,41 @@
-build
-mx.scratch
-!.settings
+# Claude Code configuration
+.claude/
+.specify/
+
+# Common IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Build artifacts
+build/
+dist/
+*.o
+*.obj
+*.exe
+*.elf
+*.hex
+*.bin
+
+# Logs
+*.log
+
+# claude.md
+CLAUDE.md
+
+# gemini.md
+GEMINI.md
+
+#.clangd
+.clangd

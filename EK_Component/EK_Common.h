@@ -108,7 +108,7 @@
 #elif defined(__IAR_SYSTEMS_ICC__)
 #define __naked __naked
 #elif defined(__CC_ARM) || defined(__ARMCC_VERSION)
-#define __naked __declspec(naked)
+#define __naked __attribute__((naked))
 #elif defined(__C51__)
 #define __naked
 #else
