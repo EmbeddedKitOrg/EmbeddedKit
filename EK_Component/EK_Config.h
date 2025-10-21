@@ -35,7 +35,7 @@ extern bool EK_bMemPool_Free(void *ptr);
             X = NULL;            \
         }                        \
     } while (0);
-#define MEMPOOL_SIZE      (1024 * 50)
+#define MEMPOOL_SIZE      (1024 * 10)
 #define MEMPOOL_ALIGNMENT (8)
 
 /* ================================ 数据结构配置 ================================ */
@@ -138,8 +138,7 @@ extern bool EK_bMemPool_Free(void *ptr);
  * 
  * EK_CORO_STACK_OVERFLOW_CHECK_ENABLE - 栈溢出检测方法
  *                                    0: 禁用栈溢出检测
- *                                    1: 方法1(检测栈底填充值)，性能较好但检测范围有限
- *                                    2: 方法2(检测栈指针是否超出范围)，检测更全面但性能开销稍大
+ *                                    1: 开启栈溢出检测
  * 
  * EK_HIGH_WATER_MARK_ENABLE          - 是否使能高水位检测功能
  *                                    启用后会统计每个任务的栈使用历史最大值，可用于调试和优化内存使用
