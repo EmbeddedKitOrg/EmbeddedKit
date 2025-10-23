@@ -8,41 +8,6 @@ author: 左岚
 
 本文档定义了EmbeddedKit嵌入式组件库的代码规范，旨在确保代码的一致性、可读性和可维护性。
 
-## CMake 集成指南
-
-为了方便在其他项目中复用 EmbeddedKit，本仓库提供了标准的 CMake 构建脚本和安装信息，用户可以通过以下两种方式集成：
-
-### 方式一：作为子目录直接引用
-
-1. 将仓库克隆或以子模块形式放入现有工程（例如放在 `external/EmbeddedKit`）。
-2. 在主工程的 `CMakeLists.txt` 中添加子目录并链接目标：
-
-    ```cmake
-    add_subdirectory(external/EmbeddedKit)
-    target_link_libraries(MyApp PRIVATE EmbeddedKit::EmbeddedKit)
-    ```
-
-    目标 `EmbeddedKit::EmbeddedKit` 会自动暴露所有头文件目录，无需手动设置 `include_directories`。
-
-### 方式二：安装后通过 find_package 引用
-
-1. 在 EmbeddedKit 根目录配置并安装（安装前可根据需要调整前缀）：
-
-    ```pwsh
-    cmake -S . -B build -DCMAKE_INSTALL_PREFIX="${Env:USERPROFILE}/.local"
-    cmake --build build --config Release
-    cmake --install build --config Release
-    ```
-
-2. 在消费工程中查找并链接库：
-
-    ```cmake
-    find_package(EmbeddedKit CONFIG REQUIRED)
-    target_link_libraries(MyApp PRIVATE EmbeddedKit::EmbeddedKit)
-    ```
-
-    调用 `find_package` 后还会得到变量 `EmbeddedKit_INCLUDE_DIR` 指向安装的头文件根目录。
-
 ### 核心设计原则
 
 - **类型安全**：通过函数名前缀明确标识返回类型
