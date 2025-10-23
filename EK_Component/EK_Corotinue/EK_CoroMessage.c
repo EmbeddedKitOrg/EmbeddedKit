@@ -15,7 +15,7 @@
 #if (EK_CORO_ENABLE == 1)
 #if (EK_CORO_MESSAGE_QUEUE_ENABLE == 1)
 
-#include "../Task/Inc/EK_CoroTask.h"
+#include "./Inc/EK_CoroTask.h"
 
 typedef EK_Result_t (*msg_send_t)(EK_CoroMsg_t *, void *, EK_Size_t); // 写消息队列的函数指针
 
