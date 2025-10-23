@@ -462,6 +462,22 @@ static void v_kernel_task_switch(void)
  *
  * @note 此函数只在内核启动时调用一次，调用后不再返回
  */
+#if defined(__CC_ARM)
+/* AC5编译器版本 - 使用__asm语法 */
+__asm static void v_kernel_start_first(void){ldr r0,
+                                             = 0xE000ED08 /* 使用NVIC偏移寄存器定位栈地址 */
+                                             ldr r0,
+                                             [r0] ldr r0,
+                                             [r0] msr msp,
+                                             r0 /* 将MSP设置为栈的起始位置 */
+                                                 mov r0,
+                                             #0 /* 清除FPU使用标志位 */
+                                             msr control,
+                                             r0 cpsie i /* 全局启用中断 */
+                                                 cpsie f dsb isb svc 0 /* 系统调用，启动第一个任务 */
+                                             nop.ltorg}
+#else
+/* 其他编译器版本 - 使用__naked属性 */
 __naked static void v_kernel_start_first(void)
 {
     __ASM volatile("ldr r0, =0xE000ED08  \n" /* 使用NVIC偏移寄存器定位栈地址 */
@@ -478,6 +494,7 @@ __naked static void v_kernel_start_first(void)
                    "nop                     \n"
                    ".ltorg                  \n");
 }
+#endif /* defined(__CC_ARM) */
 
 #if (EK_CORO_FPU_ENABLE == 1)
 /**
@@ -494,6 +511,24 @@ __naked static void v_kernel_start_first(void)
  * @note 此函数必须在内核初始化时调用，确保任务可以使用FPU指令
  * @note 直接使用寄存器地址和位操作值，避免内联汇编中的宏解析问题
  */
+#if defined(__CC_ARM)
+/* AC5编译器版本 - 使用__asm语法 */
+__asm static void v_kernel_enbale_vfp(void){
+    ldr.w r0,
+    = 0xE000ED88 /* 加载CPACR寄存器地址 */
+    ldr r1,
+    [r0] /* 读取当前CPACR值 */
+
+    orr r1,
+    r1,
+    #(0xf << 20) /* 设置bits 20-23 = 1111，启用CP10和CP11完全访问 */
+    str r1,
+    [r0] /* 写回CPACR寄存器 */
+    bx r14 /* 返回调用者 */
+        .ltorg /* 字符串池，用于地址常量 */
+}
+#else
+/* 其他编译器版本 - 使用__naked属性 */
 __naked static void v_kernel_enbale_vfp(void)
 {
     __ASM volatile("   ldr.w r0, =0xE000ED88   \n" /* 加载CPACR寄存器地址 */
@@ -504,6 +539,7 @@ __naked static void v_kernel_enbale_vfp(void)
                    "   bx r14                  \n" /* 返回调用者 */
                    "   .ltorg                  \n"); /* 字符串池，用于地址常量 */
 }
+#endif /* defined(__CC_ARM) */
 #endif /* EK_CORO_FPU_ENABLE == 1 */
 
 /**
@@ -642,6 +678,28 @@ void EK_vKernelStart(void)
  *
  * @note 此函数为裸函数，直接处理SVC异常，不需要在其他地方调用
  */
+#if defined(__CC_ARM)
+/* AC5编译器版本 - 使用__asm语法 */
+__asm void SVC_Handler(void){ldr r3,
+                             = KernelCurrentTCB /* 获取当前TCB的位置 */
+                                 ldr r1,
+                             [r3] /* 获取当前TCB */
+                             ldr r0,
+                             [r1] /* 获取任务栈顶指针 */
+                             ldmia r0 !,
+                             {r4 - r11, r14} /* 恢复核心寄存器和链接寄存器 */
+                             msr psp,
+                             r0 /* 设置PSP为新的栈顶 */
+                                 isb /* 指令同步屏障 */
+                                     mov r0,
+                             #0 /* 清除basepri优先级屏蔽 */
+                             msr basepri,
+                             r0 /* 允许所有中断 */
+                                 bx r14 /* 异常返回到任务 */
+
+                                     .align 4}
+#else
+/* 其他编译器版本 - 使用__naked属性 */
 __naked void SVC_Handler(void)
 {
     __ASM volatile("ldr r3, =KernelCurrentTCB           \n" /* 获取当前TCB的位置 */
@@ -656,6 +714,7 @@ __naked void SVC_Handler(void)
                    "                                    \n"
                    ".align 4                            \n");
 }
+#endif /* defined(__CC_ARM) */
 
 /**
  * @brief 内核时钟节拍处理函数
@@ -776,6 +835,56 @@ void SysTick_Handler(void)
  *  此版本支持浮点处理单元，会自动检测任务是否使用了FPU，
  *  并在需要时保存和恢复FPU寄存器(s16-s31)。
  */
+#if defined(__CC_ARM)
+/* AC5编译器版本 - 使用__asm语法 */
+__asm void PendSV_Handler(void){mrs r0,
+                                psp /* 获取当前PSP */
+                                    isb /* 指令同步屏障 */
+
+                                        ldr r3,
+                                = KernelCurrentTCB /* 获取当前TCB指针 */
+                                    ldr r2,
+                                [r3] /* 获取当前TCB */
+
+                                tst r14,
+                                #0x10 /* 检查FPU使用标志 */
+                                it eq /* 如果为0则执行 */
+                                    vstmdbeq r0 !,
+                                {s16 - s31} /* 保存FPU寄存器 */
+
+                                stmdb r0 !,
+                                {r4 - r11, r14} /* 保存核心寄存器 */
+                                str r0,
+                                [r2] /* 保存新栈顶到TCB */
+
+                                stmdb sp !,
+                                {r0, r3} /* 保存寄存器到MSP栈 */
+                                bl v_kernel_task_switch /* 调用任务切换 */
+                                    ldmia sp !,
+                                {r0, r3} /* 恢复寄存器 */
+
+                                ldr r1,
+                                [r3] /* 获取新TCB */
+                                ldr r0,
+                                [r1] /* 获取新栈顶 */
+
+                                ldmia r0 !,
+                                {r4 - r11, r14} /* 恢复核心寄存器 */
+
+                                tst r14,
+                                #0x10 /* 检查FPU使用标志 */
+                                it eq /* 如果为0则执行 */
+                                    vldmiaeq r0 !,
+                                {s16 - s31} /* 恢复FPU寄存器 */
+
+                                msr psp,
+                                r0 /* 设置新PSP */
+                                    isb /* 指令同步屏障 */
+                                        bx r14 /* 异常返回 */
+
+                                            .align 4}
+#else
+/* 其他编译器版本 - 使用__naked属性 */
 __naked void PendSV_Handler(void)
 {
     __ASM volatile("mrs r0, psp                         \n" /* 获取当前PSP */
@@ -810,6 +919,7 @@ __naked void PendSV_Handler(void)
                    "                                    \n"
                    ".align 4                            \n");
 }
+#endif /* defined(__CC_ARM) */
 #else
 /**
  * @brief PendSV异常处理函数 - 无FPU版本
@@ -817,6 +927,44 @@ __naked void PendSV_Handler(void)
  *  此版本不包含FPU支持，只处理核心寄存器的保存和恢复，
  *  适用于没有FPU或不需要浮点运算的系统，性能更优。
  */
+#if defined(__CC_ARM)
+/* AC5编译器版本 - 使用__asm语法 */
+__asm void PendSV_Handler(void){mrs r0,
+                                psp /* 获取当前PSP */
+                                    isb /* 指令同步屏障 */
+
+                                        ldr r3,
+                                = KernelCurrentTCB /* 获取当前TCB指针 */
+                                    ldr r2,
+                                [r3] /* 获取当前TCB */
+
+                                stmdb r0 !,
+                                {r4 - r11, r14} /* 保存核心寄存器 */
+                                str r0,
+                                [r2] /* 保存新栈顶到TCB */
+
+                                stmdb sp !,
+                                {r0, r3} /* 保存寄存器到MSP栈 */
+                                bl v_kernel_task_switch /* 调用任务切换 */
+                                    ldmia sp !,
+                                {r0, r3} /* 恢复寄存器 */
+
+                                ldr r1,
+                                [r3] /* 获取新TCB */
+                                ldr r0,
+                                [r1] /* 获取新栈顶 */
+
+                                ldmia r0 !,
+                                {r4 - r11, r14} /* 恢复核心寄存器 */
+
+                                msr psp,
+                                r0 /* 设置新PSP */
+                                    isb /* 指令同步屏障 */
+                                        bx r14 /* 异常返回 */
+
+                                            .align 4}
+#else
+/* 其他编译器版本 - 使用__naked属性 */
 __naked void PendSV_Handler(void)
 {
     __ASM volatile("mrs r0, psp                         \n" /* 获取当前PSP */
@@ -843,6 +991,7 @@ __naked void PendSV_Handler(void)
                    "                                    \n"
                    ".align 4                            \n");
 }
+#endif /* defined(__CC_ARM) */
 #endif /* EK_CORO_FPU_ENABLE == 1 */
 
 #endif /*EK_CORO_ENABLE == 1*/
