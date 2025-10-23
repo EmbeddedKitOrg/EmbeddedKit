@@ -19,6 +19,10 @@
     {
       "name": "stlink-gdbserver",
       "version": "7.10.0+st.3"
+    },
+    {
+      "name": "jlink-gdbserver",
+      "version": "8.38.0+st.1"
     }
   ]
 }

@@ -78,6 +78,39 @@
       ]
     },
     {
+      "name": "jlink-gdbserver",
+      "version": "8.38.0+st.1",
+      "platform": "darwin",
+      "selected_by": [
+        {
+          "name": "jlink-gdbserver",
+          "version": "8.38.0+st.1"
+        }
+      ]
+    },
+    {
+      "name": "jlink-gdbserver",
+      "version": "8.38.0+st.1",
+      "platform": "x86_64-linux",
+      "selected_by": [
+        {
+          "name": "jlink-gdbserver",
+          "version": "8.38.0+st.1"
+        }
+      ]
+    },
+    {
+      "name": "jlink-gdbserver",
+      "version": "8.38.0+st.1",
+      "platform": "x86_64-windows",
+      "selected_by": [
+        {
+          "name": "jlink-gdbserver",
+          "version": "8.38.0+st.1"
+        }
+      ]
+    },
+    {
       "name": "ninja",
       "version": "1.13.1+st.1",
       "platform": "darwin",

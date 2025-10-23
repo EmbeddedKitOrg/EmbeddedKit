@@ -47,16 +47,16 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     EK_Component/EK_Common.c
-    EK_Component/Bsp/Serial/EK_Serial.c
-    EK_Component/DataStruct/List/EK_List.c
-    EK_Component/DataStruct/Queue/EK_Queue.c
-    EK_Component/DataStruct/Stack/EK_Stack.c
-    EK_Component/EK_Corotinue/Kernel/Heap.c
-    EK_Component/EK_Corotinue/Kernel/Kernel.c
-    EK_Component/EK_Corotinue/Kernel/List.c
-    EK_Component/EK_Corotinue/Message/EK_CoroMessage.c
-    EK_Component/EK_Corotinue/Semaphore/EK_CoroSemaphore.c
-    EK_Component/EK_Corotinue/Task/EK_CoroTask.c
+    EK_Component/Bsp/EK_Serial.c
+    EK_Component/DataStruct/EK_List.c
+    EK_Component/DataStruct/EK_Queue.c
+    EK_Component/DataStruct/EK_Stack.c
+    EK_Component/EK_Corotinue/Heap.c
+    EK_Component/EK_Corotinue/Kernel.c
+    EK_Component/EK_Corotinue/List.c
+    EK_Component/EK_Corotinue/EK_CoroMessage.c
+    EK_Component/EK_Corotinue/EK_CoroSemaphore.c
+    EK_Component/EK_Corotinue/EK_CoroTask.c
     EK_Component/MemPool/EK_MemPool.c
     EK_Component/Task/EK_Task.c
     APP/Src/IT_App.c
@@ -69,17 +69,11 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
     EK_Component
-    EK_Component/Bsp/Serial
-    EK_Component/DataStruct/List
-    EK_Component/DataStruct/Queue
-    EK_Component/DataStruct/Stack
-    EK_Component/EK_Corotinue
-    EK_Component/EK_Corotinue/Kernel
-    EK_Component/EK_Corotinue/Message
-    EK_Component/EK_Corotinue/Semaphore
-    EK_Component/EK_Corotinue/Task
-    EK_Component/MemPool
-    EK_Component/Task
+    EK_Component/Bsp/Inc
+    EK_Component/DataStruct/Inc
+    EK_Component/EK_Corotinue/Inc
+    EK_Component/MemPool/Inc
+    EK_Component/Task/Inc
     APP/Inc
     BSP/Inc
 )
