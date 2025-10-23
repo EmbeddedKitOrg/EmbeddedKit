@@ -17,8 +17,8 @@
  * @date 2025-09-04
  * @version v2.0
  */
-#include "EK_Task.h"
-#include "../MemPool/EK_MemPool.h"
+#include "./Inc/EK_Task.h"
+#include "../MemPool/Inc/EK_MemPool.h"
 
 #if (EK_NORMAL_SCHEDULER == 1)
 
