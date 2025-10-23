@@ -11,6 +11,7 @@
         "common.h": "c",
         "stdarg.h": "c",
         "kernel.h": "c",
-        "cstdint": "c"
+        "cstdint": "c",
+        "stm32f407xx.h": "c"
     }
 }
