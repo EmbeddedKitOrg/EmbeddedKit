@@ -1,8 +1,0 @@
-@PACKAGE_INIT@
-
-include("${CMAKE_CURRENT_LIST_DIR}/EmbeddedKitTargets.cmake")
-
-set(EmbeddedKit_INCLUDE_DIR "${PACKAGE_PREFIX_DIR}/include/EmbeddedKit")
-set(EmbeddedKit_VERSION "@PACKAGE_VERSION@")
-
-check_required_components(EmbeddedKit)
