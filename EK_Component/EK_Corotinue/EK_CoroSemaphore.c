@@ -474,7 +474,7 @@ EK_Result_t EK_rSemTake(EK_CoroSemHanlder_t sem, uint32_t timeout)
 EK_Result_t EK_rSemGive(EK_CoroSemHanlder_t sem)
 {
     // 参数有效性检查
-    if (EK_IS_IN_INTERRUPT() == true) EK_ERROR;
+    if (EK_IS_IN_INTERRUPT() == true)return EK_ERROR;
     if (sem == NULL) return EK_NULL_POINTER;
 
     EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB(); // 获取当前的TCB
