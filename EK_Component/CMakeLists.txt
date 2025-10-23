@@ -5,7 +5,7 @@ project(EmbeddedKit VERSION 0.1.0 LANGUAGES C)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-set(EK_COMPONENT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/EK_Component")
+set(EK_COMPONENT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 
 set(EK_COMPONENT_SOURCES
     ${EK_COMPONENT_DIR}/EK_Common.c
@@ -58,7 +58,7 @@ install(EXPORT EmbeddedKitTargets
 )
 
 configure_package_config_file(
-    cmake/EmbeddedKitConfig.cmake.in
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/EmbeddedKitConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/EmbeddedKitConfig.cmake
     INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/EmbeddedKit
 )
