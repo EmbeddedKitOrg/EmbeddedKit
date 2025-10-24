@@ -11,7 +11,6 @@
 #define __EK_COMMON_H
 
 #include <stdarg.h>
-#include <stdio.h>
 #include <stdint.h>
 
 /* ========================= 函数属性宏 ========================= */
