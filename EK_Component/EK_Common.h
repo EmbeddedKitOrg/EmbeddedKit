@@ -134,61 +134,32 @@ typedef unsigned char bool;
 
 /* ========================= 工具宏 ========================= */
 
-/*
- * 类型推导宏
- * - C++ 使用 decltype
- * - GCC/Clang/IAR/Armclang 使用 __typeof__
- * - Arm Compiler 5 (armcc) 使用 typeof 关键字
- * 其余编译器需自行扩展，否则会在编译期抛出错误提示
- */
-#if defined(__cplusplus)
-#define EK_TYPE_OF(__expression__) decltype(__expression__)
-#elif defined(__clang__) || defined(__GNUC__) || defined(__GNUG__)
-#define EK_TYPE_OF(__expression__) __typeof__(__expression__)
-#elif defined(__ICCARM__)
-#define EK_TYPE_OF(__expression__) __typeof__(__expression__)
-#elif defined(__CC_ARM)
-#define EK_TYPE_OF(__expression__) typeof(__expression__)
-#elif defined(__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050)
-#define EK_TYPE_OF(__expression__) __typeof__(__expression__)
-#else
-#error "EK_TYPE_OF is not supported by this compiler. Please provide an implementation."
-#endif /* EK_TYPE_OF */
-
 /**
  * @brief 获取结构体成员中的偏移量
- * @param __type__ 结构体数据类型
- * @param __mem__ 成员名
+ * @param type 结构体数据类型
+ * @param mem 成员名
  * 
  */
-#define EK_GET_OFFSET_OF(__type__, __mem__) ((size_t)&((__type__ *)0)->__mem__)
+#define EK_GET_OFFSET_OF(type, mem) ((size_t)&((type *)0)->mem)
 
 /**
  * @brief 通过一个结构体成员的地址反推得到整个结构体的地址
- * @param __ptr__ 获取地址的指针
- * @param __type__ 结构体数据类型
- * @param __mem__ 成员名 
+ * @param ptr 获取地址的指针
+ * @param type 结构体数据类型
+ * @param mem 成员名 
  * 
  */
-#define EK_GET_OWNER_OF(__ptr__, __type__, __mem__) \
-    ((__type__ *)(char *)(__ptr__) - EK_GET_OFFSET_OF(__type__, __mem__))
+#define EK_GET_OWNER_OF(ptr, type, mem) ((type *)(char *)(ptr) - EK_GET_OFFSET_OF(type, mem))
 
 /**
  * @brief 限制表达式值在指定范围内的宏
- * @param __expression__ 要限制的表达式
- * @param __min__        最大值（下界）
- * @param __max__        最小值（上界）
- * @return 限制后的值，确保在 [__min__, __max__] 范围内
- * @warning 使用 ++/-- 操作符到时候 务必保证: ++/-- expression 否则宏不会奏效
+ * @param x 要限制的表达式
+ * @param min 最大值（下界）
+ * @param max 最小值（上界）
+ * @return 限制后的值，确保在 [min, max] 范围内
  *
  */
-#define EK_CLAMP(__expression__, __min__, __max__)                        \
-    ({                                                                    \
-        EK_TYPE_OF(__expression__) _val = (__expression__);               \
-        EK_TYPE_OF(__min__) _min_val = (__min__);                         \
-        EK_TYPE_OF(__max__) _max_val = (__max__);                         \
-        _val < _min_val ? _min_val : (_val > _max_val ? _max_val : _val); \
-    })
+#define EK_CLAMP(x, min, max) ((x) < min ? min : ((x) > max ? max : (x)))
 
 #ifdef __cpluscplus
 extern "C"

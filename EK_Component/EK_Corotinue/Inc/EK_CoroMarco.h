@@ -81,11 +81,11 @@
  *          本宏的实现不处理这种情况, 调用者必须保证传入的__BITMAP__不为0。
  */
 #if (defined(__GNUC__) || defined(__clang__))
-#define EK_KERNEL_CLZ(__BITMAP__) ((__BITMAP__) == 0 ? 0 : (uint8_t)(31 - __builtin_clz(__BITMAP__)))
+#define EK_KERNEL_CLZ(bitmap) ((bitmap) == 0 ? 0 : (uint8_t)(31 - __builtin_clz(bitmap)))
 #elif defined(__CC_ARM)
-#define EK_KERNEL_CLZ(__BITMAP__) ((__BITMAP__) == 0 ? 0 : (uint8_t)(31 - __clz(__BITMAP__)))
+#define EK_KERNEL_CLZ(bitmap) ((bitmap) == 0 ? 0 : (uint8_t)(31 - __clz(bitmap)))
 #elif defined(__ICCARM__)
-#define EK_KERNEL_CLZ(__BITMAP__) ((__BITMAP__) == 0 ? 0 : (uint8_t)(31 - __CLZ(__BITMAP__)))
+#define EK_KERNEL_CLZ(bitmap) ((bitmap) == 0 ? 0 : (uint8_t)(31 - __CLZ(bitmap)))
 #else
 // 软件实现作为备用
 ALWAYS_INLINE uint8_t v_kernel_find_msb_index(EK_BitMap_t val)
@@ -98,7 +98,7 @@ ALWAYS_INLINE uint8_t v_kernel_find_msb_index(EK_BitMap_t val)
     }
     return msb_idx;
 }
-#define EK_KERNEL_CLZ(__BITMAP__) v_kernel_find_msb_index(__BITMAP__)
+#define EK_KERNEL_CLZ(bitmap) v_kernel_find_msb_index(bitmap)
 #endif /* EK_KERNEL_CLZ selection */
 
 /**
@@ -111,7 +111,7 @@ ALWAYS_INLINE uint8_t v_kernel_find_msb_index(EK_BitMap_t val)
  * @brief 计算最高的优先级
  * 
  */
-#define EK_KERNEL_GET_HIGHEST_PRIO(__BITMAP__) (EK_BITMAP_MAX_BIT - EK_KERNEL_CLZ(__BITMAP__))
+#define EK_KERNEL_GET_HIGHEST_PRIO(bitmap) (EK_BITMAP_MAX_BIT - EK_KERNEL_CLZ(bitmap))
 
 /**
  * @brief 将毫秒时间转换为系统时钟节拍数(Ticks)
