@@ -167,4 +167,89 @@ extern bool EK_bMemPool_Free(void *ptr);
 
 #endif /* EK_CORO_ENABLE */
 
+/* ================================ lwprintf 配置 ================================ */
+/**
+ * @brief lwprintf 轻量级格式化输出库配置选项
+ *
+ * EK_LWPRINTF_ENABLE                    - lwprintf 库总开关，1:启用 0:禁用
+ *                                       启用后会提供格式化输出功能，支持协程环境下的线程安全
+ */
+
+#define EK_LWPRINTF_ENABLE (1)
+
+#if (EK_LWPRINTF_ENABLE == 1)
+/**
+ * @brief lwprintf 线程安全配置选项
+ *
+ * LWPRINTF_CFG_OS                      - 启用操作系统支持，1:启用 0:禁用
+ *                                       启用后需要实现互斥锁接口，提供线程安全保证
+ *
+ * LWPRINTF_CFG_OS_MUTEX_HANDLE         - 互斥锁句柄类型，仅在 OS 支持启用时有效
+ *                                       默认设置为 EK_CoroSem_t*，适配协程信号量
+ *
+ * LWPRINTF_CFG_OS_MANUAL_PROTECT       - 手动互斥锁保护模式，1:手动 0:自动
+ *                                       手动模式需要用户调用保护函数，自动模式由库内部管理
+ */
+
+#define LWPRINTF_CFG_OS (0)
+
+#if (LWPRINTF_CFG_OS == 1)
+#define LWPRINTF_CFG_OS_MUTEX_HANDLE   EK_CoroSem_t *
+#define LWPRINTF_CFG_OS_MANUAL_PROTECT (0)
+
+#if (EK_CORO_ENABLE != 1)
+#error "lwprintf OS mode requires coroutine support to be enabled"
+#endif
+
+#if (EK_CORO_SEMAPHORE_ENABLE != 1)
+#warning "lwprintf OS mode recommends enabling coroutine semaphore support for complete thread safety functionality"
+#endif
+
+#endif /* LWPRINTF_CFG_OS */
+
+/**
+ * @brief lwprintf 数据类型支持配置（与OS配置无关）
+ *
+ * LWPRINTF_CFG_SUPPORT_LONG_LONG       - 支持长整型类型，1:启用 0:禁用
+ * LWPRINTF_CFG_SUPPORT_TYPE_INT        - 支持整数类型，1:启用 0:禁用
+ *                                       启用 %d, %b, %u, %o, %i, %x 等格式说明符
+ * LWPRINTF_CFG_SUPPORT_TYPE_POINTER    - 支持指针类型，1:启用 0:禁用
+ *                                       启用 %p 格式说明符
+ * LWPRINTF_CFG_SUPPORT_TYPE_FLOAT      - 支持浮点类型，1:启用 0:禁用
+ *                                       启用 %f 格式说明符
+ * LWPRINTF_CFG_SUPPORT_TYPE_ENGINEERING - 支持科学计数法，1:启用 0:禁用
+ *                                       启用 %e 格式说明符，需要浮点类型支持
+ * LWPRINTF_CFG_SUPPORT_TYPE_STRING     - 支持字符串类型，1:启用 0:禁用
+ *                                       启用 %s 格式说明符
+ * LWPRINTF_CFG_SUPPORT_TYPE_BYTE_ARRAY  - 支持字节数组类型，1:启用 0:禁用
+ *                                       启用 %k 格式说明符，用于十六进制字节数组输出
+ */
+
+#define LWPRINTF_CFG_SUPPORT_LONG_LONG        (1)
+#define LWPRINTF_CFG_SUPPORT_TYPE_INT         (1)
+#define LWPRINTF_CFG_SUPPORT_TYPE_POINTER     (1)
+#define LWPRINTF_CFG_SUPPORT_TYPE_FLOAT       (1)
+#define LWPRINTF_CFG_SUPPORT_TYPE_ENGINEERING (1)
+#define LWPRINTF_CFG_SUPPORT_TYPE_STRING      (1)
+#define LWPRINTF_CFG_SUPPORT_TYPE_BYTE_ARRAY  (1)
+
+/**
+ * @brief lwprintf API 配置选项
+ *
+ * LWPRINTF_CFG_FLOAT_DEFAULT_PRECISION - 浮点数默认精度，设置小数点后的位数
+ * LWPRINTF_CFG_ENABLE_SHORTNAMES       - 启用短名称API，1:启用 0:禁用
+ *                                       启用后提供 lwprintf, lwsnprintf 等简化函数名
+ * LWPRINTF_CFG_ENABLE_STD_NAMES        - 启用标准C名称，1:启用 0:禁用
+ *                                       启用后提供 printf, snprintf 等标准函数名
+ *                                       默认禁用以避免与编译器实现冲突
+ */
+
+#define LWPRINTF_CFG_FLOAT_DEFAULT_PRECISION (6)
+#define LWPRINTF_CFG_ENABLE_SHORTNAMES       (1)
+#define LWPRINTF_CFG_ENABLE_STD_NAMES        (1)
+
+#include "lwprintf/Inc/lwprintf.h"
+
+#endif /* EK_LWPRINTF_ENABLE */
+
 #endif /* __EK_CONFIG_H */
