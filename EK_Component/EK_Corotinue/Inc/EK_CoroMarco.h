@@ -63,46 +63,15 @@
 /**
  * @brief 判断FPU是否启用
  * @warning 禁止修改
- *
- * 改进的FPU检测逻辑：
- * 1. 检查硬件是否支持FPU
- * 2. 检查编译器是否启用了FPU
- * 3. 检查运行时FPU是否已初始化
  */
-#if (__FPU_PRESENT == 1)
-// 硬件支持FPU，检查编译器配置
-#if defined(__ARM_FP) && (__ARM_FP != 0)
-// 编译器启用了FPU指令
-#if defined(__SOFTFP__)
-// 软浮点调用约定，但可能有硬件FPU支持
-#define EK_CORO_FPU_ENABLE     (1)
-#define EK_CORO_FPU_ABI_SOFTFP (1)
-#else
-// 硬浮点调用约定
-#define EK_CORO_FPU_ENABLE   (1)
-#define EK_CORO_FPU_ABI_HARD (1)
-#endif
-#else
-// 编译器未启用FPU，使用软件浮点
-#define EK_CORO_FPU_ENABLE (0)
-#endif
-#else
-// 硬件不支持FPU
-#define EK_CORO_FPU_ENABLE (0)
-#endif /* __FPU_PRESENT == 1 */
-
-/* FPU ABI类型定义 */
-#ifndef EK_CORO_FPU_ABI_SOFTFP
-#define EK_CORO_FPU_ABI_SOFTFP (0)
-#endif
-#ifndef EK_CORO_FPU_ABI_HARD
-#define EK_CORO_FPU_ABI_HARD (0)
-#endif
-
-/* ================================ FPU 寄存器地址和位操作宏定义 ================================ */
+#if (__FPU_PRESENT == 1 && __FPU_USED == 1)
+#define EK_CORO_FPU_ENABLE (1)
 // 定义FPCCR寄存器地址和要设置的位
 #define FPCCR            ((volatile uint32_t *)(0xE000EF34UL))
 #define ASPEN_LSPEN_BITS (0x3UL << 30UL)
+#else
+#define EK_CORO_FPU_ENABLE (0)
+#endif /* __FPU_PRESENT == 1 && __FPU_USED == 1 */
 
 /**
  * @brief 使用内置的CLZ(Count Leading Zeros)计算最高有效位(MSB)的索引
@@ -112,11 +81,11 @@
  *          本宏的实现不处理这种情况, 调用者必须保证传入的__BITMAP__不为0。
  */
 #if (defined(__GNUC__) || defined(__clang__))
-#define EK_KERNEL_CLZ(__BITMAP__) ((__BITMAP__) == 0 ? 0 : (uint8_t)(31 - __builtin_clz(__BITMAP__)))
+#define EK_KERNEL_CLZ(bitmap) ((bitmap) == 0 ? 0 : (uint8_t)(31 - __builtin_clz(bitmap)))
 #elif defined(__CC_ARM)
-#define EK_KERNEL_CLZ(__BITMAP__) ((__BITMAP__) == 0 ? 0 : (uint8_t)(31 - __clz(__BITMAP__)))
+#define EK_KERNEL_CLZ(bitmap) ((bitmap) == 0 ? 0 : (uint8_t)(31 - __clz(bitmap)))
 #elif defined(__ICCARM__)
-#define EK_KERNEL_CLZ(__BITMAP__) ((__BITMAP__) == 0 ? 0 : (uint8_t)(31 - __CLZ(__BITMAP__)))
+#define EK_KERNEL_CLZ(bitmap) ((bitmap) == 0 ? 0 : (uint8_t)(31 - __CLZ(bitmap)))
 #else
 // 软件实现作为备用
 ALWAYS_INLINE uint8_t v_kernel_find_msb_index(EK_BitMap_t val)
@@ -129,7 +98,7 @@ ALWAYS_INLINE uint8_t v_kernel_find_msb_index(EK_BitMap_t val)
     }
     return msb_idx;
 }
-#define EK_KERNEL_CLZ(__BITMAP__) v_kernel_find_msb_index(__BITMAP__)
+#define EK_KERNEL_CLZ(bitmap) v_kernel_find_msb_index(bitmap)
 #endif /* EK_KERNEL_CLZ selection */
 
 /**
@@ -142,7 +111,7 @@ ALWAYS_INLINE uint8_t v_kernel_find_msb_index(EK_BitMap_t val)
  * @brief 计算最高的优先级
  * 
  */
-#define EK_KERNEL_GET_HIGHEST_PRIO(__BITMAP__) (EK_BITMAP_MAX_BIT - EK_KERNEL_CLZ(__BITMAP__))
+#define EK_KERNEL_GET_HIGHEST_PRIO(bitmap) (EK_BITMAP_MAX_BIT - EK_KERNEL_CLZ(bitmap))
 
 /**
  * @brief 将毫秒时间转换为系统时钟节拍数(Ticks)
