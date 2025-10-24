@@ -30,7 +30,7 @@ static EK_CoroList_t *KernelCurrentBlockPointer; // 用于指向当前就绪的�
 static EK_CoroList_t *KernelNextBlockPointer; // 用于指向溢出的就绪的阻塞链表
 
 /*TCB 相关*/
-static EK_CoroTCB_t *KernelCurrentTCB; // 当前正在运行的任务TCB指针
+EK_CoroTCB_t *KernelCurrentTCB; // 当前正在运行的任务TCB指针
 static EK_CoroTCB_t *KernelToDeleteTCB; // 等待被删除的任务TCB指针
 static EK_CoroStaticHandler_t KernelIdleTCB_Handler; // 空闲任务句柄
 
@@ -425,7 +425,7 @@ void EK_vKernelSetDeleteTCB(EK_CoroTCB_t *tcb)
  *  此函数设计为在PendSV中断上下文中调用，确保调度逻辑在中断环境中安全执行。
  *  调用者必须确保在中断上下文中且已进入临界区。
  */
-static void v_kernel_task_switch(void)
+void v_kernel_task_switch(void)
 {
     // 检查是否有调度请求且就绪位图不为空
 
@@ -527,7 +527,7 @@ __asm static void v_kernel_enbale_vfp(void)
     orr r1, r1, #(0xf << 20) /* 设置bits 20-23 = 1111，启用CP10和CP11完全访问 */
     str r1, [r0]            /* 写回CPACR寄存器 */
     bx r14                   /* 返回调用者 */
-    .ltorg                   /* 字符串池，用于地址常量 */
+    ltorg                   /* 字符串池，用于地址常量 */
 }
 // clang-format on
 #else
@@ -842,6 +842,9 @@ void SysTick_Handler(void)
 // clang-format off
 __asm void PendSV_Handler(void)
 {
+	extern KernelCurrentTCB;
+    extern v_kernel_task_switch;
+
     mrs r0, psp                /* 获取当前PSP */
     isb                        /* 指令同步屏障 */
 
@@ -872,7 +875,7 @@ __asm void PendSV_Handler(void)
     isb                        /* 指令同步屏障 */
     bx r14                     /* 异常返回 */
 
-    .align 4
+    align 4
 }
 // clang-format on
 #else
@@ -924,7 +927,8 @@ __naked void PendSV_Handler(void)
 // clang-format off
 __asm void PendSV_Handler(void)
 {
-	extern v_kernel_task_switch;
+	extern KernelCurrentTCB;
+    extern v_kernel_task_switch;
 	
     mrs r0, psp                /* 获取当前PSP */
     isb                        /* 指令同步屏障 */

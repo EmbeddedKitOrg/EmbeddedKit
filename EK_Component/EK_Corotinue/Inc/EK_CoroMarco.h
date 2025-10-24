@@ -63,46 +63,15 @@
 /**
  * @brief 判断FPU是否启用
  * @warning 禁止修改
- *
- * 改进的FPU检测逻辑：
- * 1. 检查硬件是否支持FPU
- * 2. 检查编译器是否启用了FPU
- * 3. 检查运行时FPU是否已初始化
  */
-#if (__FPU_PRESENT == 1)
-// 硬件支持FPU，检查编译器配置
-#if defined(__ARM_FP) && (__ARM_FP != 0)
-// 编译器启用了FPU指令
-#if defined(__SOFTFP__)
-// 软浮点调用约定，但可能有硬件FPU支持
-#define EK_CORO_FPU_ENABLE     (1)
-#define EK_CORO_FPU_ABI_SOFTFP (1)
-#else
-// 硬浮点调用约定
-#define EK_CORO_FPU_ENABLE   (1)
-#define EK_CORO_FPU_ABI_HARD (1)
-#endif
-#else
-// 编译器未启用FPU，使用软件浮点
-#define EK_CORO_FPU_ENABLE (0)
-#endif
-#else
-// 硬件不支持FPU
-#define EK_CORO_FPU_ENABLE (0)
-#endif /* __FPU_PRESENT == 1 */
-
-/* FPU ABI类型定义 */
-#ifndef EK_CORO_FPU_ABI_SOFTFP
-#define EK_CORO_FPU_ABI_SOFTFP (0)
-#endif
-#ifndef EK_CORO_FPU_ABI_HARD
-#define EK_CORO_FPU_ABI_HARD (0)
-#endif
-
-/* ================================ FPU 寄存器地址和位操作宏定义 ================================ */
+#if (__FPU_PRESENT == 1 && __FPU_USED == 1)
+#define EK_CORO_FPU_ENABLE (1)
 // 定义FPCCR寄存器地址和要设置的位
 #define FPCCR            ((volatile uint32_t *)(0xE000EF34UL))
 #define ASPEN_LSPEN_BITS (0x3UL << 30UL)
+#else
+#define EK_CORO_FPU_ENABLE (0)
+#endif /* __FPU_PRESENT == 1 && __FPU_USED == 1 */
 
 /**
  * @brief 使用内置的CLZ(Count Leading Zeros)计算最高有效位(MSB)的索引
