@@ -30,7 +30,7 @@ static EK_CoroList_t *KernelCurrentBlockPointer; // 用于指向当前就绪的�
 static EK_CoroList_t *KernelNextBlockPointer; // 用于指向溢出的就绪的阻塞链表
 
 /*TCB 相关*/
-static EK_CoroTCB_t *KernelCurrentTCB; // 当前正在运行的任务TCB指针
+EK_CoroTCB_t *KernelCurrentTCB; // 当前正在运行的任务TCB指针
 static EK_CoroTCB_t *KernelToDeleteTCB; // 等待被删除的任务TCB指针
 static EK_CoroStaticHandler_t KernelIdleTCB_Handler; // 空闲任务句柄
 
@@ -425,7 +425,7 @@ void EK_vKernelSetDeleteTCB(EK_CoroTCB_t *tcb)
  *  此函数设计为在PendSV中断上下文中调用，确保调度逻辑在中断环境中安全执行。
  *  调用者必须确保在中断上下文中且已进入临界区。
  */
-static void v_kernel_task_switch(void)
+void v_kernel_task_switch(void)
 {
     // 检查是否有调度请求且就绪位图不为空
 
@@ -464,18 +464,24 @@ static void v_kernel_task_switch(void)
  */
 #if defined(__CC_ARM)
 /* AC5编译器版本 - 使用__asm语法 */
-__asm static void v_kernel_start_first(void){ldr r0,
-                                             = 0xE000ED08 /* 使用NVIC偏移寄存器定位栈地址 */
-                                             ldr r0,
-                                             [r0] ldr r0,
-                                             [r0] msr msp,
-                                             r0 /* 将MSP设置为栈的起始位置 */
-                                                 mov r0,
-                                             #0 /* 清除FPU使用标志位 */
-                                             msr control,
-                                             r0 cpsie i /* 全局启用中断 */
-                                                 cpsie f dsb isb svc 0 /* 系统调用，启动第一个任务 */
-                                             nop.ltorg}
+// clang-format off
+__asm static void v_kernel_start_first(void)
+{
+    ldr r0, = 0xE000ED08     /* 使用NVIC偏移寄存器定位栈地址 */
+    ldr r0, [r0]
+    ldr r0, [r0]
+    msr msp, r0              /* 将MSP设置为栈的起始位置 */
+    mov r0, #0                /* 清除FPU使用标志位 */
+    msr control, r0
+    cpsie i                   /* 全局启用中断 */
+    cpsie f
+    dsb
+    isb
+    svc 0                     /* 系统调用，启动第一个任务 */
+    nop
+    ltorg
+}
+// clang-format on
 #else
 /* 其他编译器版本 - 使用__naked属性 */
 __naked static void v_kernel_start_first(void)
@@ -513,20 +519,17 @@ __naked static void v_kernel_start_first(void)
  */
 #if defined(__CC_ARM)
 /* AC5编译器版本 - 使用__asm语法 */
-__asm static void v_kernel_enbale_vfp(void){
-    ldr.w r0,
-    = 0xE000ED88 /* 加载CPACR寄存器地址 */
-    ldr r1,
-    [r0] /* 读取当前CPACR值 */
-
-    orr r1,
-    r1,
-    #(0xf << 20) /* 设置bits 20-23 = 1111，启用CP10和CP11完全访问 */
-    str r1,
-    [r0] /* 写回CPACR寄存器 */
-    bx r14 /* 返回调用者 */
-        .ltorg /* 字符串池，用于地址常量 */
+// clang-format off
+__asm static void v_kernel_enbale_vfp(void)
+{
+    ldr.w r0, = 0xE000ED88  /* 加载CPACR寄存器地址 */
+    ldr r1, [r0]            /* 读取当前CPACR值 */
+    orr r1, r1, #(0xf << 20) /* 设置bits 20-23 = 1111，启用CP10和CP11完全访问 */
+    str r1, [r0]            /* 写回CPACR寄存器 */
+    bx r14                   /* 返回调用者 */
+    ltorg                   /* 字符串池，用于地址常量 */
 }
+// clang-format on
 #else
 /* 其他编译器版本 - 使用__naked属性 */
 __naked static void v_kernel_enbale_vfp(void)
@@ -680,24 +683,23 @@ void EK_vKernelStart(void)
  */
 #if defined(__CC_ARM)
 /* AC5编译器版本 - 使用__asm语法 */
-__asm void SVC_Handler(void){ldr r3,
-                             = KernelCurrentTCB /* 获取当前TCB的位置 */
-                                 ldr r1,
-                             [r3] /* 获取当前TCB */
-                             ldr r0,
-                             [r1] /* 获取任务栈顶指针 */
-                             ldmia r0 !,
-                             {r4 - r11, r14} /* 恢复核心寄存器和链接寄存器 */
-                             msr psp,
-                             r0 /* 设置PSP为新的栈顶 */
-                                 isb /* 指令同步屏障 */
-                                     mov r0,
-                             #0 /* 清除basepri优先级屏蔽 */
-                             msr basepri,
-                             r0 /* 允许所有中断 */
-                                 bx r14 /* 异常返回到任务 */
-
-                                     .align 4}
+// clang-format off
+__asm void SVC_Handler(void)
+{
+	extern KernelCurrentTCB;
+	
+    ldr r3, = KernelCurrentTCB /* 获取当前TCB的位置 */
+    ldr r1, [r3]               /* 获取当前TCB */
+    ldr r0, [r1]               /* 获取任务栈顶指针 */
+    ldmia r0!, {r4 - r11, r14} /* 恢复核心寄存器和链接寄存器 */
+    msr psp, r0                /* 设置PSP为新的栈顶 */
+    isb                        /* 指令同步屏障 */
+    mov r0, #0                 /* 清除basepri优先级屏蔽 */
+    msr basepri, r0            /* 允许所有中断 */
+    bx r14                     /* 异常返回到任务 */
+    align 4
+}
+// clang-format on
 #else
 /* 其他编译器版本 - 使用__naked属性 */
 __naked void SVC_Handler(void)
@@ -837,52 +839,45 @@ void SysTick_Handler(void)
  */
 #if defined(__CC_ARM)
 /* AC5编译器版本 - 使用__asm语法 */
-__asm void PendSV_Handler(void){mrs r0,
-                                psp /* 获取当前PSP */
-                                    isb /* 指令同步屏障 */
+// clang-format off
+__asm void PendSV_Handler(void)
+{
+	extern KernelCurrentTCB;
+    extern v_kernel_task_switch;
 
-                                        ldr r3,
-                                = KernelCurrentTCB /* 获取当前TCB指针 */
-                                    ldr r2,
-                                [r3] /* 获取当前TCB */
+    mrs r0, psp                /* 获取当前PSP */
+    isb                        /* 指令同步屏障 */
 
-                                tst r14,
-                                #0x10 /* 检查FPU使用标志 */
-                                it eq /* 如果为0则执行 */
-                                    vstmdbeq r0 !,
-                                {s16 - s31} /* 保存FPU寄存器 */
+    ldr r3, = KernelCurrentTCB /* 获取当前TCB指针 */
+    ldr r2, [r3]               /* 获取当前TCB */
 
-                                stmdb r0 !,
-                                {r4 - r11, r14} /* 保存核心寄存器 */
-                                str r0,
-                                [r2] /* 保存新栈顶到TCB */
+    tst r14, #0x10             /* 检查FPU使用标志 */
+    it eq                       /* 如果为0则执行 */
+    vstmdbeq r0!, {s16 - s31}  /* 保存FPU寄存器 */
 
-                                stmdb sp !,
-                                {r0, r3} /* 保存寄存器到MSP栈 */
-                                bl v_kernel_task_switch /* 调用任务切换 */
-                                    ldmia sp !,
-                                {r0, r3} /* 恢复寄存器 */
+    stmdb r0!, {r4 - r11, r14} /* 保存核心寄存器 */
+    str r0, [r2]               /* 保存新栈顶到TCB */
 
-                                ldr r1,
-                                [r3] /* 获取新TCB */
-                                ldr r0,
-                                [r1] /* 获取新栈顶 */
+    stmdb sp!, {r0, r3}        /* 保存寄存器到MSP栈 */
+    bl v_kernel_task_switch     /* 调用任务切换 */
+    ldmia sp!, {r0, r3}        /* 恢复寄存器 */
 
-                                ldmia r0 !,
-                                {r4 - r11, r14} /* 恢复核心寄存器 */
+    ldr r1, [r3]               /* 获取新TCB */
+    ldr r0, [r1]               /* 获取新栈顶 */
 
-                                tst r14,
-                                #0x10 /* 检查FPU使用标志 */
-                                it eq /* 如果为0则执行 */
-                                    vldmiaeq r0 !,
-                                {s16 - s31} /* 恢复FPU寄存器 */
+    ldmia r0!, {r4 - r11, r14} /* 恢复核心寄存器 */
 
-                                msr psp,
-                                r0 /* 设置新PSP */
-                                    isb /* 指令同步屏障 */
-                                        bx r14 /* 异常返回 */
+    tst r14, #0x10             /* 检查FPU使用标志 */
+    it eq                       /* 如果为0则执行 */
+    vldmiaeq r0!, {s16 - s31}  /* 恢复FPU寄存器 */
 
-                                            .align 4}
+    msr psp, r0                /* 设置新PSP */
+    isb                        /* 指令同步屏障 */
+    bx r14                     /* 异常返回 */
+
+    align 4
+}
+// clang-format on
 #else
 /* 其他编译器版本 - 使用__naked属性 */
 __naked void PendSV_Handler(void)
@@ -929,40 +924,37 @@ __naked void PendSV_Handler(void)
  */
 #if defined(__CC_ARM)
 /* AC5编译器版本 - 使用__asm语法 */
-__asm void PendSV_Handler(void){mrs r0,
-                                psp /* 获取当前PSP */
-                                    isb /* 指令同步屏障 */
+// clang-format off
+__asm void PendSV_Handler(void)
+{
+	extern KernelCurrentTCB;
+    extern v_kernel_task_switch;
+	
+    mrs r0, psp                /* 获取当前PSP */
+    isb                        /* 指令同步屏障 */
 
-                                        ldr r3,
-                                = KernelCurrentTCB /* 获取当前TCB指针 */
-                                    ldr r2,
-                                [r3] /* 获取当前TCB */
+    ldr r3, = KernelCurrentTCB /* 获取当前TCB指针 */
+    ldr r2, [r3]               /* 获取当前TCB */
 
-                                stmdb r0 !,
-                                {r4 - r11, r14} /* 保存核心寄存器 */
-                                str r0,
-                                [r2] /* 保存新栈顶到TCB */
+    stmdb r0!, {r4 - r11, r14} /* 保存核心寄存器 */
+    str r0, [r2]               /* 保存新栈顶到TCB */
 
-                                stmdb sp !,
-                                {r0, r3} /* 保存寄存器到MSP栈 */
-                                bl v_kernel_task_switch /* 调用任务切换 */
-                                    ldmia sp !,
-                                {r0, r3} /* 恢复寄存器 */
+    stmdb sp!, {r0, r3}        /* 保存寄存器到MSP栈 */
+    bl v_kernel_task_switch     /* 调用任务切换 */
+    ldmia sp!, {r0, r3}        /* 恢复寄存器 */
 
-                                ldr r1,
-                                [r3] /* 获取新TCB */
-                                ldr r0,
-                                [r1] /* 获取新栈顶 */
+    ldr r1, [r3]               /* 获取新TCB */
+    ldr r0, [r1]               /* 获取新栈顶 */
 
-                                ldmia r0 !,
-                                {r4 - r11, r14} /* 恢复核心寄存器 */
+    ldmia r0!, {r4 - r11, r14} /* 恢复核心寄存器 */
 
-                                msr psp,
-                                r0 /* 设置新PSP */
-                                    isb /* 指令同步屏障 */
-                                        bx r14 /* 异常返回 */
+    msr psp, r0                /* 设置新PSP */
+    isb                        /* 指令同步屏障 */
+    bx r14                     /* 异常返回 */
 
-                                            .align 4}
+    align 4
+}
+// clang-format on
 #else
 /* 其他编译器版本 - 使用__naked属性 */
 __naked void PendSV_Handler(void)

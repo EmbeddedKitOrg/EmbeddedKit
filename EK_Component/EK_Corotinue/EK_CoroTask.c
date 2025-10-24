@@ -805,7 +805,8 @@ EK_Result_t EK_rCoroSendNotify(EK_CoroHandler_t task_handle, uint8_t bit)
     {
         EK_vSetBit(&task_handle->TCB_NotifyState, bit);
     }
-    task_handle->TCB_NotifyValue[bit] = EK_CLAMP(++task_handle->TCB_NotifyValue[bit], 0, UINT8_MAX);
+    task_handle->TCB_NotifyValue[bit]++;
+    task_handle->TCB_NotifyValue[bit] = EK_CLAMP(task_handle->TCB_NotifyValue[bit], 0, UINT8_MAX);
 
     // 唤醒任务
     EK_Result_t res = r_task_notify_wake(task_handle);
@@ -837,7 +838,8 @@ EK_Result_t EK_rCoroWaitNotify(uint8_t bit, uint32_t timeout)
         // 查看响应位是否有标记
         if (EK_bTestBit(&target_tcb->TCB_NotifyState, bit) == true)
         {
-            target_tcb->TCB_NotifyValue[bit] = EK_CLAMP(--target_tcb->TCB_NotifyValue[bit], 0, UINT8_MAX);
+            target_tcb->TCB_NotifyValue[bit]--;
+            target_tcb->TCB_NotifyValue[bit] = EK_CLAMP(target_tcb->TCB_NotifyValue[bit], 0, UINT8_MAX);
             if (target_tcb->TCB_NotifyValue[bit] == 0)
             {
                 EK_vClearBit(&target_tcb->TCB_NotifyState, bit);
@@ -900,7 +902,8 @@ bool EK_bCoroSendNotify_FromISR(EK_CoroHandler_t task_handle, uint8_t bit, bool 
     {
         EK_vSetBit(&task_handle->TCB_NotifyState, bit);
     }
-    task_handle->TCB_NotifyValue[bit] = EK_CLAMP(++task_handle->TCB_NotifyValue[bit], 0, UINT8_MAX);
+    task_handle->TCB_NotifyValue[bit]++;
+    task_handle->TCB_NotifyValue[bit] = EK_CLAMP(task_handle->TCB_NotifyValue[bit], 0, UINT8_MAX);
 
     // 唤醒对应任务
     if (r_task_notify_wake(task_handle) != EK_OK)
