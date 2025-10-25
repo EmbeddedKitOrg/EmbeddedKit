@@ -808,13 +808,18 @@ EK_Result_t EK_rCoroSendNotify(EK_CoroHandler_t task_handle, uint8_t bit)
     task_handle->TCB_NotifyValue[bit]++;
     task_handle->TCB_NotifyValue[bit] = EK_CLAMP(task_handle->TCB_NotifyValue[bit], 0, UINT8_MAX);
 
-    // 唤醒任务
-    EK_Result_t res = r_task_notify_wake(task_handle);
+    EK_Result_t res = EK_OK;
+
+    if (task_handle->TCB_State != EK_CORO_SUSPENDED)
+    {
+        // 唤醒任务
+        res = r_task_notify_wake(task_handle);
+
+        // 如果唤醒的任务的优先级高于当前的任务 会切换一次上下文
+        if (task_handle->TCB_Priority < current_tcb->TCB_Priority) EK_vCoroYield();
+    }
 
     EK_EXIT_CRITICAL();
-
-    // 如果唤醒的任务的优先级高于当前的任务 会切换一次上下文
-    if (task_handle->TCB_Priority < current_tcb->TCB_Priority) EK_vCoroYield();
 
     return res;
 }
@@ -905,16 +910,19 @@ bool EK_bCoroSendNotify_FromISR(EK_CoroHandler_t task_handle, uint8_t bit, bool 
     task_handle->TCB_NotifyValue[bit]++;
     task_handle->TCB_NotifyValue[bit] = EK_CLAMP(task_handle->TCB_NotifyValue[bit], 0, UINT8_MAX);
 
-    // 唤醒对应任务
-    if (r_task_notify_wake(task_handle) != EK_OK)
+    if (task_handle->TCB_State != EK_CORO_SUSPENDED)
     {
-        EK_EXIT_CRITICAL();
-        return false;
+        // 唤醒对应任务
+        if (r_task_notify_wake(task_handle) != EK_OK)
+        {
+            EK_EXIT_CRITICAL();
+            return false;
+        }
+
+        need_yield = (current_tcb->TCB_Priority > task_handle->TCB_Priority) ? true : false;
+
+        *higher_prio_wake |= need_yield;
     }
-
-    need_yield = (current_tcb->TCB_Priority > task_handle->TCB_Priority) ? true : false;
-
-    *higher_prio_wake |= need_yield;
 
     EK_EXIT_CRITICAL();
 
