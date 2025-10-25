@@ -5,9 +5,9 @@
  * 这些任务入口函数会被放置在一个特定的内存段中。通过调用 EK_vTasksRun() 函数，
  * 可以统一按顺序执行所有被注册的任务。这种机制常用于模块化设计的解耦和自动初始化。
  * @author  LuoShu
- * @version 1.0
+ * @version 1.1
  * @date    2025-10-22
- * @note    本版本目前仅在 ARM Compiler 6 (AC6) 环境下经过测试。
+ * @note    本版本已适配 ARM Compiler 5/6 (AC5/AC6) 和 GCC for ARM 工具链。
  */
 
 #ifndef __EK_TASKSRUN_H_
@@ -44,10 +44,10 @@ typedef void (*EK_TaskEntry_t)(void);
 
 /**
  * @brief   执行所有已注册的任务入口函数。
- * @details 该函数会遍历 `.EK_TaskEntry` 段中所有通过 `EK_TASK_ADD` 或 `EK_vTaskRegister` 
- * 注册的任务函数，并按链接器排列的顺序依次调用它们。
- * @note    此函数通常在系统初始化阶段的末尾调用，以完成模块的初始化。
- * 调用此函数前，必须确保链接器脚本已正确配置，能够提供任务段的起始和结束地址。
+ * @details 此函数通过链接器提供的符号，获取任务函数指针起止地址，然后遍历并依次调用每个任务函数。
+ * @note    该实现依赖于特定的链接器脚本配置。
+ * - 对于 AC5/AC6, 需要在 scatter file (.sct) 中配置。
+ * - 对于 GCC, 需要在 linker script (.ld) 中配置。
  */
 void EK_vTasksRun(void);
 
