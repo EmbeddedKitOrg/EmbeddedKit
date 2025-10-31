@@ -296,8 +296,8 @@ static void Kernel_CoroIdleFunction(void *arg)
         {
             if (KernelToDeleteTCB->TCB_isDynamic)
             {
-                EK_CORO_FREE(KernelToDeleteTCB->TCB_StackStart);
-                EK_CORO_FREE(KernelToDeleteTCB);
+                EK_vFree(KernelToDeleteTCB->TCB_StackStart);
+                EK_vFree(KernelToDeleteTCB);
             }
             KernelToDeleteTCB = NULL;
         }

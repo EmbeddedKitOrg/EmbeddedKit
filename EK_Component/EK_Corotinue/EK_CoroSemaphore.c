@@ -254,7 +254,7 @@ EK_CoroSem_t *EK_pSemGenericCreate(uint16_t init_count, uint16_t max_count, bool
     EK_ENTER_CRITICAL();
 
     // 动态创建信号量结构体
-    EK_CoroSem_t *sem = (EK_CoroSem_t *)EK_CORO_MALLOC(sizeof(EK_CoroSem_t));
+    EK_CoroSem_t *sem = (EK_CoroSem_t *)EK_pMalloc(sizeof(EK_CoroSem_t));
     if (sem == NULL)
     {
         EK_EXIT_CRITICAL();
@@ -474,7 +474,7 @@ EK_Result_t EK_rSemTake(EK_CoroSemHanlder_t sem, uint32_t timeout)
 EK_Result_t EK_rSemGive(EK_CoroSemHanlder_t sem)
 {
     // 参数有效性检查
-    if (EK_IS_IN_INTERRUPT() == true)return EK_ERROR;
+    if (EK_IS_IN_INTERRUPT() == true) return EK_ERROR;
     if (sem == NULL) return EK_NULL_POINTER;
 
     EK_CoroTCB_t *current_tcb = EK_pKernelGetCurrentTCB(); // 获取当前的TCB
@@ -639,7 +639,7 @@ EK_Result_t EK_rSemDelete(EK_CoroSem_t *sem)
 
     if (is_dynamic)
     {
-        EK_CORO_FREE(sem);
+        EK_vFree(sem);
     }
 
     EK_EXIT_CRITICAL();

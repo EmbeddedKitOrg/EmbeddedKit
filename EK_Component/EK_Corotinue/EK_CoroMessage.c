@@ -311,15 +311,15 @@ EK_CoroMsgHanler_t EK_pMsgCreate(EK_Size_t item_size, EK_Size_t item_amount)
     if (item_size == 0 || item_amount == 0) return NULL;
 
     // 为结构体分配内存
-    EK_CoroMsg_t *msg = (EK_CoroMsg_t *)EK_CORO_MALLOC(sizeof(EK_CoroMsg_t));
+    EK_CoroMsg_t *msg = (EK_CoroMsg_t *)EK_pMalloc(sizeof(EK_CoroMsg_t));
     if (msg == NULL) return NULL;
 
     // 为消息缓冲区分配内存
     EK_Size_t buffer_size = item_size * item_amount;
-    uint8_t *dynamic_buffer = (uint8_t *)EK_CORO_MALLOC(buffer_size);
+    uint8_t *dynamic_buffer = (uint8_t *)EK_pMalloc(buffer_size);
     if (dynamic_buffer == NULL)
     {
-        EK_CORO_FREE(msg);
+        EK_vFree(msg);
         return NULL;
     }
     msg->Msg_Buffer = dynamic_buffer; // 设置缓冲区指针
@@ -423,9 +423,9 @@ EK_Result_t EK_rMsgDelete(EK_CoroMsg_t *msg)
         uint8_t *buffer = msg->Msg_Buffer; // 获取缓冲区指针
         if (buffer != NULL)
         {
-            EK_CORO_FREE(buffer); // 释放底层缓冲区
+            EK_vFree(buffer); // 释放底层缓冲区
         }
-        EK_CORO_FREE(msg); // 释放消息队列控制块
+        EK_vFree(msg); // 释放消息队列控制块
     }
     else
     {
