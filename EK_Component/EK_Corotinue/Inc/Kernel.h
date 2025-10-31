@@ -102,22 +102,6 @@ void EK_vExitCritical(void);
  */
 #define EK_EXIT_CRITICAL() EK_vExitCritical()
 
-// 内存 申请/释放 函数
-extern void *EK_Coro_Malloc(EK_Size_t size);
-extern void EK_Coro_Free(void *ptr);
-
-/**
- * @brief 线程安全动态分配函数
- * 
- */
-#define EK_CORO_MALLOC(X) EK_Coro_Malloc(X)
-
-/**
- * @brief 线程安全动态释放函数
- * 
- */
-#define EK_CORO_FREE(X) EK_Coro_Free(X)
-
 /**
  * @brief 不使用HAL库生成的SysTick和PendSV和SVC Handler
  * 

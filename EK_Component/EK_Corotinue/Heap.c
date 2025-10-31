@@ -42,7 +42,7 @@
  * - 返回的内存必须通过EK_Coro_Free释放
  * - 分配失败时应检查返回值是否为NULL
  */
-void *EK_Coro_Malloc(EK_Size_t size)
+void *EK_pMalloc(EK_Size_t size)
 {
     void *ptr = NULL;
     EK_ENTER_CRITICAL();
@@ -74,7 +74,7 @@ void *EK_Coro_Malloc(EK_Size_t size)
  * - 不要释放NULL指针（虽然大多数free实现会忽略）
  * - 释放后应将指针设为NULL以避免悬垂指针
  */
-void EK_Coro_Free(void *ptr)
+void EK_vFree(void *ptr)
 {
     EK_ENTER_CRITICAL();
     EK_FREE(ptr);
