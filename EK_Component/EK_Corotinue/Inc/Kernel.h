@@ -245,6 +245,10 @@ EK_Result_t EK_rKernelMove_Prio(EK_CoroList_t *list, EK_CoroListNode_t *node);
 EK_Result_t EK_rKernelMove_Head(EK_CoroList_t *list, EK_CoroListNode_t *node);
 EK_Result_t EK_rKernelMove_Tail(EK_CoroList_t *list, EK_CoroListNode_t *node);
 
+/* ========================= 内存分配函数 ========================= */
+void *EK_pMalloc(EK_Size_t size);
+void EK_vFree(void *ptr);
+
 /* ========================= 内核核心API函数 ========================= */
 EK_Size_t EK_uKernelGetFreeHeap(void);
 void EK_vKernelInit(void);
