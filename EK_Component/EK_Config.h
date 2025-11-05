@@ -11,7 +11,6 @@
 #define __EK_CONFIG_H
 
 #include "EK_Common.h"
-#include "EK_Assert.h"
 
 /* ================================ 断言管理 ================================ */
 /**
