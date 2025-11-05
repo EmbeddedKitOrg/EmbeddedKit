@@ -11,6 +11,34 @@
 #define __EK_CONFIG_H
 
 #include "EK_Common.h"
+#include "EK_Assert.h"
+
+/* ================================ 断言管理 ================================ */
+/**
+ * @brief 断言管理配置选项
+ *
+ * EK_ASSERT_ENABLE     - 断言功能开关，1表示启用断言，0表示禁用断言
+ * EK_ASSERT(x)         - 断言宏定义，用于检查条件是否为真，为假时触发断言处理
+ *
+ * 启用断言时：当条件(x)为假(0)时，程序将进入死循环，便于调试定位问题
+ * 禁用断言时：断言宏被定义为空操作，不会影响程序运行性能
+ *
+ * 使用建议：
+ * - 在调试和开发阶段启用断言，便于快速定位问题
+ * - 在正式发布产品时可禁用断言以提升性能
+ * - 断言条件应为在正常情况下不应该发生的情况
+ */
+#define EK_ASSERT_ENABLE (1)
+
+#if (EK_ASSERT_ENABLE == 1)
+
+#define EK_ASSERT(x) while ((x) == 0);
+
+#else
+
+#define EK_ASSERT(x) ((void)x)
+
+#endif /* EK_ASSERT_ENABLE == 1 */
 
 /* ================================ 内存管理配置 ================================ */
 /**
@@ -248,7 +276,11 @@ extern bool EK_bMemPool_Free(void *ptr);
 #define LWPRINTF_CFG_ENABLE_SHORTNAMES       (1)
 #define LWPRINTF_CFG_ENABLE_STD_NAMES        (1)
 
-#include "lwprintf/Inc/lwprintf.h"
+#include "./ThirdParty/lwprintf/Inc/lwprintf.h"
+
+#else
+
+#include <stdio.h>
 
 #endif /* EK_LWPRINTF_ENABLE */
 
