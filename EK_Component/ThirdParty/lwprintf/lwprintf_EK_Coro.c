@@ -9,7 +9,7 @@
 
 /* ========================= 头文件包含区 ========================= */
 #include "Inc/lwprintf_sys.h"
-#include "../EK_Corotinue/Inc/EK_CoroSemaphore.h"
+#include "../../EK_Corotinue/Inc/EK_CoroSemaphore.h"
 
 /* ========================= 条件编译 ========================= */
 #if (EK_LWPRINTF_ENABLE == 1) && LWPRINTF_CFG_OS && !__DOXYGEN__

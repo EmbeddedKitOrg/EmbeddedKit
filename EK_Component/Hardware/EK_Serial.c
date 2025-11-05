@@ -15,7 +15,6 @@
 /* BSP 模块条件编译 */
 #include "./Inc/EK_Serial.h"
 #if (EK_BSP_ENABLE == 1)
-#include "../lwprintf/Inc/lwprintf.h"
 /* ========================= 宏定义区 ========================= */
 /**
  * @brief 通讯相关 发送缓冲区大小
