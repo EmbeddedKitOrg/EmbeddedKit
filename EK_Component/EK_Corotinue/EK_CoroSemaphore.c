@@ -448,6 +448,10 @@ EK_Result_t EK_rSemTake(EK_CoroSemHanlder_t sem, uint32_t timeout)
         // 超时并且没有对应的信号量 退出
         if (current_tcb->TCB_EventResult == EK_CORO_EVENT_TIMEOUT && sem->Sem_Count == 0)
         {
+            // 从等待链表中移除
+            EK_ENTER_CRITICAL();
+            EK_rKernelRemove(&sem->Sem_WaitList, &current_tcb->TCB_EventNode);
+            EK_EXIT_CRITICAL();
             return EK_TIMEOUT;
         }
 
