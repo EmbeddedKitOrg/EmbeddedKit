@@ -539,6 +539,10 @@ EK_Result_t EK_rMsgSend(EK_CoroMsgHanler_t msg, void *tx_buffer, uint32_t timeou
         // 超时了 如果现在还是没有空间 就直接退出 有空间就入队
         if (current_tcb->TCB_EventResult == EK_CORO_EVENT_TIMEOUT && EK_bMsgIsFull(msg) == true)
         {
+            // 从等待链表中移除
+            EK_ENTER_CRITICAL();
+            EK_rKernelRemove(&msg->Msg_SendWaitList, &current_tcb->TCB_EventNode);
+            EK_EXIT_CRITICAL();
             return EK_TIMEOUT;
         }
         // 否则就重试
@@ -618,6 +622,10 @@ EK_Result_t EK_rMsgReceive(EK_CoroMsgHanler_t msg, void *rx_buffer, uint32_t tim
         // 超时了 如果现在还是为空 就直接退出 有空间就入队
         if (current_tcb->TCB_EventResult == EK_CORO_EVENT_TIMEOUT && EK_bMsgIsEmpty(msg) == true)
         {
+            // 从等待链表中移除
+            EK_ENTER_CRITICAL();
+            EK_rKernelRemove(&msg->Msg_RecvWaitList, &current_tcb->TCB_EventNode);
+            EK_EXIT_CRITICAL();
             return EK_TIMEOUT;
         }
         // 否则就重试
