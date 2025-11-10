@@ -224,14 +224,6 @@ extern bool EK_bMemPool_Free(void *ptr);
 #define LWPRINTF_CFG_OS_MUTEX_HANDLE   EK_CoroSem_t *
 #define LWPRINTF_CFG_OS_MANUAL_PROTECT (0)
 
-#if (EK_CORO_ENABLE != 1)
-#error "lwprintf OS mode requires coroutine support to be enabled"
-#endif
-
-#if (EK_CORO_SEMAPHORE_ENABLE != 1)
-#warning "lwprintf OS mode recommends enabling coroutine semaphore support for complete thread safety functionality"
-#endif
-
 #endif /* LWPRINTF_CFG_OS */
 
 /**

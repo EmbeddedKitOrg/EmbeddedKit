@@ -35,7 +35,7 @@
 #if (EK_LWPRINTF_ENABLE == 1)
 
 #if LWPRINTF_CFG_OS
-#include "system/lwprintf_sys.h"
+#include "./Inc/lwprintf_sys.h"
 #endif /* LWPRINTF_CFG_OS */
 
 /* ========================= 静态检查 ========================= */

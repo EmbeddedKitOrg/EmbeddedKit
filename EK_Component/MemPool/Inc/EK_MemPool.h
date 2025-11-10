@@ -11,6 +11,22 @@
 #define __EK_MEMPOOL_H
 
 #include "../../EK_Config.h"
+/* ========================= 宏 ========================= */
+/**
+ * @brief 内存池总大小 (字节)
+ * @note 可根据系统资源调整，建议至少1KB
+ */
+#ifndef MEMPOOL_SIZE
+#define MEMPOOL_SIZE (4096)
+#endif /* MEMPOOL_SIZE */
+
+/**
+ * @brief 内存对齐大小 (字节)
+ * @note 必须是2的幂次，通常为4或8字节
+ */
+#ifndef MEMPOOL_ALIGNMENT
+#define MEMPOOL_ALIGNMENT (8)
+#endif /* MEMPOOL_ALIGNMENT */
 
 #ifdef __cplusplus
 extern "C"

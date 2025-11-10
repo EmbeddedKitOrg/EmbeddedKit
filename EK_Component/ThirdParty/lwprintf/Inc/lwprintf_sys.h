@@ -37,9 +37,7 @@ extern "C"
 {
 #endif /* __cplusplus */
 
-#if EK_CORO_ENABLE == 1 && EK_CORO_MUTEX_ENABLE == 1
-
-#if LWPRINTF_CFG_OS || __DOXYGEN__
+#if LWPRINTF_CFG_OS || __DOXYGEN__ || (EK_CORO_ENABLE == 1 && EK_CORO_MUTEX_ENABLE == 1)
 
 /**
  * @defgroup        LWPRINTF_SYS 系统函数
@@ -79,12 +77,10 @@ uint8_t lwprintf_sys_mutex_release(LWPRINTF_CFG_OS_MUTEX_HANDLE *m);
  * @}
  */
 
-#endif /* LWPRINTF_CFG_OS || __DOXYGEN__ */
+#endif /*  LWPRINTF_CFG_OS || __DOXYGEN__ || (EK_CORO_ENABLE == 1 && EK_CORO_MUTEX_ENABLE == 1) */
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-
-#endif /* EK_CORO_ENABLE == 1 && EK_CORO_MUTEX_ENABLE == 1 */
 
 #endif /* LWPRINTF_SYS_HDR_H */

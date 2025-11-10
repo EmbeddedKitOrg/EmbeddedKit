@@ -20,6 +20,8 @@
 
 #include "./Inc/Kernel.h"
 
+#if (EK_CORO_ENABLE == 1)
+
 /**
  * @brief 协程内存分配函数
  *
@@ -80,3 +82,5 @@ void EK_vFree(void *ptr)
     EK_FREE(ptr);
     EK_EXIT_CRITICAL();
 }
+
+#endif /* #if (EK_CORO_ENABLE == 1)  */

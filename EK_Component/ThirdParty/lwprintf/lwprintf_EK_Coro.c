@@ -9,6 +9,9 @@
 
 /* ========================= 头文件包含区 ========================= */
 #include "Inc/lwprintf_sys.h"
+
+#if (EK_CORO_ENABLE == 1)
+
 #include "../../EK_Corotinue/Inc/EK_CoroSemaphore.h"
 
 /* ========================= 条件编译 ========================= */
@@ -142,3 +145,5 @@ static uint8_t u8_lwprintf_ek_mutex_init(void)
 }
 
 #endif /* (EK_LWPRINTF_ENABLE == 1) && LWPRINTF_CFG_OS && !__DOXYGEN__ */
+
+#endif /* #if (EK_CORO_ENABLE == 1) */
