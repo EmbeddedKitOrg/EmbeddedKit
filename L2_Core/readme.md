@@ -53,8 +53,8 @@ L2_Core
 
 ```c
 // inc/ek_dlist.h
-#ifndef EK_DLIST_H
-#define EK_DLIST_H
+#ifndef __README_H
+#define __README_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -81,7 +81,7 @@ void ek_dlist_push_front(ek_dlist_t *list, ek_dlist_node_t *node);
 ek_dlist_node_t* ek_dlist_pop_front(ek_dlist_t *list);
 bool ek_dlist_is_empty(const ek_dlist_t *list);
 
-#endif
+#endif/* __README_H */
 ```
 
 ### 步骤 2：实现接口 (src/ek_xxx.c)

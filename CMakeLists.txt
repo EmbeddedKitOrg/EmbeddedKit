@@ -4,7 +4,14 @@ cmake_minimum_required(VERSION 3.20)
 #  项目基本配置
 # ==============================================================================
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-project(EmbeddedProject LANGUAGES C CXX ASM)
+
+# 设置工程名
+set(CMAKE_PROJECT_NAME EK_DEMO)
+
+project(${CMAKE_PROJECT_NAME})
+
+# 允许使用的语言
+enable_language(C CXX ASM)
 
 # 默认生成 compile_commands.json
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "Export compile commands" FORCE)
@@ -69,14 +76,13 @@ add_subdirectory(L5_App)
 # 生成最终固件 (Executable)
 # ==============================================================================
 # 虽然入口在 L0，业务在 L5，但最终的 ELF 需要链接所有层
-set(TARGET_NAME "demo_app")
 
-add_executable(${TARGET_NAME}.elf "")
+add_executable(${CMAKE_PROJECT_NAME})
 
 # 链接所有层级生成的库
 # 注意顺序：通常 顶层 依赖 底层，但链接器有时需要注意符号解析顺序。
 # 如果使用 .a 静态库，建议将依赖方放在前面 (L5 依赖 L4...)
-target_link_libraries(${TARGET_NAME}.elf PRIVATE
+target_link_libraries(${CMAKE_PROJECT_NAME}.elf PRIVATE
     l5_app          
     l4_components
     l3_middlewares
@@ -91,9 +97,9 @@ target_link_libraries(${TARGET_NAME}.elf PRIVATE
 # ==============================================================================
 # Post-Build: 生成 Hex/Bin/Size
 # ==============================================================================
-add_custom_command(TARGET ${TARGET_NAME}.elf POST_BUILD
-    COMMAND ${CMAKE_OBJCOPY} -O ihex ${TARGET_NAME}.elf ${TARGET_NAME}.hex
-    COMMAND ${CMAKE_OBJCOPY} -O binary ${TARGET_NAME}.elf ${TARGET_NAME}.bin
-    COMMAND ${CMAKE_SIZE} ${TARGET_NAME}.elf
+add_custom_command(TARGET ${CMAKE_PROJECT_NAME}.elf POST_BUILD
+    COMMAND ${CMAKE_OBJCOPY} -O ihex ${CMAKE_PROJECT_NAME}.elf ${CMAKE_PROJECT_NAME}.hex
+    COMMAND ${CMAKE_OBJCOPY} -O binary ${CMAKE_PROJECT_NAME}.elf ${CMAKE_PROJECT_NAME}.bin
+    COMMAND ${CMAKE_SIZE} ${CMAKE_PROJECT_NAME}.elf
     COMMENT "Generating BIN/HEX and printing size"
 )
