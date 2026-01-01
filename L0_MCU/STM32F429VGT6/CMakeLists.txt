@@ -15,7 +15,8 @@ target_link_libraries(l0_mcu PUBLIC
 
 # 链接全局配置 (确保 CubeMX 代码也能吃到你的全局编译参数)
 #    注意：有时候 CubeMX 自带的配置和 Global 冲突，如果报错可以去掉这一行
-target_link_libraries(stm32cubemx PRIVATE
+#    注意：stm32cubemx 是 INTERFACE 库，只能使用 INTERFACE 关键字
+target_link_libraries(stm32cubemx INTERFACE
     global_macros
     global_options
 )

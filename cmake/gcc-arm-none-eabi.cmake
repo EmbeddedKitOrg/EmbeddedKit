@@ -27,6 +27,20 @@ set(CMAKE_EXECUTABLE_SUFFIX_CXX     ".elf")
 set(CMAKE_TRY_COMPILE_TARGET_TYPE   STATIC_LIBRARY)
 
 # =============================================================================
+# 链接脚本配置
+# =============================================================================
+#  定义变量 LINKER_SCRIPT
+#    CACHE FILEPATH: 表示这是一个缓存变量，类型为文件路径，可以在命令行被 -D 覆盖
+#    默认值: 设置为你原本的路径
+set(LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/L0_MCU/STM32F429VGT6/STM32F429XX_FLASH.ld" 
+    CACHE FILEPATH "The path to the linker script")
+
+#  检查文件是否存在 (可选，但在构建初期报错更友好)
+if(NOT EXISTS "${LINKER_SCRIPT}")
+    message(WARNING "Linker script not found at: ${LINKER_SCRIPT}")
+endif()
+
+# =============================================================================
 # 芯片架构参数 (针对 STM32F429)
 # =============================================================================
 # [需修改] 核心参数：STM32F429 是 M4 核，带硬件浮点
@@ -57,9 +71,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -fno-rtti -fno-exceptions -fno-threadsafe-
 # =============================================================================
 set(CMAKE_EXE_LINKER_FLAGS "${TARGET_FLAGS}")
 
-# [需修改] 指定链接脚本 (.ld) 的路径
-# 注意：${CMAKE_SOURCE_DIR} 代表项目根目录，请确保文件名和路径正确
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -T \"${CMAKE_SOURCE_DIR}/STM32F429IGTx_FLASH.ld\"")
+# 指定链接脚本 (.ld) 的路径
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -T \"${LINKER_SCRIPT}\"")
 
 # 使用 newlib-nano (嵌入式专用微型库)
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --specs=nano.specs")

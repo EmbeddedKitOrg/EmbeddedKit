@@ -1,5 +1,5 @@
 /* ========================= Includes ========================= */
-#include "../inc/ser_log.h"
+#include "../inc/ek_log.h"
 
 /* ========================= Internal Macros ========================= */
 #define EK_LOG_COLOR_NONE   "\033[0;0m"
@@ -38,7 +38,10 @@ static const char *ek_log_type_table[EK_LOG_MAX] = {
 static char ek_log_buffer[EK_LOG_MAX_BUFFER];
 
 /* ========================= Internal Functions ========================= */
-
+uint32_t common_get_tick_ms()
+{
+    return 0;
+}
 /* ========================= Public Functions ========================= */
 /**
  * @brief 日志打印
@@ -69,7 +72,7 @@ void _ek_log_printf(const char *tag, uint32_t line, uint8_t type, const char *fm
 
     va_list args;
     va_start(args, fmt);
-    uint32_t length = vsnprintf(ek_log_buffer, EK_LOG_MAX_BUFFER - 1, fmt, args);
+    uint32_t length = lwvsnprintf(ek_log_buffer, EK_LOG_MAX_BUFFER - 1, fmt, args);
     va_end(args);
     ek_log_buffer[length] = '\0';
 

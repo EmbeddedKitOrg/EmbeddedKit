@@ -9,7 +9,7 @@ target_include_directories(l2_core PUBLIC
 )
 
 target_link_libraries(l2_core PUBLIC 
-    l1_hal          # 依赖 HAL
+   # l1_hal          # 依赖 HAL
     global_macros 
     global_options
 )
