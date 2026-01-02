@@ -40,8 +40,8 @@ target_compile_definitions(global_macros INTERFACE
 add_library(global_options INTERFACE)
 target_compile_options(global_options INTERFACE
     # 通用警告
-    # -Wall
-    # -Wextra
+    -Wall
+    -Wextra
     
     # C 标准与特性 (如果编译器支持)
     $<$<COMPILE_LANGUAGE:C>:-std=c11>

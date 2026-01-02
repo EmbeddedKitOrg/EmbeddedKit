@@ -52,7 +52,7 @@ uint32_t common_get_tick_ms()
  * @param fmt 格式化
  * @param ... 
  */
-void _ek_log_printf(const char *tag, uint32_t line, uint8_t type, const char *fmt, ...)
+void _ek_log_printf(const char *tag, uint32_t line, ek_log_type_t type, const char *fmt, ...)
 {
     if (EK_LOG_CHECK_LOCK() == 1) return;
 

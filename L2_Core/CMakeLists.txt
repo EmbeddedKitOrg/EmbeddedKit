@@ -1,4 +1,4 @@
-file(GLOB L2_SRCS "src/*.c")
+file(GLOB_RECURSE L2_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/*.c")
 
 add_library(l2_core STATIC ${L2_SRCS})
 

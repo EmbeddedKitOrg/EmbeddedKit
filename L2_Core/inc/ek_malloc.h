@@ -2,6 +2,7 @@
 #define EK_MALLOC_H
 
 #include "ek_def.h"
+// 使用 tlsf 来作为 malloc free
 #include "../third_party/tlsf/tlsf.h"
 
 #define EK_HEAP_SIZE (10 * 1024)
