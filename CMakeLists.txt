@@ -80,13 +80,13 @@ add_subdirectory(L0_MCU)
 add_subdirectory(L2_Core)
 # add_subdirectory(L3_Middlewares)
 # add_subdirectory(L4_Components)
-# add_subdirectory(L5_App)
+add_subdirectory(L5_App)
 
 # 链接所有层级生成的库
 # 注意顺序：通常 顶层 依赖 底层，但链接器有时需要注意符号解析顺序。
 # 如果使用 .a 静态库，建议将依赖方放在前面 (L5 依赖 L4...)
 target_link_libraries(${CMAKE_PROJECT_NAME}
-    # l5_app
+    l5_app
     # l4_components
     # l3_middlewares
     l2_core

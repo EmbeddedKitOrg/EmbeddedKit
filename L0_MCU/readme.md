@@ -11,6 +11,8 @@ L0_MCU 是本项目的最底层，专门用于存放各 MCU 厂商提供的官�
 ```text
 L0_MCU
 ├── CMakeLists.txt          # 构建脚本
+├── stub
+│   └── ek_app_stub.c      # 弱定义的函数入口 
 ├── STM32F429VGT6          # 具体的 MCU 型号目录
 │   ├── Inc                # 厂商头文件
 │   │   ├── stm32f4xx_hal_conf.h
@@ -81,6 +83,8 @@ GD32F450VGT6/
 // Src/main.c
 #include "main.h"
 #include "L5_App/app.h"
+
+extern void ek_main(void); // 在开头声明可以避免 LSP 提示找不到 `ek_main`
 
 int main(void)
 {
