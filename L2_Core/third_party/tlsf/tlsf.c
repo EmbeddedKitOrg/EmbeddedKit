@@ -226,7 +226,7 @@ enum tlsf_public
 	** values require more memory in the control structure. Values of
 	** 4 or 5 are typical.
 	*/
-    SL_INDEX_COUNT_LOG2 = 5,
+    SL_INDEX_COUNT_LOG2 = 3, // 修改这个参数来减小开销 默认是5
 };
 
 /* Private constants: do not modify. */
@@ -259,7 +259,7 @@ enum tlsf_private
 	*/
     FL_INDEX_MAX = 32,
 #else
-    FL_INDEX_MAX = 30,
+    FL_INDEX_MAX = 24, // 修改这里让32位的设备的开销更小 默认是30
 #endif
     SL_INDEX_COUNT = (1 << SL_INDEX_COUNT_LOG2),
     FL_INDEX_SHIFT = (SL_INDEX_COUNT_LOG2 + ALIGN_SIZE_LOG2),
