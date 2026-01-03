@@ -80,9 +80,10 @@ set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -fno-rtti -fno-exceptions -fno-threadsafe-
 set(LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/L0_MCU/STM32F429VGT6/STM32F429XX_FLASH.ld" 
     CACHE FILEPATH "The path to the linker script")
 
-#  检查文件是否存在 (可选，但在构建初期报错更友好)
-if(NOT EXISTS "${LINKER_SCRIPT}")
-    message(WARNING "Linker script not found at: ${LINKER_SCRIPT}")
+if(NOT CMAKE_SOURCE_DIR MATCHES "CMakeScratch")
+    if(NOT EXISTS "${LINKER_SCRIPT}")
+        message(WARNING "Linker script not found at: ${LINKER_SCRIPT}")
+    endif()
 endif()
 
 
