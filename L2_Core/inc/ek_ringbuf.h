@@ -24,6 +24,10 @@ struct ek_ringbuf_t
     size_t item_size;   /**< 单个元素大小（字节） */
 };
 
+#ifdef __cplusplus
+extern "C"{
+#endif /* __cplusplus */
+
 /**
  * @brief 判断环形缓冲区是否已满
  * @param rb 环形缓冲区指针
@@ -51,6 +55,14 @@ bool ek_ringbuf_empty(const ek_ringbuf_t *rb);
 ek_ringbuf_t *ek_ringbuf_create(size_t item_size, uint32_t item_mount);
 
 /**
+ * @brief 销毁环形缓冲区
+ * @param rb 要销毁的环形缓冲区
+ *
+ * @note 删除的后会将 rb 指向 NULL
+ */
+void ek_ringbuf_destroy(ek_ringbuf_t *rb);
+
+/**
  * @brief 向环形缓冲区写入一个元素
  * @param rb 环形缓冲区指针
  * @param item 要写入的元素指针
@@ -76,5 +88,9 @@ bool ek_ringbuf_read(ek_ringbuf_t *rb, void *item);
  * @return false 查看失败（缓冲区为空）
  */
 bool ek_ringbuf_peek(const ek_ringbuf_t *rb, void *item);
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
 
 #endif /* EK_RINGBUF_H */

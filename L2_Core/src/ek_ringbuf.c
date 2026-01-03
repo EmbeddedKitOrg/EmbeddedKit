@@ -1,14 +1,16 @@
 #include "../inc/ek_ringbuf.h"
-#include "../inc/ek_malloc.h"
+#include "../inc/ek_mem.h"
 #include "../inc/ek_assert.h"
 
 bool ek_ringbuf_full(const ek_ringbuf_t *rb)
 {
+    EK_ASSERT(rb != NULL);
     return (rb->write_idx + 1) % rb->capacity == rb->read_idx;
 }
 
 bool ek_ringbuf_empty(const ek_ringbuf_t *rb)
 {
+    EK_ASSERT(rb != NULL);
     return rb->read_idx == rb->write_idx;
 }
 
@@ -35,6 +37,17 @@ ek_ringbuf_t *ek_ringbuf_create(size_t item_size, uint32_t item_mount)
     rb->write_idx = 0;
 
     return rb;
+}
+
+void ek_ringbuf_destroy(ek_ringbuf_t *rb)
+{
+    EK_ASSERT(rb != NULL);
+    
+    rb->read_idx = 0;
+    rb->write_idx = 0;
+    rb->item_size = 0;
+    ek_free(rb->buffer);
+    ek_free(rb);
 }
 
 bool ek_ringbuf_write(ek_ringbuf_t *rb, const void *item)

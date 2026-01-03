@@ -1,5 +1,5 @@
 #include "ek_def.h"
-#include "ek_malloc.h"
+#include "ek_mem.h"
 
 void ek_main(void)
 {

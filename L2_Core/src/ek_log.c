@@ -17,7 +17,7 @@ static uint8_t _lock = 0;
 
 #if (EK_LOG_COLOR_ENABLE == 1)
 
-static const char *const ek_log_color_table[EK_LOG_MAX] = {
+static const char *const ek_log_color_table[EK_LOG_TYPE_MAX] = {
     EK_LOG_COLOR_NONE, // EK_LOG_NONE
     EK_LOG_COLOR_GREEN, // EK_LOG_DEBUG
     EK_LOG_COLOR_BLUE, // EK_LOG_INFO
@@ -27,7 +27,7 @@ static const char *const ek_log_color_table[EK_LOG_MAX] = {
 
 #endif /* (EK_LOG_COLOR_ENABLE == 1) */
 
-static const char *ek_log_type_table[EK_LOG_MAX] = {
+static const char *ek_log_type_table[EK_LOG_TYPE_MAX] = {
     "None", // EK_LOG_NONE
     "Debug", // EK_LOG_DEBUG
     "Info", // EK_LOG_INFO
@@ -40,6 +40,7 @@ static char ek_log_buffer[EK_LOG_MAX_BUFFER];
 /* ========================= Internal Functions ========================= */
 uint32_t common_get_tick_ms()
 {
+    // TODO 将这个函数作为一个弱函数让用户实现
     return 0;
 }
 /* ========================= Public Functions ========================= */
