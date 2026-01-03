@@ -65,14 +65,14 @@ bool ek_stack_empty(ek_stack_t *sk);
  * 分配内存并初始化一个栈实例。
  *
  * @param item_size 单个元素的大小（字节）
- * @param item_mount 栈的容量（最多可存储的元素数量）
+ * @param item_amount 栈的容量（最多可存储的元素数量）
  * @return 成功返回栈指针，失败返回 NULL
  *
- * @warning item_size 和 item_mount 不能为 0，否则触发断言
+ * @warning item_size 和 item_amount 不能为 0，否则触发断言
  * @warning 内存分配失败时返回 NULL，调用者需检查返回值
  * @note 失败时会自动释放已分配的内存，不会造成内存泄漏
  */
-ek_stack_t *ek_stack_create(size_t item_size, uint32_t item_mount);
+ek_stack_t *ek_stack_create(size_t item_size, uint32_t item_amount);
 
 /**
  * @brief 销毁栈并释放内存

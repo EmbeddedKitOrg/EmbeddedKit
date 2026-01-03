@@ -17,11 +17,12 @@ typedef struct ek_ringbuf_t ek_ringbuf_t;
 
 struct ek_ringbuf_t
 {
-    uint8_t *buffer;    /**< 缓冲区指针 */
-    uint32_t write_idx; /**< 写入位置索引 */
-    uint32_t read_idx;  /**< 读取位置索引 */
-    size_t capacity;    /**< 缓冲区容量（元素个数） */
-    size_t item_size;   /**< 单个元素大小（字节） */
+    uint8_t *buffer;     /**< 缓冲区指针 */
+    uint32_t write_idx;  /**< 写入位置索引 */
+    uint32_t read_idx;   /**< 读取位置索引 */
+    uint32_t item_amount;/**< 当前元素个数 */
+    size_t capacity;     /**< 缓冲区容量（元素个数） */
+    size_t item_size;    /**< 单个元素大小（字节） */
 };
 
 #ifdef __cplusplus
@@ -47,12 +48,10 @@ bool ek_ringbuf_empty(const ek_ringbuf_t *rb);
 /**
  * @brief 创建环形缓冲区
  * @param item_size 单个元素大小（字节）
- * @param item_mount 缓冲区容量（元素个数）
+ * @param item_amount 缓冲区容量（元素个数）
  * @return 成功返回缓冲区指针，失败返回 NULL
- *
- * @note 实际可用容量为 item_mount - 1（用于区分满和空）
  */
-ek_ringbuf_t *ek_ringbuf_create(size_t item_size, uint32_t item_mount);
+ek_ringbuf_t *ek_ringbuf_create(size_t item_size, uint32_t item_amount);
 
 /**
  * @brief 销毁环形缓冲区

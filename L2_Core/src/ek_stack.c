@@ -14,9 +14,9 @@ bool ek_stack_empty(ek_stack_t *sk)
     return sk->sp == 0;
 }
 
-ek_stack_t *ek_stack_create(size_t item_size, uint32_t item_mount)
+ek_stack_t *ek_stack_create(size_t item_size, uint32_t item_amount)
 {
-    EK_ASSERT(item_mount != 0);
+    EK_ASSERT(item_amount != 0);
     EK_ASSERT(item_size != 0);
 
     ek_stack_t *sk = (ek_stack_t *)ek_malloc(sizeof(ek_stack_t));
@@ -24,7 +24,7 @@ ek_stack_t *ek_stack_create(size_t item_size, uint32_t item_mount)
     {
         return NULL;
     }
-    sk->buffer = ek_malloc(item_mount * item_size);
+    sk->buffer = ek_malloc(item_amount * item_size);
     if (sk->buffer == NULL)
     {
         ek_free(sk);
@@ -32,7 +32,7 @@ ek_stack_t *ek_stack_create(size_t item_size, uint32_t item_mount)
     }
 
     sk->sp = 0;
-    sk->capacity = item_mount;
+    sk->capacity = item_amount;
     sk->item_size = item_size;
 
     return sk;
