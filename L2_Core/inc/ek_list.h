@@ -39,7 +39,7 @@ struct ek_list_node_t
  * struct user_t *user = ek_list_container(node, struct user_t, list);
  */
 #define ek_list_container(ptr, type, member) \
-    ((type *)((char *)(ptr) - offsetof(type, name)))
+    ((type *)((char *)(ptr) - offsetof(type, member)))
 
 /**
  * @brief 正向遍历链表
