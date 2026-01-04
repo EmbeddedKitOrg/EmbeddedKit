@@ -77,7 +77,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -fno-rtti -fno-exceptions -fno-threadsafe-
 #  定义变量 LINKER_SCRIPT
 #    CACHE FILEPATH: 表示这是一个缓存变量，类型为文件路径，可以在命令行被 -D 覆盖
 #    默认值: 设置为你原本的路径
-set(LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/L0_MCU/STM32F429VGT6/STM32F429XX_FLASH.ld" 
+set(LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/L1_MCU/STM32F429VGT6/STM32F429XX_FLASH.ld"
     CACHE FILEPATH "The path to the linker script")
 
 if(NOT CMAKE_SOURCE_DIR MATCHES "CMakeScratch")
@@ -106,7 +106,7 @@ elseif(STARM_TOOLCHAIN_CONFIG STREQUAL "STARM_PICOLIBC")
 endif()
 
 # [需修改] 指定链接脚本 (.ld)
-# 请确保该文件路径正确，通常在 L0_MCU 目录下
+# 请确保该文件路径正确，通常在 L1_MCU 目录下
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -T \"${LINKER_SCRIPT}\"")
 
 # 生成 Map 文件、裁剪未使用的段、打印内存占用

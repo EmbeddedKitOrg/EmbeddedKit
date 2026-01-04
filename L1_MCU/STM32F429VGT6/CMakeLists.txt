@@ -2,14 +2,14 @@
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/cmake/stm32cubemx)
 
 # 添加源码 (Core/Src + Weak Main)
-target_sources(l0_mcu PRIVATE
+target_sources(l1_mcu PRIVATE
     ${USER_SRCS}
     ${GEN_WEAK_MAIN_SRC}
 )
 
 #  链接 CubeMX 库
-#    这里使用 PUBLIC，这样 l0_mcu 就会自动继承 HAL 库的所有头文件路径和定义
-target_link_libraries(l0_mcu PUBLIC
+#    这里使用 PUBLIC，这样 l1_mcu 就会自动继承 HAL 库的所有头文件路径和定义
+target_link_libraries(l1_mcu PUBLIC
     stm32cubemx
 )
 
