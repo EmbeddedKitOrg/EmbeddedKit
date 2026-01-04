@@ -77,7 +77,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -fno-rtti -fno-exceptions -fno-threadsafe-
 #  定义变量 LINKER_SCRIPT
 #    CACHE FILEPATH: 表示这是一个缓存变量，类型为文件路径，可以在命令行被 -D 覆盖
 #    默认值: 设置为你原本的路径
-set(LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/L1_MCU/STM32F429VGT6/STM32F429XX_FLASH.ld"
+set(LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/L1_MCU/STM32F429ZIT6/STM32F429XX_FLASH.ld"
     CACHE FILEPATH "The path to the linker script")
 
 if(NOT CMAKE_SOURCE_DIR MATCHES "CMakeScratch")

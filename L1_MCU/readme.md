@@ -1,19 +1,19 @@
-# L0_MCU (MCU厂商库层)
+# L1_MCU (MCU厂商库层)
 
 ## 1. 简介
-L0_MCU 是本项目的最底层，专门用于存放各 MCU 厂商提供的官方库和启动代码。
+L1_MCU 是本项目的最底层，专门用于存放各 MCU 厂商提供的官方库和启动代码。
 
-向上：为 L1_HAL 层提供底层的硬件操作接口（如寄存器定义、厂商 HAL/LL 库）。
+向上：为 L2_Core/hal 层提供底层的硬件操作接口（如寄存器定义、厂商 HAL/LL 库）。
 
 本层是唯一与具体芯片型号强相关的层。更换 MCU 时，只需替换本层对应的内容。
 
 ## 2. 目录结构
 ```text
-L0_MCU
+L1_MCU
 ├── CMakeLists.txt          # 构建脚本
 ├── stub
-│   └── ek_app_stub.c      # 弱定义的函数入口 
-├── STM32F429VGT6          # 具体的 MCU 型号目录
+│   └── ek_app_stub.c      # 弱定义的函数入口
+├── STM32F429ZIT6          # 具体的 MCU 型号目录
 │   ├── Inc                # 厂商头文件
 │   │   ├── stm32f4xx_hal_conf.h
 │   │   ├── stm32f4xx_it.h
@@ -55,10 +55,10 @@ main.c 文件负责系统初始化，然后调用 L5_App 层的 `ek_main()` 函�
 ## 4. 开发指南
 
 ### 步骤 1：创建新的 MCU 目录
-当需要支持新的 MCU 型号时，在 L0_MCU 下创建对应的文件夹：
+当需要支持新的 MCU 型号时，在 L1_MCU 下创建对应的文件夹：
 
 ```text
-L0_MCU/
+L1_MCU/
 └── GD32F450VGT6/          # 新增 MCU
     ├── Inc/
     ├── Src/
@@ -101,7 +101,7 @@ int main(void)
 ```
 
 ### 步骤 4：更新 CMakeLists.txt
-在 L0_MCU/CMakeLists.txt 中添加新的 MCU 子目录：
+在 L1_MCU/CMakeLists.txt 中添加新的 MCU 子目录：
 
 ```cmake
 # 根据项目配置选择当前使用的 MCU
@@ -118,9 +118,9 @@ endif()
 
 A: 不同 MCU 厂商库的文件名可能相同（都是 stm32xxxx_hal.c），但内容不同。如果混在一起，会导致链接错误和版本混乱。每个 MCU 独立目录可以完全避免这个问题。
 
-**Q: main.c 为什么放在 L0 而不是 L5？**
+**Q: main.c 为什么放在 L1 而不是 L5？**
 
-A: main.c 包含 MCU 特定的初始化代码（如 HAL_Init、SystemClock_Config），这些是与具体芯片相关的。L5 的 ek_main 应该是纯业务逻辑，与硬件无关。L0 的 main.c 充当了"胶水"代码的角色。
+A: main.c 包含 MCU 特定的初始化代码（如 HAL_Init、SystemClock_Config），这些是与具体芯片相关的。L5 的 ek_main 应该是纯业务逻辑，与硬件无关。L1 的 main.c 充当了"胶水"代码的角色。
 
 **Q: 如何在同一个工程中支持多个 MCU？**
 

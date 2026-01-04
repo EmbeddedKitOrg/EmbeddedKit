@@ -48,10 +48,13 @@ elseif (STARM_TOOLCHAIN_CONFIG STREQUAL "STARM_NEWLIB")
 endif()
 
 # =============================================================================
-# 芯片架构参数 (针对 STM32U575 - Cortex-M33)
+# 芯片架构参数 (针对 STM32F429)
 # =============================================================================
-# [需修改] 这里配置的是 Cortex-M33
-set(TARGET_FLAGS "-mcpu=cortex-m33 -mfpu=fpv5-sp-d16 -mfloat-abi=hard ${TOOLCHAIN_MULTILIBS}")
+# [需修改] 核心参数：STM32F429 是 M4 核，带硬件浮点
+# -mcpu=cortex-m4       : F4 系列核心
+# -mfpu=fpv4-sp-d16     : F4 的浮点单元版本
+# -mfloat-abi=hard      : 开启硬件浮点 (若用 FreeRTOS 需确保配置匹配)
+set(TARGET_FLAGS "-mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard")
 
 # =============================================================================
 # 编译器选项 (Compiler Flags)
@@ -79,7 +82,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -fno-rtti -fno-exceptions -fno-threadsafe-
 #  定义变量 LINKER_SCRIPT
 #    CACHE FILEPATH: 表示这是一个缓存变量，类型为文件路径，可以在命令行被 -D 覆盖
 #    默认值: 设置为你原本的路径
-set(LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/L1_MCU/STM32F429VGT6/STM32F429XX_FLASH.ld"
+set(LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/L1_MCU/STM32F429ZIT6/STM32F429XX_FLASH.ld"
     CACHE FILEPATH "The path to the linker script")
 
 if(NOT CMAKE_SOURCE_DIR MATCHES "CMakeScratch")
