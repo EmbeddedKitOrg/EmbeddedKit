@@ -14,7 +14,7 @@ target_include_directories(l1_mcu PUBLIC inc)
 # 加载具体 MCU 子模块 (关键步骤)
 # ==============================================================================
 # 设置默认 MCU 型号，允许命令行 -DMCU_MODEL=xxx 覆盖
-set(MCU_MODEL "STM32F429ZIT6" CACHE STRING "Select MCU Model")
+set(MCU_MODEL "STM32F429ZIT6_GCC" CACHE STRING "Select MCU Model")
 
 message(STATUS "L1 Configuration: Integrating ${MCU_MODEL} into l1_mcu")
 
