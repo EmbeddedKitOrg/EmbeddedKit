@@ -24,6 +24,15 @@ extern "C"
 {
 #endif
 
+/**
+ * @brief 日志打印
+ * 
+ * @param tag 文件标签
+ * @param line 行号
+ * @param type 日志类型
+ * @param fmt 格式化
+ * @param ... 
+ */
 void _ek_log_printf(const char *tag, uint32_t line, ek_log_type_t type, const char *fmt, ...);
 
 #if (EK_LOG_DEBUG_ENABLE == 1)

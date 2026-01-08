@@ -1,7 +1,5 @@
-/* ========================= Includes ========================= */
 #include "../inc/ek_log.h"
 
-/* ========================= Internal Macros ========================= */
 #define EK_LOG_COLOR_NONE   "\033[0;0m"
 #define EK_LOG_COLOR_YELLOW "\033[33m"
 #define EK_LOG_COLOR_RED    "\033[91m"
@@ -12,7 +10,6 @@
 #define EK_LOG_LOCK()       (_lock = 1)
 #define EK_LOG_UNLOCK()     (_lock = 0)
 
-/* ========================= Global Variables ========================= */
 static uint8_t _lock = 0;
 
 #if (EK_LOG_COLOR_ENABLE == 1)
@@ -37,22 +34,12 @@ static const char *ek_log_type_table[EK_LOG_TYPE_MAX] = {
 
 static char ek_log_buffer[EK_LOG_MAX_BUFFER];
 
-/* ========================= Internal Functions ========================= */
 uint32_t common_get_tick_ms()
 {
     // TODO 将这个函数作为一个弱函数让用户实现
     return 0;
 }
-/* ========================= Public Functions ========================= */
-/**
- * @brief 日志打印
- * 
- * @param tag 文件标签
- * @param line 行号
- * @param type 日志类型
- * @param fmt 格式化
- * @param ... 
- */
+
 void _ek_log_printf(const char *tag, uint32_t line, ek_log_type_t type, const char *fmt, ...)
 {
     if (EK_LOG_CHECK_LOCK() == 1) return;

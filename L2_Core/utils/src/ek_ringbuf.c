@@ -57,8 +57,7 @@ bool ek_ringbuf_write(ek_ringbuf_t *rb, const void *item)
     EK_ASSERT(item != NULL);
     EK_ASSERT(rb != NULL);
 
-    if (ek_ringbuf_full(rb) == true)
-        return false;
+    if (ek_ringbuf_full(rb) == true) return false;
 
     uint8_t *target = rb->buffer + (rb->write_idx * rb->item_size);
     memcpy(target, item, rb->item_size);
