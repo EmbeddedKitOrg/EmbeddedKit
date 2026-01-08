@@ -81,11 +81,22 @@ ek_stack_t *ek_stack_create(size_t item_size, uint32_t item_amount);
  *
  * @param sk 栈指针
  *
+ * @note ek_free 会自动将 sk->buffer 置为 NULL，但 sk 本身需要调用者手动置空
  * @warning 传入 NULL 指针将触发断言失败
- * @warning 销毁后，栈指针将变为悬空指针，不应再被使用
  * @warning 不应对同一个栈多次调用此函数
  */
 void ek_stack_destroy(ek_stack_t *sk);
+
+/**
+ * @brief 销毁栈并把sk_ptr设置为NULL
+ * @param sk_ptr 要销毁的栈指针
+ */
+#define ek_stack_destroy_safely(sk_ptr) \
+    do                                  \
+    {                                   \
+        ek_stack_destroy(sk_ptr);       \
+        sk_ptr = NULL;                  \
+    } while (0)
 
 /**
  * @brief 将元素压入栈

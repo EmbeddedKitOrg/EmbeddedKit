@@ -44,10 +44,6 @@ void ek_ringbuf_destroy(ek_ringbuf_t *rb)
 {
     EK_ASSERT(rb != NULL);
 
-    rb->read_idx = 0;
-    rb->write_idx = 0;
-    rb->item_amount = 0;
-    rb->item_size = 0;
     ek_free(rb->buffer);
     ek_free(rb);
 }

@@ -17,16 +17,17 @@ typedef struct ek_ringbuf_t ek_ringbuf_t;
 
 struct ek_ringbuf_t
 {
-    uint8_t *buffer;     /**< 缓冲区指针 */
-    uint32_t write_idx;  /**< 写入位置索引 */
-    uint32_t read_idx;   /**< 读取位置索引 */
-    uint32_t item_amount;/**< 当前元素个数 */
-    size_t capacity;     /**< 缓冲区容量（元素个数） */
-    size_t item_size;    /**< 单个元素大小（字节） */
+    uint8_t *buffer; /**< 缓冲区指针 */
+    uint32_t write_idx; /**< 写入位置索引 */
+    uint32_t read_idx; /**< 读取位置索引 */
+    uint32_t item_amount; /**< 当前元素个数 */
+    size_t capacity; /**< 缓冲区容量（元素个数） */
+    size_t item_size; /**< 单个元素大小（字节） */
 };
 
 #ifdef __cplusplus
-extern "C"{
+extern "C"
+{
 #endif /* __cplusplus */
 
 /**
@@ -57,9 +58,21 @@ ek_ringbuf_t *ek_ringbuf_create(size_t item_size, uint32_t item_amount);
  * @brief 销毁环形缓冲区
  * @param rb 要销毁的环形缓冲区
  *
- * @note 删除的后会将 rb 指向 NULL
+ * @note ek_free 会自动将 rb->buffer 置为 NULL，但 rb 本身需要调用者手动置空
  */
 void ek_ringbuf_destroy(ek_ringbuf_t *rb);
+
+/**
+ * @brief 销毁环形缓冲区并把rb_ptr设置为NULL
+ * @param rb_ptr 要销毁的环形缓冲区
+ *
+ */
+#define ek_ringbuf_destroy_safely(rb_ptr) \
+    do                                    \
+    {                                     \
+        ek_ringbuf_destroy(rb_ptr);       \
+        rb_ptr = NULL;                    \
+    } while (0)
 
 /**
  * @brief 向环形缓冲区写入一个元素
