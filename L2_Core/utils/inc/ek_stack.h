@@ -34,6 +34,9 @@ struct ek_stack_t
     uint32_t sp; /**< 栈顶指针（stack pointer），指向下一个写入位置 */
     size_t item_size; /**< 单个元素的大小（字节） */
     uint32_t cap; /**< 栈的最大容量 */
+#    if EK_USE_RTOS == 1
+    bool lock;
+#    endif /* EK_USE_RTOS */
 };
 
 #    ifdef __cplusplus

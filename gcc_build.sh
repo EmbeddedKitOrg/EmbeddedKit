@@ -3,7 +3,8 @@ cmake -B build -G Ninja\
       -DCMAKE_TOOLCHAIN_FILE="cmake/gcc-arm-none-eabi.cmake"\
       -DCMAKE_BUILD_TYPE=Debug\
       -DLINKER_SCRIPT="L1_MCU/STM32F429ZIT6_GCC/STM32F429XX_FLASH.ld" \
-      -DMCU_MODEL="STM32F429ZIT6_GCC"
-
+      -DMCU_MODEL="STM32F429ZIT6_GCC"\
+      -DUSE_FREERTOS=ON\
+      -DUSE_FATFS=OFF
 
 ninja -C build

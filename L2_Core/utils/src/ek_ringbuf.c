@@ -5,6 +5,16 @@
 #    include "../inc/ek_mem.h"
 #    include "../inc/ek_assert.h"
 
+#    if EK_USE_RTOS == 1
+#        define EK_LOCKUP(prb)    ((prb)->lock = true)
+#        define EK_UNLOCK(prb)    ((prb)->lock = false)
+#        define EK_LOCK_TEST(prb) ((prb)->lock == true)
+#    else
+#        define EK_LOCKUP(prb)
+#        define EK_UNLOCK(prb)
+#        define EK_LOCK_TEST(prb) (false)
+#    endif /* EK_USE_RTOS */
+
 bool ek_ringbuf_full(const ek_ringbuf_t *rb)
 {
     EK_ASSERT(rb != NULL);
@@ -39,6 +49,9 @@ ek_ringbuf_t *ek_ringbuf_create(size_t item_size, uint32_t item_amount)
     rb->read_idx = 0;
     rb->write_idx = 0;
     rb->item_amount = 0;
+#    if EK_USE_RTOS == 1
+    rb->lock = false;
+#    endif /* EK_USE_RTOS */
 
     return rb;
 }
@@ -56,13 +69,23 @@ bool ek_ringbuf_write(ek_ringbuf_t *rb, const void *item)
     EK_ASSERT(item != NULL);
     EK_ASSERT(rb != NULL);
 
-    if (ek_ringbuf_full(rb) == true) return false;
+    if (EK_LOCK_TEST(rb) == true) return false;
+
+    EK_LOCKUP(rb);
+
+    if (ek_ringbuf_full(rb) == true)
+    {
+        EK_UNLOCK(rb);
+        return false;
+    }
 
     uint8_t *target = rb->buffer + (rb->write_idx * rb->item_size);
     memcpy(target, item, rb->item_size);
 
     rb->write_idx = (rb->write_idx + 1) % rb->cap;
     rb->item_amount++;
+
+    EK_UNLOCK(rb);
 
     return true;
 }
@@ -71,8 +94,13 @@ bool ek_ringbuf_read(ek_ringbuf_t *rb, void *item)
 {
     EK_ASSERT(rb != NULL);
 
+    if (EK_LOCK_TEST(rb) == true) return false;
+
+    EK_LOCKUP(rb);
+
     if (ek_ringbuf_empty(rb) == true)
     {
+        EK_UNLOCK(rb);
         return false;
     }
 
@@ -85,21 +113,30 @@ bool ek_ringbuf_read(ek_ringbuf_t *rb, void *item)
     rb->read_idx = (rb->read_idx + 1) % rb->cap;
     rb->item_amount--;
 
+    EK_UNLOCK(rb);
+
     return true;
 }
 
-bool ek_ringbuf_peek(const ek_ringbuf_t *rb, void *item)
+bool ek_ringbuf_peek(ek_ringbuf_t *rb, void *item)
 {
     EK_ASSERT(item != NULL);
     EK_ASSERT(rb != NULL);
 
+    if (EK_LOCK_TEST(rb) == true) return false;
+
+    EK_LOCKUP(rb);
+
     if (ek_ringbuf_empty(rb) == true)
     {
+        EK_UNLOCK(rb);
         return false;
     }
 
     const uint8_t *source = rb->buffer + (rb->read_idx * rb->item_size);
     memcpy(item, source, rb->item_size);
+
+    EK_UNLOCK(rb);
 
     return true;
 }

@@ -83,7 +83,7 @@ set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${CMAKE_PROJE
 # 注意：在各层级的 CMakeLists.txt 中，记得链接 global_macros 和 global_options
 add_subdirectory(L1_MCU)  # 原 L0_MCU
 add_subdirectory(L2_Core)  # 包含 utils/ 和 hal/
-# add_subdirectory(L3_Middlewares)
+add_subdirectory(L3_Middlewares)  # FreeRTOS 等第三方中间件
 # add_subdirectory(L4_Components)
 add_subdirectory(L5_App)
 
@@ -93,7 +93,7 @@ add_subdirectory(L5_App)
 target_link_libraries(${CMAKE_PROJECT_NAME}
     l5_app
     # l4_components
-    # l3_middlewares
+    l3_middlewares
     l2_core
     l1_mcu
 

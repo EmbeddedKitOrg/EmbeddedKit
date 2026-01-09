@@ -3,6 +3,8 @@ cmake -B build -G Ninja\
       -DCMAKE_TOOLCHAIN_FILE="cmake/starm-clang.cmake"\
       -DCMAKE_BUILD_TYPE=Debug\
       -DLINKER_SCRIPT="L1_MCU/STM32F429ZIT6_STARM/STM32F429XX_FLASH.ld" \
-      -DMCU_MODEL="STM32F429ZIT6_STARM"
+      -DMCU_MODEL="STM32F429ZIT6_STARM"\
+      -DUSE_FREERTOS=ON\
+      -DUSE_FATFS=ON
 
 ninja -C build

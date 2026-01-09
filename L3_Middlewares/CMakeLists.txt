@@ -1,16 +1,63 @@
-# 中间件源文件可能分布在子文件夹，使用 GLOB_RECURSE
-file(GLOB_RECURSE L3_SRCS "src/*.c")
+# ==============================================================================
+# L3_Middlewares (第三方中间件层)
+# ==============================================================================
+# 本层负责集成和管理各种第三方中间件库（如 FreeRTOS、FatFs、LVGL 等）
+#
+# 设计原则：
+# 1. 组件隔离 - 每个中间件拥有独立的子目录和 CMakeLists.txt
+# 2. 条件编译 - 通过 option() 控制是否启用特定中间件
+# 3. 统一管理 - 通过 l3_middlewares 汇总库统一对外接口
+# ==============================================================================
 
-add_library(l3_middlewares STATIC ${L3_SRCS})
+# ------------------------------------------------------------------------------
+# 可选组件开关
+# ------------------------------------------------------------------------------
+option(USE_FREERTOS "Enable FreeRTOS" OFF)
+option(USE_FATFS "ENABLE FATFS" OFF)
+option(USE_LVGL "ENABLE LVGL" OFF)
 
-# 中间件的头文件路径可能比较多
-target_include_directories(l3_middlewares PUBLIC 
-    inc
-)
+# ------------------------------------------------------------------------------
+# FreeRTOS 集成
+# ------------------------------------------------------------------------------
+if(USE_FREERTOS)
+    add_subdirectory(FreeRTOS)
+endif()
 
-target_link_libraries(l3_middlewares PUBLIC 
-    l2_core         
-    # l1_hal        
-    global_macros 
+# ------------------------------------------------------------------------------
+# FatFS 集成
+# ------------------------------------------------------------------------------
+if(USE_FATFS)
+    add_subdirectory(FatFS)
+endif()
+
+# ------------------------------------------------------------------------------
+# FatFS 集成
+# ------------------------------------------------------------------------------
+# if(USE_LVGL)
+    # add_subdirectory(LVGL)
+# endif()
+
+# ------------------------------------------------------------------------------
+# 创建 l3_middlewares 汇总库
+# ------------------------------------------------------------------------------
+add_library(l3_middlewares INTERFACE)
+
+# 只有启用 FreeRTOS 时才链接
+if(USE_FREERTOS)
+    target_link_libraries(l3_middlewares INTERFACE freertos_kernel)
+endif()
+
+# 只有启用 FreeRTOS 时才链接
+if(USE_FATFS)
+    target_link_libraries(l3_middlewares INTERFACE fatfs)
+endif()
+
+# ------------------------------------------------------------------------------
+# 依赖关系
+# ------------------------------------------------------------------------------
+# L3 层可以依赖 L2 层（包括 utils 和 hal）
+target_link_libraries(l3_middlewares INTERFACE
+    l2_core
+    global_macros
     global_options
 )

@@ -14,6 +14,7 @@
 
 #    include "ek_def.h"
 
+
 /**
  * @brief 环形缓冲区结构
  */
@@ -27,6 +28,9 @@ struct ek_ringbuf_t
     uint32_t item_amount; /**< 当前元素个数 */
     size_t cap; /**< 缓冲区容量（元素个数） */
     size_t item_size; /**< 单个元素大小（字节） */
+#    if EK_USE_RTOS == 1
+    bool lock;
+#    endif /* EK_USE_RTOS */
 };
 
 #    ifdef __cplusplus
@@ -103,7 +107,7 @@ bool ek_ringbuf_read(ek_ringbuf_t *rb, void *item);
  * @return true 查看成功
  * @return false 查看失败（缓冲区为空）
  */
-bool ek_ringbuf_peek(const ek_ringbuf_t *rb, void *item);
+bool ek_ringbuf_peek(ek_ringbuf_t *rb, void *item);
 
 #    ifdef __cplusplus
 }
