@@ -8,6 +8,10 @@
 #ifndef EK_LIST_H
 #define EK_LIST_H
 
+#include "../../../ek_conf.h"
+
+#if EK_LIST_ENABLE == 1
+
 #include "ek_def.h"
 
 /**
@@ -174,5 +178,7 @@ __STATIC_INLINE ek_list_node_t *ek_list_get_last(ek_list_node_t *head)
 {
     return head->prev;
 }
+
+#endif /* EK_LIST_ENABLE */
 
 #endif /* EK_LIST_H */

@@ -8,7 +8,11 @@
 #ifndef EK_RINGBUF_H
 #define EK_RINGBUF_H
 
-#include "ek_def.h"
+#include "../../../ek_conf.h"
+
+#if EK_RINGBUF_ENABLE == 1
+
+#    include "ek_def.h"
 
 /**
  * @brief 环形缓冲区结构
@@ -25,10 +29,10 @@ struct ek_ringbuf_t
     size_t item_size; /**< 单个元素大小（字节） */
 };
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C"
 {
-#endif /* __cplusplus */
+#    endif /* __cplusplus */
 
 /**
  * @brief 判断环形缓冲区是否已满
@@ -67,12 +71,12 @@ void ek_ringbuf_destroy(ek_ringbuf_t *rb);
  * @param rb_ptr 要销毁的环形缓冲区
  *
  */
-#define ek_ringbuf_destroy_safely(rb_ptr) \
-    do                                    \
-    {                                     \
-        ek_ringbuf_destroy(rb_ptr);       \
-        rb_ptr = NULL;                    \
-    } while (0)
+#    define ek_ringbuf_destroy_safely(rb_ptr) \
+        do                                    \
+        {                                     \
+            ek_ringbuf_destroy(rb_ptr);       \
+            rb_ptr = NULL;                    \
+        } while (0)
 
 /**
  * @brief 向环形缓冲区写入一个元素
@@ -101,8 +105,10 @@ bool ek_ringbuf_read(ek_ringbuf_t *rb, void *item);
  */
 bool ek_ringbuf_peek(const ek_ringbuf_t *rb, void *item);
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 }
-#endif /* __cplusplus */
+#    endif /* __cplusplus */
+
+#endif /* EK_RINGBUF_ENABLE */
 
 #endif /* EK_RINGBUF_H */

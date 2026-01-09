@@ -1,5 +1,7 @@
 #include "../inc/ek_mem.h"
 
+#if EK_HEAP_NO_TLSF == 0
+
 uint8_t ek_default_heap[EK_HEAP_SIZE];
 tlsf_t ek_default_tlsf;
 
@@ -37,3 +39,5 @@ size_t ek_heap_used(void)
     tlsf_walk_pool(pool, ek_mem_walker, NULL);
     return ek_used_bytes;
 }
+
+#endif /* EK_HEAP_NO_TLSF */

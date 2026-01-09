@@ -1,6 +1,9 @@
 #include "../inc/ek_ringbuf.h"
-#include "../inc/ek_mem.h"
-#include "../inc/ek_assert.h"
+
+#if EK_RINGBUF_ENABLE == 1
+
+#    include "../inc/ek_mem.h"
+#    include "../inc/ek_assert.h"
 
 bool ek_ringbuf_full(const ek_ringbuf_t *rb)
 {
@@ -100,3 +103,5 @@ bool ek_ringbuf_peek(const ek_ringbuf_t *rb, void *item)
 
     return true;
 }
+
+#endif /* EK_RINGBUF_ENABLE */

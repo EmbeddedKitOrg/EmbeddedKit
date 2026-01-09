@@ -15,7 +15,11 @@
 #ifndef EK_STACK_H
 #define EK_STACK_H
 
-#include "ek_def.h"
+#include "../../../ek_conf.h"
+
+#if EK_STACK_ENABLE == 1
+
+#    include "ek_def.h"
 
 /**
  * @brief 栈结构体
@@ -32,10 +36,10 @@ struct ek_stack_t
     uint32_t cap; /**< 栈的最大容量 */
 };
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C"
 {
-#endif /* __cplusplus */
+#    endif /* __cplusplus */
 
 /**
  * @brief 检查栈是否已满
@@ -91,12 +95,12 @@ void ek_stack_destroy(ek_stack_t *sk);
  * @brief 销毁栈并把sk_ptr设置为NULL
  * @param sk_ptr 要销毁的栈指针
  */
-#define ek_stack_destroy_safely(sk_ptr) \
-    do                                  \
-    {                                   \
-        ek_stack_destroy(sk_ptr);       \
-        sk_ptr = NULL;                  \
-    } while (0)
+#    define ek_stack_destroy_safely(sk_ptr) \
+        do                                  \
+        {                                   \
+            ek_stack_destroy(sk_ptr);       \
+            sk_ptr = NULL;                  \
+        } while (0)
 
 /**
  * @brief 将元素压入栈
@@ -130,8 +134,10 @@ bool ek_stack_push(ek_stack_t *sk, const void *item);
  */
 bool ek_stack_pop(ek_stack_t *sk, void *item);
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 }
-#endif /* __cplusplus */
+#    endif /* __cplusplus */
+
+#endif /* EK_STACK_ENABLE */
 
 #endif /* EK_STACK_H */

@@ -1,6 +1,9 @@
 #include "../inc/ek_stack.h"
-#include "../inc/ek_assert.h"
-#include "../inc/ek_mem.h"
+
+#if EK_STACK_ENABLE == 1
+
+#    include "../inc/ek_assert.h"
+#    include "../inc/ek_mem.h"
 
 bool ek_stack_full(ek_stack_t *sk)
 {
@@ -73,3 +76,5 @@ bool ek_stack_pop(ek_stack_t *sk, void *item)
 
     return true;
 }
+
+#endif /* EK_STACK_ENABLE */
