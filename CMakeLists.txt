@@ -27,6 +27,12 @@ endif()
 # ==============================================================================
 # 使用 INTERFACE 库来管理全局宏，方便所有子层级继承
 add_library(global_macros INTERFACE)
+
+# 添加根目录作为 include 路径，使所有层级都能访问 ek_conf.h
+target_include_directories(global_macros INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 target_compile_definitions(global_macros INTERFACE
     $<$<CONFIG:Debug>:DEBUG>   # 仅在 Debug 模式下定义 DEBUG
     $<$<CONFIG:Release>:NDEBUG>
