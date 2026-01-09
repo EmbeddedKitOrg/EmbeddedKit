@@ -41,7 +41,7 @@
     {                          \
         type *items;           \
         uint32_t amount;       \
-        uint32_t capacity;     \
+        uint32_t cap;          \
     } ek_vec_##type##_t
 
 /**
@@ -80,7 +80,7 @@
     {                   \
         v.items = NULL; \
         v.amount = 0;   \
-        v.capacity = 0; \
+        v.cap = 0;      \
     } while (0)
 
 /**
@@ -95,7 +95,7 @@
     {                     \
         ek_free(v.items); \
         v.amount = 0;     \
-        v.capacity = 0;   \
+        v.cap = 0;        \
     } while (0)
 
 /**
@@ -106,22 +106,22 @@
  * @note 当容量不足时自动扩容
  * @note 扩容策略：小数组翻倍，大数组增加 1/2
  */
-#define ek_vec_append(v, val)                                                                                   \
-    do                                                                                                          \
-    {                                                                                                           \
-        if (v.capacity <= v.amount)                                                                             \
-        {                                                                                                       \
-            uint32_t _temp_for_cap_ex_ = (v.capacity < VEC_LARGE_THRESHOLD) ? (v.capacity ? 2 * v.capacity : 8) \
-                                                                            : (v.capacity + v.capacity / 2);    \
-            void *_temp_for_new_items_ = ek_realloc(v.items, _temp_for_cap_ex_ * sizeof(*v.items));             \
-            if (_temp_for_new_items_ != NULL)                                                                   \
-            {                                                                                                   \
-                v.capacity = _temp_for_cap_ex_;                                                                 \
-                v.items = _temp_for_new_items_;                                                                 \
-            }                                                                                                   \
-            else break;                                                                                         \
-        }                                                                                                       \
-        v.items[v.amount++] = val;                                                                              \
+#define ek_vec_append(v, val)                                                                       \
+    do                                                                                              \
+    {                                                                                               \
+        if (v.cap <= v.amount)                                                                      \
+        {                                                                                           \
+            uint32_t _temp_for_cap_ex_ =                                                            \
+                (v.cap < VEC_LARGE_THRESHOLD) ? (v.cap ? 2 * v.cap : 8) : (v.cap + v.cap / 2);      \
+            void *_temp_for_new_items_ = ek_realloc(v.items, _temp_for_cap_ex_ * sizeof(*v.items)); \
+            if (_temp_for_new_items_ != NULL)                                                       \
+            {                                                                                       \
+                v.cap = _temp_for_cap_ex_;                                                          \
+                v.items = _temp_for_new_items_;                                                     \
+            }                                                                                       \
+            else break;                                                                             \
+        }                                                                                           \
+        v.items[v.amount++] = val;                                                                  \
     } while (0)
 
 /**
@@ -174,14 +174,14 @@
             if (_temp_for_new_items_)                                                      \
             {                                                                              \
                 v.items = _temp_for_new_items_;                                            \
-                v.capacity = v.amount;                                                     \
+                v.cap = v.amount;                                                          \
             }                                                                              \
         }                                                                                  \
         else if (v.items)                                                                  \
         {                                                                                  \
             ek_free(v.items);                                                              \
             v.items = NULL;                                                                \
-            v.capacity = 0;                                                                \
+            v.cap = 0;                                                                     \
         }                                                                                  \
     } while (0)
 

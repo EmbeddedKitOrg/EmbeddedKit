@@ -5,7 +5,7 @@
 bool ek_stack_full(ek_stack_t *sk)
 {
     EK_ASSERT(sk != NULL);
-    return sk->sp >= sk->capacity;
+    return sk->sp >= sk->cap;
 }
 
 bool ek_stack_empty(ek_stack_t *sk)
@@ -32,7 +32,7 @@ ek_stack_t *ek_stack_create(size_t item_size, uint32_t item_amount)
     }
 
     sk->sp = 0;
-    sk->capacity = item_amount;
+    sk->cap = item_amount;
     sk->item_size = item_size;
 
     return sk;

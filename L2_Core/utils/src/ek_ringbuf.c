@@ -5,7 +5,7 @@
 bool ek_ringbuf_full(const ek_ringbuf_t *rb)
 {
     EK_ASSERT(rb != NULL);
-    return rb->item_amount == rb->capacity;
+    return rb->item_amount == rb->cap;
 }
 
 bool ek_ringbuf_empty(const ek_ringbuf_t *rb)
@@ -31,7 +31,7 @@ ek_ringbuf_t *ek_ringbuf_create(size_t item_size, uint32_t item_amount)
         return NULL;
     }
 
-    rb->capacity = item_amount;
+    rb->cap = item_amount;
     rb->item_size = item_size;
     rb->read_idx = 0;
     rb->write_idx = 0;
@@ -58,7 +58,7 @@ bool ek_ringbuf_write(ek_ringbuf_t *rb, const void *item)
     uint8_t *target = rb->buffer + (rb->write_idx * rb->item_size);
     memcpy(target, item, rb->item_size);
 
-    rb->write_idx = (rb->write_idx + 1) % rb->capacity;
+    rb->write_idx = (rb->write_idx + 1) % rb->cap;
     rb->item_amount++;
 
     return true;
@@ -79,7 +79,7 @@ bool ek_ringbuf_read(ek_ringbuf_t *rb, void *item)
         memcpy(item, source, rb->item_size);
     }
 
-    rb->read_idx = (rb->read_idx + 1) % rb->capacity;
+    rb->read_idx = (rb->read_idx + 1) % rb->cap;
     rb->item_amount--;
 
     return true;

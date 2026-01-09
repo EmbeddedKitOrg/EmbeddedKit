@@ -29,7 +29,7 @@ struct ek_stack_t
     void *buffer; /**< 数据缓冲区指针 */
     uint32_t sp; /**< 栈顶指针（stack pointer），指向下一个写入位置 */
     size_t item_size; /**< 单个元素的大小（字节） */
-    uint32_t capacity; /**< 栈的最大容量 */
+    uint32_t cap; /**< 栈的最大容量 */
 };
 
 #ifdef __cplusplus

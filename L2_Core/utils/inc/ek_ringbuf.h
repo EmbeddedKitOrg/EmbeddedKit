@@ -21,7 +21,7 @@ struct ek_ringbuf_t
     uint32_t write_idx; /**< 写入位置索引 */
     uint32_t read_idx; /**< 读取位置索引 */
     uint32_t item_amount; /**< 当前元素个数 */
-    size_t capacity; /**< 缓冲区容量（元素个数） */
+    size_t cap; /**< 缓冲区容量（元素个数） */
     size_t item_size; /**< 单个元素大小（字节） */
 };
 
