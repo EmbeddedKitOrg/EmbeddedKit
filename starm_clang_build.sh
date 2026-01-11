@@ -6,7 +6,7 @@ cmake -B build -G Ninja\
       -DMCU_MODEL="STM32F429ZIT6_STARM"\
       -DUSE_FREERTOS=OFF\
       -DUSE_FATFS=OFF\
-      -DUSE_LVGL=ON\
+      -DUSE_LVGL=OFF\
       -DUSE_LVGL_THORVG=OFF\
 
 ninja -C build
