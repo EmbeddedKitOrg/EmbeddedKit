@@ -17,20 +17,20 @@
 
 bool ek_ringbuf_full(const ek_ringbuf_t *rb)
 {
-    EK_ASSERT(rb != NULL);
+    ek_assert_param(rb != NULL);
     return rb->item_amount == rb->cap;
 }
 
 bool ek_ringbuf_empty(const ek_ringbuf_t *rb)
 {
-    EK_ASSERT(rb != NULL);
+    ek_assert_param(rb != NULL);
     return rb->item_amount == 0;
 }
 
 ek_ringbuf_t *ek_ringbuf_create(size_t item_size, uint32_t item_amount)
 {
-    EK_ASSERT(item_amount != 0);
-    EK_ASSERT(item_size != 0);
+    ek_assert_param(item_amount != 0);
+    ek_assert_param(item_size != 0);
 
     ek_ringbuf_t *rb = (ek_ringbuf_t *)ek_malloc(sizeof(ek_ringbuf_t));
     if (rb == NULL)
@@ -58,7 +58,7 @@ ek_ringbuf_t *ek_ringbuf_create(size_t item_size, uint32_t item_amount)
 
 void ek_ringbuf_destroy(ek_ringbuf_t *rb)
 {
-    EK_ASSERT(rb != NULL);
+    ek_assert_param(rb != NULL);
 
     ek_free(rb->buffer);
     ek_free(rb);
@@ -66,8 +66,8 @@ void ek_ringbuf_destroy(ek_ringbuf_t *rb)
 
 bool ek_ringbuf_write(ek_ringbuf_t *rb, const void *item)
 {
-    EK_ASSERT(item != NULL);
-    EK_ASSERT(rb != NULL);
+    ek_assert_param(item != NULL);
+    ek_assert_param(rb != NULL);
 
     if (EK_LOCK_TEST(rb) == true) return false;
 
@@ -92,7 +92,7 @@ bool ek_ringbuf_write(ek_ringbuf_t *rb, const void *item)
 
 bool ek_ringbuf_read(ek_ringbuf_t *rb, void *item)
 {
-    EK_ASSERT(rb != NULL);
+    ek_assert_param(rb != NULL);
 
     if (EK_LOCK_TEST(rb) == true) return false;
 
@@ -120,8 +120,8 @@ bool ek_ringbuf_read(ek_ringbuf_t *rb, void *item)
 
 bool ek_ringbuf_peek(ek_ringbuf_t *rb, void *item)
 {
-    EK_ASSERT(item != NULL);
-    EK_ASSERT(rb != NULL);
+    ek_assert_param(item != NULL);
+    ek_assert_param(rb != NULL);
 
     if (EK_LOCK_TEST(rb) == true) return false;
 

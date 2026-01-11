@@ -17,20 +17,20 @@
 
 bool ek_stack_full(ek_stack_t *sk)
 {
-    EK_ASSERT(sk != NULL);
+    ek_assert_param(sk != NULL);
     return sk->sp >= sk->cap;
 }
 
 bool ek_stack_empty(ek_stack_t *sk)
 {
-    EK_ASSERT(sk != NULL);
+    ek_assert_param(sk != NULL);
     return sk->sp == 0;
 }
 
 ek_stack_t *ek_stack_create(size_t item_size, uint32_t item_amount)
 {
-    EK_ASSERT(item_amount != 0);
-    EK_ASSERT(item_size != 0);
+    ek_assert_param(item_amount != 0);
+    ek_assert_param(item_size != 0);
 
     ek_stack_t *sk = (ek_stack_t *)ek_malloc(sizeof(ek_stack_t));
     if (sk == NULL)
@@ -56,7 +56,7 @@ ek_stack_t *ek_stack_create(size_t item_size, uint32_t item_amount)
 
 void ek_stack_destroy(ek_stack_t *sk)
 {
-    EK_ASSERT(sk != NULL);
+    ek_assert_param(sk != NULL);
 
     ek_free(sk->buffer);
     ek_free(sk);
@@ -64,8 +64,8 @@ void ek_stack_destroy(ek_stack_t *sk)
 
 bool ek_stack_push(ek_stack_t *sk, const void *item)
 {
-    EK_ASSERT(sk != NULL);
-    EK_ASSERT(item != NULL);
+    ek_assert_param(sk != NULL);
+    ek_assert_param(item != NULL);
 
     if (EK_LOCK_TEST(sk) == true) return false;
 
@@ -88,8 +88,8 @@ bool ek_stack_push(ek_stack_t *sk, const void *item)
 
 bool ek_stack_pop(ek_stack_t *sk, void *item)
 {
-    EK_ASSERT(sk != NULL);
-    EK_ASSERT(item != NULL);
+    ek_assert_param(sk != NULL);
+    ek_assert_param(item != NULL);
 
     if (EK_LOCK_TEST(sk) == true) return false;
 

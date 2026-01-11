@@ -48,4 +48,13 @@
 #define EK_LOG_COLOR_ENABLE (1)
 #define EK_LOG_BUFFER_SIZE  (256)
 
+/* ========================================================================
+ * 断言模块
+ * - EK_ASSERT_USE_TINY: 使用最小的断言模式
+ * - EK_ASSERT_WITH_LOG: 使用断言日志，确保使用断言的文件
+                         都已经用 `EK_LOG_FILE_TAG` 打上标签
+ * ======================================================================== */
+#define EK_ASSERT_USE_TINY (1)
+#define EK_ASSERT_WITH_LOG (1)
+
 #endif // EK_CONF_H
