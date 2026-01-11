@@ -36,9 +36,8 @@ static const char *ek_log_type_table[EK_LOG_TYPE_MAX] = {
 
 static char ek_log_buffer[EK_LOG_BUFFER_SIZE];
 
-uint32_t common_get_tick_ms()
+__WEAK uint32_t ek_log_get_tick(void)
 {
-    // TODO 将这个函数作为一个弱函数让用户实现
     return 0;
 }
 
@@ -55,9 +54,9 @@ void _ek_log_printf(const char *tag, uint32_t line, ek_log_type_t type, const ch
              ek_log_type_table[type],
              tag,
              line,
-             common_get_tick_ms());
+             ek_log_get_tick());
 #    else /* EK_LOG_COLOR_ENABLE == 1 */
-    lwprintf("[%s/%s L:%" PRIu32 ",T:%" PRIu32 "]:", ek_log_type_table[type], tag, line, common_get_tick_ms());
+    lwprintf("[%s/%s L:%" PRIu32 ",T:%" PRIu32 "]:", ek_log_type_table[type], tag, line, ek_log_get_tick());
 #    endif /* EK_LOG_COLOR_ENABLE == 1 */
 
     va_list args;

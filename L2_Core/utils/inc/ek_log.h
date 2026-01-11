@@ -22,7 +22,8 @@
 
 #    define EK_LOG_FILE_TAG(tag) static const char *__EK_LOG_TAG__ = tag;
 
-EK_ENUM(ek_log_type_t, uint8_t){
+typedef enum
+{
     EK_LOG_TYPE_NONE = 0,
     EK_LOG_TYPE_DEBUG,
     EK_LOG_TYPE_INFO,
@@ -30,7 +31,7 @@ EK_ENUM(ek_log_type_t, uint8_t){
     EK_LOG_TYPE_ERROR,
 
     EK_LOG_TYPE_MAX = 5,
-};
+} ek_log_type_t;
 
 #    ifdef __cplusplus
 extern "C"
