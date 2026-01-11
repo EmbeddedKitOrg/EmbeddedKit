@@ -5,8 +5,11 @@
 
 #if EK_IO_ENABLE == 1
 
-// 直接使用 lwprintf 作为 stdio 的替代
 #    include "../../third_party/lwprintf/inc/lwprintf.h"
+
+#    define EK_IO_FPUTC() void __ek_io_fputc(int ch)
+
+void ek_io_init(void);
 
 #endif /* EK_IO_ENABLE */
 

@@ -36,7 +36,7 @@ static const char *ek_log_type_table[EK_LOG_TYPE_MAX] = {
 
 static char ek_log_buffer[EK_LOG_BUFFER_SIZE];
 
-__WEAK uint32_t ek_log_get_tick(void)
+__WEAK uint32_t __ek_log_get_tick(void)
 {
     return 0;
 }
@@ -54,9 +54,9 @@ void _ek_log_printf(const char *tag, uint32_t line, ek_log_type_t type, const ch
              ek_log_type_table[type],
              tag,
              line,
-             ek_log_get_tick());
+             __ek_log_get_tick());
 #    else /* EK_LOG_COLOR_ENABLE == 1 */
-    lwprintf("[%s/%s L:%" PRIu32 ",T:%" PRIu32 "]:", ek_log_type_table[type], tag, line, ek_log_get_tick());
+    lwprintf("[%s/%s L:%" PRIu32 ",T:%" PRIu32 "]:", ek_log_type_table[type], tag, line, __ek_log_get_tick());
 #    endif /* EK_LOG_COLOR_ENABLE == 1 */
 
     va_list args;

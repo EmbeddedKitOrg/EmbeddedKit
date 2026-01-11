@@ -22,6 +22,8 @@
 
 #    define EK_LOG_FILE_TAG(tag) static const char *__EK_LOG_TAG__ = tag;
 
+#    define EK_LOG_GET_TICK()    uint32_t __ek_log_get_tick(void)
+
 typedef enum
 {
     EK_LOG_TYPE_NONE = 0,
