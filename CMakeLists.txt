@@ -69,10 +69,9 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 # ==============================================================================
 # 生成最终固件 (Executable)
 # ==============================================================================
-# 虽然入口在 L0，业务在 L5，但最终的 ELF 需要链接所有层
-# 注意：必须在 add_subdirectory 之前创建此目标，因为子目录中会引用它
+set(EMPTY_OBJ ${CMAKE_CURRENT_SOURCE_DIR}/ek_empty_obj.c)
 
-add_executable(${CMAKE_PROJECT_NAME})
+add_executable(${CMAKE_PROJECT_NAME} ${EMPTY_OBJ})
 
 # 设置输出文件名
 set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${CMAKE_PROJECT_NAME})
