@@ -28,7 +28,6 @@
 #    define __STATIC_INLINE static inline
 #    define __ALWAYS_INLINE __attribute__((always_inline)) static inline
 #    define __ASM           __asm
-#    define __NOP()         __asm volatile("nop")
 // ac6
 #elif defined(__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050)
 
@@ -44,7 +43,6 @@
 #    define __STATIC_INLINE static inline
 #    define __ALWAYS_INLINE __attribute__((always_inline)) static inline
 #    define __ASM           __asm
-#    define __NOP()         __asm volatile("nop")
 // ac5
 #elif defined(__CC_ARM)
 
@@ -60,7 +58,6 @@
 #    define __STATIC_INLINE static __inline
 #    define __ALWAYS_INLINE __forceinline
 #    define __ASM           __asm
-#    define __NOP()         __nop()
 // unsupport compiler
 #else
 #    define __WEAK
@@ -75,11 +72,6 @@
 #    define __STATIC_INLINE static inline
 #    define __ALWAYS_INLINE static inline
 #    define __ASM           asm
-#    define __NOP()         asm("nop")
 #endif
-
-#define EK_ENUM(name, type) \
-    typedef type name;      \
-    enum
 
 #endif /* EK_DEF_H */
