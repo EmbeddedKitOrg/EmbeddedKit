@@ -10,10 +10,31 @@ jobs:
   build-gcc:
     name: Build with ARM GCC
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        config:
+          - name: "Default (All OFF)"
+            freertos: "OFF"
+            lvgl: "OFF"
+            thorvg: "OFF"
+          - name: "FreeRTOS ON"
+            freertos: "ON"
+            lvgl: "OFF"
+            thorvg: "OFF"
+          - name: "LVGL ON"
+            freertos: "OFF"
+            lvgl: "ON"
+            thorvg: "OFF"
+          - name: "LVGL + ThorVG ON"
+            freertos: "OFF"
+            lvgl: "ON"
+            thorvg: "ON"
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Install dependencies
         run: |
@@ -30,10 +51,18 @@ jobs:
           ninja --version
           cmake --version
 
-      - name: Build with GCC
+      - name: Build with GCC - ${{ matrix.config.name }}
         run: |
-          chmod +x gcc_build.sh
-          ./gcc_build.sh
+          cmake -B build -G Ninja \
+                -DCMAKE_TOOLCHAIN_FILE="cmake/gcc-arm-none-eabi.cmake" \
+                -DCMAKE_BUILD_TYPE=Debug \
+                -DLINKER_SCRIPT="L1_MCU/STM32F429ZIT6_GCC/STM32F429XX_FLASH.ld" \
+                -DMCU_MODEL="STM32F429ZIT6_GCC" \
+                -DUSE_FREERTOS=${{ matrix.config.freertos }} \
+                -DUSE_FATFS=OFF \
+                -DUSE_LVGL=${{ matrix.config.lvgl }} \
+                -DUSE_LVGL_THORVG=${{ matrix.config.thorvg }}
+          ninja -C build
 
   build-starm-clang:
     name: Build with STARM Clang
@@ -42,6 +71,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Install dependencies
         run: |
@@ -53,14 +84,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /opt/st/stm32cubeclt
-          key: stm32cubeclt-1.16.0
+          key: stm32cubeclt-1.20.0
 
-      - name: Download and Install STM32CubeCLT
+      - name: Install STM32CubeCLT
         if: steps.cache-cubeclt.outputs.cache-hit != 'true'
         run: |
-          # Download STM32CubeCLT installer
-          wget -q https://www.st.com/content/ccc/resource/technical/software/command_line_tool/group0/2e/44/cd/d2/e7/e5/42/16/stm32cubeclt-lnx/files/st-stm32cubeclt_1.16.0_21983_20240628_1741_amd64.sh.zip/jcr:content/translations/en.st-stm32cubeclt_1.16.0_21983_20240628_1741_amd64.sh.zip -O stm32cubeclt.zip
-          unzip stm32cubeclt.zip
+          # Extract STM32CubeCLT from Git LFS
+          unzip tools/st-stm32cubeclt_*.sh.zip
           chmod +x st-stm32cubeclt_*.sh
           # Install in non-interactive mode
           sudo ./st-stm32cubeclt_*.sh --quiet --accept-license --default-answer
