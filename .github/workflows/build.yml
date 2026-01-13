@@ -1,0 +1,84 @@
+name: Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-gcc:
+    name: Build with ARM GCC
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+
+      - name: Install ARM GCC Toolchain
+        run: |
+          sudo apt-get install -y gcc-arm-none-eabi
+
+      - name: Verify toolchain installation
+        run: |
+          arm-none-eabi-gcc --version
+          ninja --version
+          cmake --version
+
+      - name: Build with GCC
+        run: |
+          chmod +x gcc_build.sh
+          ./gcc_build.sh
+
+  build-starm-clang:
+    name: Build with STARM Clang
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build unzip
+
+      - name: Cache STM32CubeCLT
+        id: cache-cubeclt
+        uses: actions/cache@v4
+        with:
+          path: /opt/st/stm32cubeclt
+          key: stm32cubeclt-1.16.0
+
+      - name: Download and Install STM32CubeCLT
+        if: steps.cache-cubeclt.outputs.cache-hit != 'true'
+        run: |
+          # Download STM32CubeCLT installer
+          wget -q https://www.st.com/content/ccc/resource/technical/software/command_line_tool/group0/2e/44/cd/d2/e7/e5/42/16/stm32cubeclt-lnx/files/st-stm32cubeclt_1.16.0_21983_20240628_1741_amd64.sh.zip/jcr:content/translations/en.st-stm32cubeclt_1.16.0_21983_20240628_1741_amd64.sh.zip -O stm32cubeclt.zip
+          unzip stm32cubeclt.zip
+          chmod +x st-stm32cubeclt_*.sh
+          # Install in non-interactive mode
+          sudo ./st-stm32cubeclt_*.sh --quiet --accept-license --default-answer
+
+      - name: Setup PATH for STM32CubeCLT
+        run: |
+          echo "/opt/st/stm32cubeclt/STM32CubeCLT/GNU-tools-for-STM32/bin" >> $GITHUB_PATH
+          echo "/opt/st/stm32cubeclt/STM32CubeCLT/CMake/bin" >> $GITHUB_PATH
+
+      - name: Verify toolchain installation
+        run: |
+          ls -la /opt/st/stm32cubeclt/STM32CubeCLT/ || true
+          which starm-clang || find /opt/st -name "starm-clang*" 2>/dev/null || true
+          ninja --version
+
+      - name: Build with STARM Clang
+        run: |
+          # Add starm-clang to PATH
+          export PATH="/opt/st/stm32cubeclt/STM32CubeCLT/GNU-tools-for-STM32/bin:$PATH"
+          chmod +x starm_clang_build.sh
+          ./starm_clang_build.sh
