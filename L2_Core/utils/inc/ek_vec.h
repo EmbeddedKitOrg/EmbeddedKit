@@ -150,6 +150,25 @@
         } while (0)
 
 /**
+ * @brief 无序移除动态数组中的元素（O(1) 时间复杂度）
+ * @param v 动态数组变量
+ * @param index 要移除的元素索引
+ *
+ * @note 通过将最后一个元素移动到待删除位置实现快速删除
+ * @note 时间复杂度：O(1)
+ * @warning 会破坏数组中元素的原始顺序，仅适用于对顺序不敏感的场景
+ */
+#    define ek_vec_remove_unorder(v, index)             \
+        do                                              \
+        {                                               \
+            if (index < v.amount)                       \
+            {                                           \
+                v.items[index] = v.items[v.amount - 1]; \
+                v.amount--;                             \
+            }                                           \
+        } while (0)
+
+/**
  * @brief 清空动态数组（不释放内存）
  * @param v 动态数组变量
  *
