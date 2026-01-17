@@ -42,7 +42,7 @@ void ringbuf_test()
         }
         else
         {
-            EK_LOG_ERROR("full ridx:%u widx:%u", rb->read_idx, rb->write_idx);
+            EK_LOG_WARN("full ridx:%u widx:%u", rb->read_idx, rb->write_idx);
         }
     }
 
@@ -66,7 +66,7 @@ void ringbuf_test()
         }
         else
         {
-            EK_LOG_ERROR("empty ridx:%u widx:%u", rb->read_idx, rb->write_idx);
+            EK_LOG_WARN("empty ridx:%u widx:%u", rb->read_idx, rb->write_idx);
         }
     }
     ek_ringbuf_destroy(rb);
