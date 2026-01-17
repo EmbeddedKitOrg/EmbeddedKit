@@ -37,7 +37,7 @@ void stack_test(void)
         }
         else
         {
-            EK_LOG_ERROR("stack full:%u", stack->sp);
+            EK_LOG_WARN("stack full:%u", stack->sp);
         }
     }
 
@@ -56,7 +56,7 @@ void stack_test(void)
         }
         else
         {
-            EK_LOG_ERROR("stack empty:%u", stack->sp);
+            EK_LOG_WARN("stack empty:%u", stack->sp);
         }
     }
     ek_stack_destroy(stack);
