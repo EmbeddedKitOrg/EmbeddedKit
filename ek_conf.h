@@ -30,6 +30,7 @@
  * - EK_VEC_ENABLE: 使能向量模块
  * - EK_RINGBUF_ENABLE: 使能环形缓冲区模块
  * - EK_STACK_ENABLE: 使能栈模块
+ * - EK_SHELL_ENABLE: 使能shell模块   
  * ======================================================================== */
 #define EK_IO_ENABLE      (1)
 #define EK_LOG_ENABLE     (1)
@@ -37,6 +38,7 @@
 #define EK_VEC_ENABLE     (1)
 #define EK_RINGBUF_ENABLE (1)
 #define EK_STACK_ENABLE   (1)
+#define EK_SHELL_ENABLE   (1)
 
 /* ========================================================================
  * 日志模块配置

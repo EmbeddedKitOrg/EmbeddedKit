@@ -25,6 +25,7 @@ include_directories( ${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_PROJECT_NAME}/../L2_Core/utils/inc
     ${CMAKE_PROJECT_NAME}/../L2_Core/third_party/tlsf
     ${CMAKE_PROJECT_NAME}/../L2_Core/third_party/lwprintf/inc
+    ${CMAKE_PROJECT_NAME}/../L2_Core/third_party/letter_shell/inc
     ${CMAKE_PROJECT_NAME}
 )
 
