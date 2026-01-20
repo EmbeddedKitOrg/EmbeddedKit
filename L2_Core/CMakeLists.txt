@@ -5,6 +5,7 @@ add_library(l2_core STATIC ${L2_SRCS})
 target_include_directories(l2_core PUBLIC
     utils/inc
     hal/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/letter_shell/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lwprintf/include
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tlsf
 )
