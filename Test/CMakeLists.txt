@@ -17,7 +17,12 @@ set(CMAKE_BINARY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/build)
 
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} TestSrc)
 
-file(GLOB_RECURSE L2_TestSrc "${CMAKE_CURRENT_SOURCE_DIR}/../L2_Core/*.c") 
+file(GLOB_RECURSE L2_TestSrc "${CMAKE_CURRENT_SOURCE_DIR}/../L2_Core/*.c")
+
+# 添加shell_symbols.c为非嵌入式平台提供链接器符号
+if(WIN32 OR UNIX)
+    list(APPEND TestSrc "${CMAKE_CURRENT_SOURCE_DIR}/shell_symbols.c")
+endif()
 
 add_executable(${CMAKE_PROJECT_NAME} ${TestSrc} ${L2_TestSrc})
 
