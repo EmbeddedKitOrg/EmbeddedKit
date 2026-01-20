@@ -143,8 +143,26 @@ jobs:
       - name: Run tests
         run: |
           cd Test
-          chmod +x build.sh
-          ./build.sh
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+                -DCMAKE_C_FLAGS="-m32" \
+                -DCMAKE_CXX_FLAGS="-m32"
+          cmake --build build --config Debug
+
+          # 诊断：列出 build 目录内容
+          echo "=== Build directory structure ==="
+          ls -la build/
+
+          # 诊断：查找可执行文件
+          echo "=== Searching for executable ==="
+          EXE_PATH=$(find build \( -type f -executable -o -name "test" -o -name "test.exe" \) | head -1)
+
+          if [ -z "$EXE_PATH" ]; then
+            echo "Error: No executable found in build directory!"
+            exit 1
+          fi
+
+          echo "Found executable: $EXE_PATH"
+          "$EXE_PATH"
 
   test-windows:
     name: Run Unit Tests (Windows)
@@ -161,12 +179,26 @@ jobs:
         run: |
           ninja --version
           cmake --version
-          gcc --version
 
       - name: Run tests
         shell: pwsh
         run: |
           cd Test
           cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
-          ninja -C build
-          .\build\test.exe
+          cmake --build build --config Debug
+
+          # 诊断：列出 build 目录内容
+          Write-Host "=== Build directory contents ==="
+          Get-ChildItem build -Recurse | Select-Object FullName | ForEach-Object { $_.FullName }
+
+          # 诊断：查找可执行文件
+          Write-Host "=== Searching for executable ==="
+          $exePath = Get-ChildItem build -Recurse -Filter "*.exe" | Select-Object -First 1
+
+          if (-not $exePath) {
+            Write-Error "No .exe file found in build directory!"
+            exit 1
+          }
+
+          Write-Host "Found executable: $($exePath.FullName)"
+          & $exePath.FullName
