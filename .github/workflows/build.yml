@@ -64,6 +64,61 @@ jobs:
                 -DUSE_LVGL_THORVG=${{ matrix.config.thorvg }}
           ninja -C build
 
+  build-gcc-windows:
+    name: Build with ARM GCC (Windows)
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        config:
+          - name: "Default (All OFF)"
+            freertos: "OFF"
+            lvgl: "OFF"
+            thorvg: "OFF"
+          - name: "FreeRTOS ON"
+            freertos: "ON"
+            lvgl: "OFF"
+            thorvg: "OFF"
+          - name: "LVGL ON"
+            freertos: "OFF"
+            lvgl: "ON"
+            thorvg: "OFF"
+          - name: "LVGL + ThorVG ON"
+            freertos: "OFF"
+            lvgl: "ON"
+            thorvg: "ON"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install ARM GCC Toolchain
+        shell: pwsh
+        run: |
+          scoop install gcc-arm-none-eabi
+
+      - name: Verify toolchain installation
+        shell: pwsh
+        run: |
+          arm-none-eabi-gcc --version
+          ninja --version
+          cmake --version
+
+      - name: Build with GCC - ${{ matrix.config.name }}
+        shell: pwsh
+        run: |
+          cmake -B build -G Ninja `
+                -DCMAKE_TOOLCHAIN_FILE="cmake/gcc-arm-none-eabi.cmake" `
+                -DCMAKE_BUILD_TYPE=Debug `
+                -DLINKER_SCRIPT="L1_MCU/STM32F429ZIT6_GCC/STM32F429XX_FLASH.ld" `
+                -DMCU_MODEL="STM32F429ZIT6_GCC" `
+                -DUSE_FREERTOS=${{ matrix.config.freertos }} `
+                -DUSE_FATFS=OFF `
+                -DUSE_LVGL=${{ matrix.config.lvgl }} `
+                -DUSE_LVGL_THORVG=${{ matrix.config.thorvg }}
+          ninja -C build
+
   test:
     name: Run Unit Tests
     runs-on: ubuntu-latest
@@ -90,3 +145,28 @@ jobs:
           cd Test
           chmod +x build.sh
           ./build.sh
+
+  test-windows:
+    name: Run Unit Tests (Windows)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Verify tools installation
+        shell: pwsh
+        run: |
+          ninja --version
+          cmake --version
+          gcc --version
+
+      - name: Run tests
+        shell: pwsh
+        run: |
+          cd Test
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+          ninja -C build
+          .\build\test.exe
