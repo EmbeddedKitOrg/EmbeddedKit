@@ -93,6 +93,12 @@ jobs:
         with:
           lfs: true
 
+      - name: Install Scoop
+        shell: pwsh
+        run: |
+          Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+          Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+
       - name: Install ARM GCC Toolchain
         shell: pwsh
         run: |
@@ -148,21 +154,15 @@ jobs:
                 -DCMAKE_CXX_FLAGS="-m32"
           cmake --build build --config Debug
 
-          # 诊断：列出 build 目录内容
-          echo "=== Build directory structure ==="
-          ls -la build/
-
-          # 诊断：查找可执行文件
-          echo "=== Searching for executable ==="
-          EXE_PATH=$(find build \( -type f -executable -o -name "test" -o -name "test.exe" \) | head -1)
-
-          if [ -z "$EXE_PATH" ]; then
-            echo "Error: No executable found in build directory!"
+          # 运行测试可执行文件
+          if [ -f "build/test" ]; then
+            echo "Running test executable..."
+            ./build/test
+          else
+            echo "Error: Test executable not found at build/test"
+            ls -la build/
             exit 1
           fi
-
-          echo "Found executable: $EXE_PATH"
-          "$EXE_PATH"
 
   test-windows:
     name: Run Unit Tests (Windows)
@@ -187,18 +187,12 @@ jobs:
           cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
           cmake --build build --config Debug
 
-          # 诊断：列出 build 目录内容
-          Write-Host "=== Build directory contents ==="
-          Get-ChildItem build -Recurse | Select-Object FullName | ForEach-Object { $_.FullName }
-
-          # 诊断：查找可执行文件
-          Write-Host "=== Searching for executable ==="
-          $exePath = Get-ChildItem build -Recurse -Filter "*.exe" | Select-Object -First 1
-
-          if (-not $exePath) {
-            Write-Error "No .exe file found in build directory!"
+          # 运行测试可执行文件
+          if (Test-Path "build/test.exe") {
+            Write-Host "Running test executable..."
+            & .\build\test.exe
+          } else {
+            Write-Error "Test executable not found at build/test.exe"
+            Get-ChildItem build | Select-Object Name, Length
             exit 1
           }
-
-          Write-Host "Found executable: $($exePath.FullName)"
-          & $exePath.FullName
