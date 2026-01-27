@@ -3,9 +3,10 @@ option(USE_FATFS "ENABLE FATFS" OFF)
 option(USE_LVGL "ENABLE LVGL" OFF)
 option(USE_LVGL_THORVG "Enable LVGL ThorVG vector graphics library" OFF)
 
-# =============================================================================
+# 汇总库
+add_library(l3_middlewares INTERFACE)
+
 # 中间件集成
-# =============================================================================
 if(USE_FREERTOS)
     add_subdirectory(FreeRTOS)
 endif()
@@ -28,15 +29,11 @@ if(USE_LVGL)
     target_compile_definitions(lvgl_config INTERFACE
         LV_CONF_BUILD_DISABLE_EXAMPLES=1
         LV_CONF_BUILD_DISABLE_DEMOS=1
-        LV_CONF_BUILD_DISABLE_THORVG_INTERNAL=$<NOT:${USE_LVGL_THORVG}>
+        LV_CONF_BUILD_DISABLE_THORVG_INTERNAL=$<NOT:$<BOOL:${USE_LVGL_THORVG}>>
     )
 endif()
 
-# =============================================================================
-# 汇总库
-# =============================================================================
-add_library(l3_middlewares INTERFACE)
-
+# 链接依赖
 if(USE_FREERTOS)
     target_link_libraries(l3_middlewares INTERFACE freertos_kernel)
 endif()
