@@ -1,9 +1,9 @@
 # L4_Components (硬件驱动组件层)
 
 ## 1. 简介
-L4_Components 是本项目的硬件驱动组件层，基于 L1_HAL 实现各种外设的驱动程序。
+L4_Components 是本项目的硬件驱动组件层，基于 L2_Core/hal 实现各种外设的驱动程序。
 
-向下：调用 L1_HAL 提供的统一硬件接口（如 hal_gpio_write、hal_uart_send）。
+向下：调用 L2_Core/hal 提供的统一硬件接口（如 hal_gpio_write、hal_uart_send）。
 
 向上：为 L5_App 层提供完整的设备驱动功能（如 OLED 显示、Flash 存储、传感器采集等）。
 
