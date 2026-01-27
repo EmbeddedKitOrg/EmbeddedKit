@@ -1,6 +1,7 @@
 add_library(l1_mcu STATIC)
 
 target_link_libraries(l1_mcu PUBLIC
+    l0_assets
     global_macros
     global_options
 )

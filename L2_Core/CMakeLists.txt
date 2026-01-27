@@ -12,6 +12,7 @@ target_include_directories(l2_core PUBLIC
 
 target_link_libraries(l2_core PUBLIC
     l1_mcu
+    l0_assets
     global_macros
     global_options
 )

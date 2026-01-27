@@ -79,25 +79,23 @@ set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${CMAKE_PROJE
 # ==============================================================================
 # 添加子目录 (构建静态库)
 # ==============================================================================
-# 注意：在各层级的 CMakeLists.txt 中，记得链接 global_macros 和 global_options
-add_subdirectory(L1_MCU)  # 原 L0_MCU
-add_subdirectory(L2_Core)  # 包含 utils/ 和 hal/
-add_subdirectory(L3_Middlewares)  # FreeRTOS 等第三方中间件
-# add_subdirectory(L4_Components)
+add_subdirectory(L0_Assets)
+add_subdirectory(L1_MCU)
+add_subdirectory(L2_Core)  
+add_subdirectory(L3_Middlewares)  
+add_subdirectory(L4_Components)
 add_subdirectory(L5_App)
 
-# 链接所有层级生成的库
-# 注意顺序：通常 顶层 依赖 底层，但链接器有时需要注意符号解析顺序。
-# 如果使用 .a 静态库，建议将依赖方放在前面 (L5 依赖 L4...)
 target_link_libraries(${CMAKE_PROJECT_NAME}
     l5_app
-    # l4_components
+    l4_components
     l3_middlewares
     l2_core
     l1_mcu
-
-    global_macros   # 确保最终 ELF 也继承宏
-    global_options  # 确保最终 ELF 也继承选项
+    l0_assets
+    
+    global_macros   
+    global_options  
 )
 
 # ==============================================================================
