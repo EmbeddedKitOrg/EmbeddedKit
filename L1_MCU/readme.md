@@ -136,6 +136,77 @@ cmake -B build -DMCU_MODEL=STM32F429ZIT6_GCC
 cmake -B build -DMCU_MODEL=STM32F407VGT6_GCC
 ```
 
+### 步骤 5：编写 MCU 子目录的 CMakeLists.txt
+
+每个 MCU 子目录需要自己的 `CMakeLists.txt`，用于组织该 MCU 的源文件、头文件和厂商库。
+
+**标准模板（参考 STM32F407VGT6_GCC/CMakeLists.txt）：**
+
+```cmake
+# =============================================================================
+# 1. 头文件路径
+# =============================================================================
+set(MX_Include_Dirs
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc           # 用户代码头文件
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS/Device/ST/STM32F4xx/Include
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS/Include
+    ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/ST/ARM/DSP/Inc  # 可选
+)
+
+# =============================================================================
+# 2. 收集源文件
+# =============================================================================
+file(GLOB MX_Start_S ${CMAKE_CURRENT_SOURCE_DIR}/*.s)              # 启动文件
+aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/Core/Src MX_Core_Src)    # 用户代码
+aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Src MX_Driver_Src)  # HAL 库
+
+# =============================================================================
+# 3. 创建 OBJECT 库（整合到 l1_mcu）
+# =============================================================================
+add_library(cubemx_hal OBJECT ${MX_Start_S} ${MX_Core_Src} ${MX_Driver_Src})
+
+# ARM DSP 数学库（可选，有则添加）
+target_sources(cubemx_hal PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/ST/ARM/DSP/Lib/libarm_cortexM4lf_math.a
+)
+
+# 头文件路径
+target_include_directories(cubemx_hal PUBLIC ${MX_Include_Dirs})
+
+# STM32 宏定义（根据具体型号修改）
+target_compile_definitions(cubemx_hal PUBLIC
+    USE_HAL_DRIVER
+    STM32F407xx    # F407 用 STM32F407xx，F429 用 STM32F429xx
+    $<$<CONFIG:Debug>:DEBUG>
+)
+
+# 链接全局配置
+target_link_libraries(cubemx_hal PUBLIC global_macros global_options)
+
+# =============================================================================
+# 4. 整合到父层 l1_mcu
+# =============================================================================
+# 将对象文件添加到 l1_mcu
+target_sources(l1_mcu PRIVATE $<TARGET_OBJECTS:cubemx_hal>)
+
+# 传递头文件路径给 l1_mcu 的使用者
+target_include_directories(l1_mcu PUBLIC $<TARGET_PROPERTY:cubemx_hal,INTERFACE_INCLUDE_DIRECTORIES>)
+
+# 传递宏定义给 l1_mcu 的使用者
+target_compile_definitions(l1_mcu PUBLIC $<TARGET_PROPERTY:cubemx_hal,INTERFACE_COMPILE_DEFINITIONS>)
+```
+
+**关键修改点：**
+
+| 项目 | 说明 |
+|------|------|
+| `MX_Include_Dirs` | 根据实际目录结构调整，厂商库路径需匹配 |
+| `STM32F407xx` | F407 用 `STM32F407xx`，F429 用 `STM32F429xx`，F103 用 `STM32F103xx` |
+| `libarm_cortexM4lf_math.a` | 只有 M4 内核才有，M3/M0 不需要 |
+| `cubemx_hal` | 名称可自定义，建议统一便于识别 |
+
 ## 5. 常见问题
 
 **Q: 为什么不把所有厂商库放在同一个公共目录？**
