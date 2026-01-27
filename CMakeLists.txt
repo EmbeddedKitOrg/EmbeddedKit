@@ -86,16 +86,22 @@ add_subdirectory(L3_Middlewares)
 add_subdirectory(L4_Components)
 add_subdirectory(L5_App)
 
+# 强制链接器解析 ek_main 符号（解决跨层调用问题）
+# 使链接器从 L5_App 中提取 ek_main 的强定义
+target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
+    "-Wl,--undefined=ek_main"
+)
+
 target_link_libraries(${CMAKE_PROJECT_NAME}
     l5_app
     l4_components
     l3_middlewares
     l2_core
-    l1_mcu
+    "-Wl,--whole-archive" l1_mcu "-Wl,--no-whole-archive"  # 强制包含 l1_mcu 所有符号（syscalls）
     l0_assets
-    
-    global_macros   
-    global_options  
+
+    global_macros
+    global_options
 )
 
 # ==============================================================================
