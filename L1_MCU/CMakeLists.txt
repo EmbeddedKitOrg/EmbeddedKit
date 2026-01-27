@@ -17,10 +17,5 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${MCU_MODEL}")
     message(FATAL_ERROR "MCU directory not found: ${CMAKE_CURRENT_SOURCE_DIR}/${MCU_MODEL}")
 endif()
 
-# 添加 stub 源文件（提供 ek_main 的弱定义）
-target_sources(l1_mcu PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/stub/ek_app_stub.c
-)
-
 # 进入子目录。注意：此时 l1_mcu 目标已经存在，子目录可以向其添加文件
 add_subdirectory(${MCU_MODEL})
