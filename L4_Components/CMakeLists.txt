@@ -8,6 +8,7 @@ target_link_libraries(l4_components PUBLIC
     l3_middlewares
     l2_core
     l1_mcu
+    l0_assets
     global_macros 
     global_options
 )

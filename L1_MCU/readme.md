@@ -11,23 +11,23 @@ L1_MCU 是本项目的最底层，专门用于存放各 MCU 厂商提供的官�
 ```text
 L1_MCU
 ├── CMakeLists.txt          # 构建脚本
-├── stub
-│   └── ek_app_stub.c      # 弱定义的函数入口
-├── STM32F429ZIT6          # 具体的 MCU 型号目录
-│   ├── Inc                # 厂商头文件
+├── STM32F429ZIT6_GCC      # 具体的 MCU 型号目录（GCC 工具链）
+│   ├── Core/Inc           # 厂商头文件
 │   │   ├── stm32f4xx_hal_conf.h
 │   │   ├── stm32f4xx_it.h
 │   │   └── main.h         # 系统配置
-│   ├── Src                # 厂商源文件
+│   ├── Core/Src           # 厂商源文件
 │   │   ├── stm32f4xx_hal_msp.c
 │   │   ├── stm32f4xx_it.c
+│   │   ├── syscalls.c     # 系统调用（_sbrk, _write, _read 等）
 │   │   └── main.c         # 主程序入口（调用 ek_main）
 │   ├── Drivers            # STM32 HAL 库
 │   │   ├── STM32F4xx_HAL_Driver
 │   │   └── CMSIS
-│   └── startup            # 启动文件
-│       └── startup_stm32f429xx.s
-└── STM32F103C8T6          # 另一个 MCU 型号（示例）
+│   ├── startup            # 启动文件
+│   │   └── startup_stm32f429xx.s
+│   └── stm32f429xx_flash.ld  # 链接脚本
+└── STM32F407VGT6_GCC      # 另一个 MCU 型号
     └── ...
 ```
 
@@ -80,17 +80,16 @@ GD32F450VGT6/
 在 main.c 中完成硬件初始化后，调用上层业务入口：
 
 ```c
-// Src/main.c
+// Core/Src/main.c
 #include "main.h"
-#include "L5_App/app.h"
 
-extern void ek_main(void); // 在开头声明可以避免 LSP 提示找不到 `ek_main`
+extern void ek_main(void);  // L5_App 层的应用入口
 
 int main(void)
 {
     // 1. 系统初始化（时钟、配置等）
-    SystemInit();
     HAL_Init();
+    SystemClock_Config();
 
     // 2. 调用上层业务入口
     ek_main();
@@ -100,17 +99,113 @@ int main(void)
 }
 ```
 
-### 步骤 4：更新 CMakeLists.txt
-在 L1_MCU/CMakeLists.txt 中添加新的 MCU 子目录：
+**跨层调用机制说明**：
+
+L1 层的 `main.c` 需要调用 L5 层的 `ek_main()`，这违反了"上层依赖下层"的常规规则。为解决此问题，项目采用链接器选项强制符号解析：
 
 ```cmake
-# 根据项目配置选择当前使用的 MCU
-if(USE_STM32F429)
-    add_subdirectory(STM32F429VGT6)
-elseif(USE_GD32F450)
-    add_subdirectory(GD32F450VGT6)
-endif()
+# 根目录 CMakeLists.txt
+target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
+    "-Wl,--undefined=ek_main"  # 强制链接器从 L5_App 中提取 ek_main
+)
+
+target_link_libraries(${CMAKE_PROJECT_NAME}
+    l5_app                      # L5 层必须提供 ek_main 强定义
+    l4_components
+    l3_middlewares
+    l2_core
+    "-Wl,--whole-archive" l1_mcu "-Wl,--no-whole-archive"  # 包含 syscalls
+    l0_assets
+)
 ```
+
+### 步骤 4：更新 CMakeLists.txt
+在 L1_MCU/CMakeLists.txt 中使用变量选择 MCU 型号：
+
+```cmake
+# 设置默认 MCU 型号，允许命令行 -DMCU_MODEL=xxx 覆盖
+set(MCU_MODEL "STM32F429ZIT6_GCC" CACHE STRING "Select MCU Model")
+
+# 进入对应的 MCU 子目录
+add_subdirectory(${MCU_MODEL})
+```
+
+构建时指定 MCU 型号：
+```bash
+cmake -B build -DMCU_MODEL=STM32F429ZIT6_GCC
+cmake -B build -DMCU_MODEL=STM32F407VGT6_GCC
+```
+
+### 步骤 5：编写 MCU 子目录的 CMakeLists.txt
+
+每个 MCU 子目录需要自己的 `CMakeLists.txt`，用于组织该 MCU 的源文件、头文件和厂商库。
+
+**标准模板（参考 STM32F407VGT6_GCC/CMakeLists.txt）：**
+
+```cmake
+# =============================================================================
+# 1. 头文件路径
+# =============================================================================
+set(MX_Include_Dirs
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc           # 用户代码头文件
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS/Device/ST/STM32F4xx/Include
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS/Include
+    ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/ST/ARM/DSP/Inc  # 可选
+)
+
+# =============================================================================
+# 2. 收集源文件
+# =============================================================================
+file(GLOB MX_Start_S ${CMAKE_CURRENT_SOURCE_DIR}/*.s)              # 启动文件
+aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/Core/Src MX_Core_Src)    # 用户代码
+aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Src MX_Driver_Src)  # HAL 库
+
+# =============================================================================
+# 3. 创建 OBJECT 库（整合到 l1_mcu）
+# =============================================================================
+add_library(cubemx_hal OBJECT ${MX_Start_S} ${MX_Core_Src} ${MX_Driver_Src})
+
+# ARM DSP 数学库（可选，有则添加）
+target_sources(cubemx_hal PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/ST/ARM/DSP/Lib/libarm_cortexM4lf_math.a
+)
+
+# 头文件路径
+target_include_directories(cubemx_hal PUBLIC ${MX_Include_Dirs})
+
+# STM32 宏定义（根据具体型号修改）
+target_compile_definitions(cubemx_hal PUBLIC
+    USE_HAL_DRIVER
+    STM32F407xx    # F407 用 STM32F407xx，F429 用 STM32F429xx
+    $<$<CONFIG:Debug>:DEBUG>
+)
+
+# 链接全局配置
+target_link_libraries(cubemx_hal PUBLIC global_macros global_options)
+
+# =============================================================================
+# 4. 整合到父层 l1_mcu
+# =============================================================================
+# 将对象文件添加到 l1_mcu
+target_sources(l1_mcu PRIVATE $<TARGET_OBJECTS:cubemx_hal>)
+
+# 传递头文件路径给 l1_mcu 的使用者
+target_include_directories(l1_mcu PUBLIC $<TARGET_PROPERTY:cubemx_hal,INTERFACE_INCLUDE_DIRECTORIES>)
+
+# 传递宏定义给 l1_mcu 的使用者
+target_compile_definitions(l1_mcu PUBLIC $<TARGET_PROPERTY:cubemx_hal,INTERFACE_COMPILE_DEFINITIONS>)
+```
+
+**关键修改点：**
+
+| 项目 | 说明 |
+|------|------|
+| `MX_Include_Dirs` | 根据实际目录结构调整，厂商库路径需匹配 |
+| `STM32F407xx` | F407 用 `STM32F407xx`，F429 用 `STM32F429xx`，F103 用 `STM32F103xx` |
+| `libarm_cortexM4lf_math.a` | 只有 M4 内核才有，M3/M0 不需要 |
+| `cubemx_hal` | 名称可自定义，建议统一便于识别 |
 
 ## 5. 常见问题
 
@@ -122,6 +217,15 @@ A: 不同 MCU 厂商库的文件名可能相同（都是 stm32xxxx_hal.c），�
 
 A: main.c 包含 MCU 特定的初始化代码（如 HAL_Init、SystemClock_Config），这些是与具体芯片相关的。L5 的 ek_main 应该是纯业务逻辑，与硬件无关。L1 的 main.c 充当了"胶水"代码的角色。
 
+**Q: L1 调用 L5 的 ek_main 会不会破坏分层架构？**
+
+A: 这是嵌入式系统的特殊情况。C 标准要求程序从 main 函数开始，而 main 必须在 L1 层（因为需要硬件初始化）。通过 `--undefined=ek_main` 链接器选项，我们在不改变各层静态库属性的前提下实现了这种"反向调用"。L5 层仍是独立的静态库，可以在其他项目中复用。
+
+**Q: 为什么需要 --whole-archive 包含 l1_mcu？**
+
+A: libc_nano.a 需要系统调用符号（`_sbrk`, `_write`, `_read` 等），这些符号定义在 L1_MCU 的 syscalls.c 中。由于静态库的选择性链接机制，如果 l1_mcu 没有被引用，这些符号会被跳过。`--whole-archive` 强制包含 l1_mcu 的所有符号。
+
 **Q: 如何在同一个工程中支持多个 MCU？**
 
-A: 使用 CMake 的条件编译选项。在构建时指定 `-DUSE_STM32F429=ON` 或 `-DUSE_GD32F450=ON`，CMake 只会编译对应的 MCU 目录。
+A: 使用 CMake 的 `MCU_MODEL` 变量。在构建时指定 `-DMCU_MODEL=STM32F429ZIT6_GCC` 或 `-DMCU_MODEL=STM32F407VGT6_GCC`，CMake 只会编译对应的 MCU 目录。
+

@@ -94,17 +94,9 @@ jobs:
           lfs: true
 
       - name: Install ARM GCC Toolchain
-        shell: pwsh
-        run: |
-          # 下载并解压ARM GCC工具链（使用13.2版本以支持最新的ld脚本语法）
-          $url = "https://developer.arm.com/-/media/Files/downloads/gnu/13.2.rel1/binrel/arm-gnu-toolchain-13.2.rel1-mingw-w64-i686-arm-none-eabi.zip"
-          $output = "gcc-arm-none-eabi.zip"
-          Invoke-WebRequest -Uri $url -OutFile $output
-          Expand-Archive -Path $output -DestinationPath "C:\gcc-arm"
-          
-          # 添加到PATH
-          $env:Path = "C:\gcc-arm\arm-gnu-toolchain-13.2.Rel1-mingw-w64-i686-arm-none-eabi\bin;" + $env:Path
-          echo "C:\gcc-arm\arm-gnu-toolchain-13.2.Rel1-mingw-w64-i686-arm-none-eabi\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: '13.2.Rel1'
 
       - name: Verify toolchain installation
         shell: pwsh
