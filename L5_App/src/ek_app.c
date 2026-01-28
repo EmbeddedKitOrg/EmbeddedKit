@@ -2,6 +2,7 @@
 #include "ek_mem.h"
 #include "ek_io.h"
 #include "ek_log.h"
+#include "ek_hal_tick.h"
 
 EK_LOG_FILE_TAG("ek_app.c");
 
@@ -13,9 +14,7 @@ EK_IO_FPUTC()
 
 EK_LOG_GET_TICK()
 {
-    // 这里返回你系统的tick
-    // e.g. return HAL_GetTick();
-    return 0;
+    return ek_default_ticker.get();
 }
 
 void ek_main(void)
