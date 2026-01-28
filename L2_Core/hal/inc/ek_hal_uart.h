@@ -2,7 +2,6 @@
 #define EK_HAL_UART_H
 
 #include "../../utils/inc/ek_def.h"
-#include "../../utils/inc/ek_io.h"
 #include "../../utils/inc/ek_list.h"
 
 typedef struct ek_hal_uart_t ek_hal_uart_t;
