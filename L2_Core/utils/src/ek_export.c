@@ -19,4 +19,10 @@ void ek_export_init(void)
     }
 }
 
+#else
+
+void ek_export_init(void)
+{
+}
+
 #endif /* EK_EXPORT_ENABLE */

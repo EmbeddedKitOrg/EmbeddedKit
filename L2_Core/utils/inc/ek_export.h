@@ -25,12 +25,12 @@ typedef void (*_ek_export_init_fn_t)(void);
 #    define EK_EXPORT(fn, prio) \
         const _ek_export_init_fn_t __init_##fn##prio __attribute__((used, section(".ek_export_fn." _EK_STR(prio)))) = fn
 
-void ek_export_init(void);
-
 #else
 
 #    define EK_EXPORT(fn, prio)
 
 #endif /* EK_EXPORT_ENABLE */
+
+void ek_export_init(void);
 
 #endif /* EK_EXPORT_H */
