@@ -1,6 +1,8 @@
 #include "../inc/ek_hal_uart.h"
 #include "../../utils/inc/ek_mem.h"
 #include "../../utils/inc/ek_assert.h"
+#include "../../utils/inc/ek_export.h"
+
 
 #define EK_HAL_LOCK_ON(x)   ((x)->lock = true)
 #define EK_HAL_LOCK_OFF(x)  ((x)->lock = false)
@@ -64,3 +66,5 @@ void ek_hal_uart_init(void)
         uart->read();
     }
 }
+
+EK_EXPORT(ek_hal_uart_init, 0);

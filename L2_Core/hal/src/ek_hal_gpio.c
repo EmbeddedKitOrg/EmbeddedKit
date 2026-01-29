@@ -1,5 +1,5 @@
 #include "../inc/ek_hal_gpio.h"
-#include "../inc/ek_export.h"
+#include "../../utils/inc/ek_export.h"
 
 ek_list_node_t ek_hal_gpio_head;
 
