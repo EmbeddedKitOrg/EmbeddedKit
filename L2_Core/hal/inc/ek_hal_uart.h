@@ -1,18 +1,30 @@
 #ifndef EK_HAL_UART_H
 #define EK_HAL_UART_H
 
-#include "ek_hal_base.h"
+#include "../../utils/inc/ek_def.h"
+#include "../../utils/inc/ek_list.h"
 
-typedef struct hal_ek_uart_t hal_ek_uart_t;
+typedef struct ek_hal_uart_t ek_hal_uart_t;
 
-struct hal_ek_uart_t
+struct ek_hal_uart_t
 {
-    ek_hal_base_t base;
-
+    uint8_t idx;
     uint32_t baudrate;
+    uint16_t buf_size;
+    uint8_t *rxbuffer;
+    ek_list_node_t node;
 
-    bool (*write)(void *src, size_t size);
-    bool (*read)(void *dst, size_t size);
+    bool lock;
+
+    void (*init)(void);
+    bool (*write)(uint8_t *txdata, size_t size);
+    void (*read)(void);
 };
 
-#endif /* EK_HAL_UART_H */
+extern ek_list_node_t ek_hal_uart_head;
+
+extern ek_hal_uart_t hal_drv_uart1;
+
+void ek_hal_uart_init(void);
+
+#endif // EK_HAL_UART_H
