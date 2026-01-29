@@ -2,6 +2,8 @@
 #include "ek_mem.h"
 #include "ek_io.h"
 #include "ek_log.h"
+#include "ek_export.h"
+
 #include "ek_hal_tick.h"
 
 EK_LOG_FILE_TAG("ek_app.c");
@@ -21,6 +23,7 @@ void ek_main(void)
 {
     ek_heap_init();
     ek_io_init();
+    ek_export_init();
 
     while (1)
     {
