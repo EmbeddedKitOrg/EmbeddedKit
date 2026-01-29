@@ -3,9 +3,9 @@
 
 ek_list_node_t ek_hal_gpio_head;
 
-static void xxx_pin_set(vopd);
-static void xxx_pin_reset(vopd);
-static void xxx_pin_toggle(vopd);
+static void xxx_pin_set(void);
+static void xxx_pin_reset(void);
+static void xxx_pin_toggle(void);
 
 ek_hal_gpio_t hal_drv_gpio_xxx_pin = {
     .idx = 1,
@@ -14,15 +14,15 @@ ek_hal_gpio_t hal_drv_gpio_xxx_pin = {
     .toggle = xxx_pin_toggle,
 };
 
-static void xxx_pin_set(vopd)
+static void xxx_pin_set(void)
 {
 }
 
-static void xxx_pin_reset(vopd)
+static void xxx_pin_reset(void)
 {
 }
 
-static void xxx_pin_toggle(vopd)
+static void xxx_pin_toggle(void)
 {
 }
 
