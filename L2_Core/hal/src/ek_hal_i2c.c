@@ -6,7 +6,6 @@
 #define EK_HAL_LOCK_OFF(x)  ((x)->lock = false)
 #define EK_HAL_LOCK_TEST(x) ((x)->lock == true)
 
-#define STM32F429XX_TIMEOUT (100)
 static void i2c1_init(void);
 static bool i2c1_send(uint16_t dev_addr, uint8_t *txdata, size_t size);
 static bool i2c1_recieve(uint16_t dev_addr, uint8_t *rxdata, size_t size);

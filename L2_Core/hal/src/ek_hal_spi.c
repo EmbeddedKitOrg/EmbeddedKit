@@ -6,8 +6,6 @@
 #define EK_HAL_LOCK_OFF(x)  ((x)->lock = false)
 #define EK_HAL_LOCK_TEST(x) ((x)->lock == true)
 
-#define STM32F429XX_TIMEOUT (100)
-
 ek_list_node_t ek_hal_spi_head;
 
 static void spi1_init(void);
