@@ -97,7 +97,7 @@
 #define INCLUDE_xTaskGetCurrentTaskHandle 1
 
 /* ========================================================================
- * 协程配置 (本项目不使用)
+ * 协程配置
  * - USE_CO_ROUTINES: 使能协程功能
  * ======================================================================== */
 #define USE_CO_ROUTINES 0
@@ -126,9 +126,9 @@
 
 /* ========================================================================
  * ARM Cortex-M特定配置
- * - configENABLE_MPU: 使能ARMv8-M MPU扩展(不适用于Cortex-M4F)
- * - configENABLE_FZ: 使能ARMv8-M FZ扩展(不适用于Cortex-M4F)
- * - configENABLE_TRUSTZONE: 使能ARMv8-M TrustZone扩展(不适用于Cortex-M4F)
+ * - configENABLE_MPU: 使能ARMv8-M MPU扩展
+ * - configENABLE_FZ: 使能ARMv8-M FZ扩展
+ * - configENABLE_TRUSTZONE: 使能ARMv8-M TrustZone扩展
  * ======================================================================== */
 #define configENABLE_MPU       0
 #define configENABLE_FZ        0
