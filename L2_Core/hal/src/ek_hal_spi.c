@@ -54,6 +54,7 @@ static bool spi1_recieve(uint8_t *rxdata, size_t size)
 
     __UNUSED(rxdata);
     __UNUSED(size);
+    // 具体的spi底层
 
     EK_HAL_LOCK_OFF(&hal_drv_spi1);
 
@@ -69,6 +70,7 @@ static bool spi1_write_recieve(uint8_t *txdata, uint8_t *rxdata, size_t size)
     __UNUSED(txdata);
     __UNUSED(rxdata);
     __UNUSED(size);
+    // 具体的spi底层
 
     EK_HAL_LOCK_OFF(&hal_drv_spi1);
 
