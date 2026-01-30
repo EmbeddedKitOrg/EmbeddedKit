@@ -50,10 +50,10 @@ extern uint32_t SystemCoreClock;
  * - configUSE_MALLOC_FAILED_HOOK: 内存申请失败钩子
  * - configCHECK_FOR_STACK_OVERFLOW: 栈溢出检测 (1=简单检测, 2=深度检测)
  * ======================================================================== */
-#define configUSE_IDLE_HOOK            1
-#define configUSE_TICK_HOOK            1
-#define configUSE_MALLOC_FAILED_HOOK   1
-#define configCHECK_FOR_STACK_OVERFLOW 2
+#define configUSE_IDLE_HOOK            0
+#define configUSE_TICK_HOOK            0
+#define configUSE_MALLOC_FAILED_HOOK   0
+#define configCHECK_FOR_STACK_OVERFLOW 0
 
 /* ========================================================================
  * 任务相关配置
@@ -74,7 +74,7 @@ extern uint32_t SystemCoreClock;
  * - configTIMER_QUEUE_LENGTH: 定时器命令队列长度
  * - configTIMER_TASK_STACK_DEPTH: 定时器任务栈大小
  * ======================================================================== */
-#define configUSE_TIMERS             1
+#define configUSE_TIMERS             0
 #define configTIMER_TASK_PRIORITY    (configMAX_PRIORITIES - 1)
 #define configTIMER_QUEUE_LENGTH     10
 #define configTIMER_TASK_STACK_DEPTH configMINIMAL_STACK_SIZE
@@ -163,11 +163,11 @@ extern "C"
 {
 #endif
 
-/* 钩子函数原型声明，确保编译器不会报错 */
-void vApplicationIdleHook(void);
-void vApplicationTickHook(void);
-void vApplicationMallocFailedHook(void);
-void vApplicationStackOverflowHook(void *xTask, char *pcTaskName);
+/* 钩子函数原型声明 */
+// void vApplicationIdleHook(void);
+// void vApplicationTickHook(void);
+// void vApplicationMallocFailedHook(void);
+// void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName);
 
 #ifdef __cplusplus
 }
