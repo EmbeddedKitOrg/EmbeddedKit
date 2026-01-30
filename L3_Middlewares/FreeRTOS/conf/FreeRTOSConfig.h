@@ -110,6 +110,7 @@
  * - configMAX_SYSCALL_INTERRUPT_PRIORITY: 最高系统调用中断优先级(转换为硬件值)
  * - xPortPendSVHandler: PendSV中断处理函数映射
  * - vPortSVCHandler: SVC中断处理函数映射
+ * - xPortSysTickHandler:滴答计时器函数映射
  * ======================================================================== */
 #define configLIBRARY_LOWEST_INTERRUPT_PRIORITY      15
 #define configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY 5
@@ -117,6 +118,7 @@
 #define configMAX_SYSCALL_INTERRUPT_PRIORITY         (configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY << (8 - configPRIO_BITS))
 #define xPortPendSVHandler                           PendSV_Handler
 #define vPortSVCHandler                              SVC_Handler
+#define xPortSysTickHandler                          SysTick_Handler
 
 /* ========================================================================
  * 硬件特定配置
