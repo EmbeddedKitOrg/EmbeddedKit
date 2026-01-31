@@ -6,8 +6,6 @@
 #define EK_HAL_LOCK_OFF(x)  ((x)->lock = false)
 #define EK_HAL_LOCK_TEST(x) ((x)->lock == true)
 
-#define STM32F429XX_TIMEOUT (100)
-
 ek_list_node_t ek_hal_spi_head;
 
 static void spi1_init(void);
@@ -54,6 +52,7 @@ static bool spi1_recieve(uint8_t *rxdata, size_t size)
 
     __UNUSED(rxdata);
     __UNUSED(size);
+    // 具体的spi底层
 
     EK_HAL_LOCK_OFF(&hal_drv_spi1);
 
@@ -69,6 +68,7 @@ static bool spi1_write_recieve(uint8_t *txdata, uint8_t *rxdata, size_t size)
     __UNUSED(txdata);
     __UNUSED(rxdata);
     __UNUSED(size);
+    // 具体的spi底层
 
     EK_HAL_LOCK_OFF(&hal_drv_spi1);
 

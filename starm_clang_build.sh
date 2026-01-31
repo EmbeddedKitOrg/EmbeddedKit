@@ -7,6 +7,5 @@ cmake -B build -G Ninja\
       -DUSE_FREERTOS=OFF\
       -DUSE_FATFS=OFF\
       -DUSE_LVGL=OFF\
-      -DUSE_LVGL_THORVG=OFF\
 
 ninja -C build

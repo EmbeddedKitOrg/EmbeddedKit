@@ -16,19 +16,12 @@ jobs:
           - name: "Default (All OFF)"
             freertos: "OFF"
             lvgl: "OFF"
-            thorvg: "OFF"
           - name: "FreeRTOS ON"
             freertos: "ON"
             lvgl: "OFF"
-            thorvg: "OFF"
           - name: "LVGL ON"
             freertos: "OFF"
             lvgl: "ON"
-            thorvg: "OFF"
-          - name: "LVGL + ThorVG ON"
-            freertos: "OFF"
-            lvgl: "ON"
-            thorvg: "ON"
 
     steps:
       - name: Checkout repository
@@ -60,8 +53,7 @@ jobs:
                 -DMCU_MODEL="STM32F429ZIT6_GCC" \
                 -DUSE_FREERTOS=${{ matrix.config.freertos }} \
                 -DUSE_FATFS=OFF \
-                -DUSE_LVGL=${{ matrix.config.lvgl }} \
-                -DUSE_LVGL_THORVG=${{ matrix.config.thorvg }}
+                -DUSE_LVGL=${{ matrix.config.lvgl }}
           ninja -C build
 
   build-gcc-windows:
@@ -73,19 +65,12 @@ jobs:
           - name: "Default (All OFF)"
             freertos: "OFF"
             lvgl: "OFF"
-            thorvg: "OFF"
           - name: "FreeRTOS ON"
             freertos: "ON"
             lvgl: "OFF"
-            thorvg: "OFF"
           - name: "LVGL ON"
             freertos: "OFF"
             lvgl: "ON"
-            thorvg: "OFF"
-          - name: "LVGL + ThorVG ON"
-            freertos: "OFF"
-            lvgl: "ON"
-            thorvg: "ON"
 
     steps:
       - name: Checkout repository
@@ -168,25 +153,36 @@ jobs:
         with:
           lfs: true
 
+      - name: Setup MSYS2 with GCC
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+
       - name: Verify tools installation
-        shell: pwsh
+        shell: msys2 {0}
         run: |
-          ninja --version
+          gcc --version
           cmake --version
+          ninja --version
 
       - name: Run tests
-        shell: pwsh
+        shell: msys2 {0}
         run: |
           cd Test
           cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
           cmake --build build --config Debug
 
           # 运行测试可执行文件
-          if (Test-Path "build/test.exe") {
-            Write-Host "Running test executable..."
-            & .\build\test.exe
-          } else {
-            Write-Error "Test executable not found at build/test.exe"
-            Get-ChildItem build | Select-Object Name, Length
+          if [ -f "build/test.exe" ]; then
+            echo "Running test executable..."
+            ./build/test.exe
+          else
+            echo "Error: Test executable not found at build/test.exe"
+            ls -la build/
             exit 1
-          }
+          fi

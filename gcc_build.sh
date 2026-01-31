@@ -7,7 +7,6 @@
 #       -DUSE_FREERTOS=OFF\
 #       -DUSE_FATFS=OFF\
 #       -DUSE_LVGL=OFF\
-#       -DUSE_LVGL_THORVG=OFF
 
 cmake -B build -G Ninja\
       -DCMAKE_TOOLCHAIN_FILE="cmake/gcc-arm-none-eabi.cmake"\
@@ -16,7 +15,6 @@ cmake -B build -G Ninja\
       -DMCU_MODEL="STM32F407VGT6_GCC"\
       -DUSE_FREERTOS=OFF\
       -DUSE_FATFS=OFF\
-      -DUSE_LVGL=OFF\
-      -DUSE_LVGL_THORVG=OFF
+      -DUSE_LVGL=OFF
 
 ninja -C build
