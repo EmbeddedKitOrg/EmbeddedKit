@@ -1,359 +1,320 @@
 /**
  * @file lv_conf.h
- * Configuration file for LVGL v9.x
+ * Configuration file for LVGL v8.3.11
  *
  * EmbeddedKit 项目定制配置
- * 目标平台: STM32F429VGT6
- * 显示: RGB565 (16位色深)
  */
 
-/* clang-format off */
 #if 1 /*Set it to "1" to enable content*/
 
-#ifndef LV_CONF_H
-#define LV_CONF_H
+#    ifndef LV_CONF_H
+#        define LV_CONF_H
 
-/* 注意: EK_USE_RTOS 由 L2_Core 的 ek_def.h 定义
- * 由于 LVGL 配置文件需要在更早阶段被包含，
- * 这里直接使用宏判断，依赖项目构建配置传递 */
+#        include <stdint.h>
 
 /*====================
    COLOR SETTINGS
  *====================*/
 
-/*Color depth: 1 (I1), 8 (L8), 16 (RGB565), 24 (RGB888), 32 (XRGB8888)*/
-#define LV_COLOR_DEPTH 16
+#        define LV_COLOR_DEPTH         16
+#        define LV_COLOR_16_SWAP       0
+#        define LV_COLOR_SCREEN_TRANSP 0
+#        define LV_COLOR_MIX_ROUND_OFS 0
+#        define LV_COLOR_CHROMA_KEY    lv_color_hex(0x00ff00)
 
 /*=========================
-   STDLIB WRAPPER SETTINGS
+   MEMORY SETTINGS
  *=========================*/
 
-/* 使用内置内存管理器 */
-#define LV_USE_STDLIB_MALLOC    LV_STDLIB_BUILTIN
-#define LV_USE_STDLIB_STRING    LV_STDLIB_BUILTIN
-#define LV_USE_STDLIB_SPRINTF   LV_STDLIB_BUILTIN
+#        define LV_MEM_CUSTOM 0
+#        if LV_MEM_CUSTOM == 0
+#            define LV_MEM_SIZE (48U * 1024U)
+#            define LV_MEM_ADR  0
+#            if LV_MEM_ADR == 0
+#                undef LV_MEM_POOL_INCLUDE
+#                undef LV_MEM_POOL_ALLOC
+#            endif
+#        else
+#            define LV_MEM_CUSTOM_INCLUDE <stdlib.h>
+#            define LV_MEM_CUSTOM_ALLOC   malloc
+#            define LV_MEM_CUSTOM_FREE    free
+#            define LV_MEM_CUSTOM_REALLOC realloc
+#        endif
 
-#define LV_STDINT_INCLUDE       <stdint.h>
-#define LV_STDDEF_INCLUDE       <stddef.h>
-#define LV_STDBOOL_INCLUDE      <stdbool.h>
-#define LV_INTTYPES_INCLUDE     <inttypes.h>
-#define LV_LIMITS_INCLUDE       <limits.h>
-#define LV_STDARG_INCLUDE       <stdarg.h>
-
-#if LV_USE_STDLIB_MALLOC == LV_STDLIB_BUILTIN
-    /*Size of the memory available for `lv_malloc()` in bytes (>= 2kB)*/
-    #define LV_MEM_SIZE (128 * 1024U)          /*[bytes]*/
-
-    /*Size of the memory expand for `lv_malloc()` in bytes*/
-    #define LV_MEM_POOL_EXPAND_SIZE 0
-
-    /*Set an address for the memory pool instead of allocating it as a normal array. Can be in external SRAM too.*/
-    #define LV_MEM_ADR 0     /*0: unused*/
-    /*Instead of an address give a memory allocator that will be called to get a memory pool for LVGL. E.g. my_malloc*/
-    #if LV_MEM_ADR == 0
-        #undef LV_MEM_POOL_INCLUDE
-        #undef LV_MEM_POOL_ALLOC
-    #endif
-#endif  /*LV_USE_STDLIB_MALLOC == LV_STDLIB_BUILTIN*/
+#        define LV_MEM_BUF_MAX_NUM   16
+#        define LV_MEMCPY_MEMSET_STD 0
 
 /*====================
    HAL SETTINGS
  *====================*/
 
-/*Default display refresh, input device read and animation step period.*/
-#define LV_DEF_REFR_PERIOD  33      /*[ms]*/
+#        define LV_DISP_DEF_REFR_PERIOD  30 /*[ms]*/
+#        define LV_INDEV_DEF_READ_PERIOD 30 /*[ms]*/
+#        define LV_TICK_CUSTOM           0
+#        define LV_DPI_DEF               130 /*[px/inch]*/
 
-/*Default Dot Per Inch. Used to initialize default sizes such as widgets sized, style paddings.
- *(Not so important, you can adjust it to modify default sizes and spaces)*/
-#define LV_DPI_DEF 130     /*[px/inch]*/
+/*=======================
+ * FEATURE CONFIGURATION
+ *=======================*/
 
-/*=================
- * OPERATING SYSTEM
- *=================*/
-/*操作系统选择 - 可通过 CMake 的 LVGL_USE_FREERTOS 变量配置*/
-#if defined(LVGL_USE_FREERTOS) && (LVGL_USE_FREERTOS == 1)
-    #define LV_USE_OS   LV_OS_FREERTOS
-    #define LV_USE_FREERTOS_TASK_NOTIFY 1
-#else
-    #define LV_USE_OS   LV_OS_NONE
-#endif
+/*------------- Drawing-----------*/
+#        define LV_DRAW_COMPLEX 1
+#        if LV_DRAW_COMPLEX != 0
+#            define LV_SHADOW_CACHE_SIZE 0
+#            define LV_CIRCLE_CACHE_SIZE 4
+#        endif
 
-/*========================
- * RENDERING CONFIGURATION
- *========================*/
+#        define LV_LAYER_SIMPLE_BUF_SIZE          (24 * 1024)
+#        define LV_LAYER_SIMPLE_FALLBACK_BUF_SIZE (3 * 1024)
 
-/*Align the stride of all layers and images to this bytes*/
-#define LV_DRAW_BUF_STRIDE_ALIGN                1
+#        define LV_IMG_CACHE_DEF_SIZE             0
+#        define LV_GRADIENT_MAX_STOPS             2
+#        define LV_GRAD_CACHE_DEF_SIZE            0
+#        define LV_DITHER_GRADIENT                0
+#        define LV_DISP_ROT_MAX_BUF               (10 * 1024)
 
-/*Align the start address of draw_buf addresses to this bytes*/
-#define LV_DRAW_BUF_ALIGN                       4
+/*------------- GPU-----------*/
+#        define LV_USE_GPU_ARM2D        0
+#        define LV_USE_GPU_STM32_DMA2D  0
+#        define LV_USE_GPU_RA6M3_G2D    0
+#        define LV_USE_GPU_SWM341_DMA2D 0
+#        define LV_USE_GPU_NXP_PXP      0
+#        define LV_USE_GPU_NXP_VG_LITE  0
+#        define LV_USE_GPU_SDL          0
 
-/*Enable matrix support for transformations*/
-#define LV_USE_FLOAT                            1
-#define LV_USE_MATRIX                           1
+/*------------- Logging-----------*/
+#        define LV_USE_LOG 0
+#        if LV_USE_LOG
+#            define LV_LOG_LEVEL            LV_LOG_LEVEL_WARN
+#            define LV_LOG_PRINTF           0
+#            define LV_LOG_TRACE_MEM        1
+#            define LV_LOG_TRACE_TIMER      1
+#            define LV_LOG_TRACE_INDEV      1
+#            define LV_LOG_TRACE_DISP_REFR  1
+#            define LV_LOG_TRACE_EVENT      1
+#            define LV_LOG_TRACE_OBJ_CREATE 1
+#            define LV_LOG_TRACE_LAYOUT     1
+#            define LV_LOG_TRACE_ANIM       1
+#        endif
 
-/*Using matrix for transformations.
- *Requirements:
-    `LV_USE_MATRIX = 1`.
-    The rendering engine needs to support 3x3 matrix transformations.*/
-#define LV_DRAW_TRANSFORM_USE_MATRIX            1
+/*------------- Asserts-----------*/
+#        define LV_USE_ASSERT_NULL          1
+#        define LV_USE_ASSERT_MALLOC        1
+#        define LV_USE_ASSERT_STYLE         0
+#        define LV_USE_ASSERT_MEM_INTEGRITY 0
+#        define LV_USE_ASSERT_OBJ           0
+#        define LV_ASSERT_HANDLER_INCLUDE   <stdint.h>
+#        define LV_ASSERT_HANDLER           while (1);
 
-/*The target buffer size for simple layer chunks.*/
-#define LV_DRAW_LAYER_SIMPLE_BUF_SIZE    (24 * 1024)   /*[bytes]*/
+/*------------- Others-----------*/
+#        define LV_USE_PERF_MONITOR 0
+#        define LV_USE_MEM_MONITOR  0
+#        define LV_USE_REFR_DEBUG   0
+#        define LV_SPRINTF_CUSTOM   0
+#        define LV_USE_USER_DATA    1
+#        define LV_ENABLE_GC        0
 
-/* The stack size of the drawing thread.
- * NOTE: If FreeType or ThorVG is enabled, it is recommended to set it to 32KB or more.
- */
-#define LV_DRAW_THREAD_STACK_SIZE    (32 * 1024)   /*[bytes] - 增大以支持 ThorVG*/
-
-#define LV_USE_DRAW_SW 1
-#if LV_USE_DRAW_SW == 1
-	#define LV_DRAW_SW_SUPPORT_RGB565		1
-	#define LV_DRAW_SW_SUPPORT_RGB565A8		1
-	#define LV_DRAW_SW_SUPPORT_RGB888		1
-	#define LV_DRAW_SW_SUPPORT_XRGB8888		1
-	#define LV_DRAW_SW_SUPPORT_ARGB8888		1
-	#define LV_DRAW_SW_SUPPORT_L8			1
-	#define LV_DRAW_SW_SUPPORT_AL88			1
-	#define LV_DRAW_SW_SUPPORT_A8			1
-	#define LV_DRAW_SW_SUPPORT_I1			1
-
-    #define LV_DRAW_SW_DRAW_UNIT_CNT    1
-
-    /* Use Arm-2D to accelerate the sw render */
-    #define LV_USE_DRAW_ARM2D_SYNC      0
-
-    /* Enable native helium assembly to be compiled */
-    #define LV_USE_NATIVE_HELIUM_ASM    0
-
-    /* 0: use a simple renderer capable of drawing only simple rectangles with gradient, images, texts, and straight lines only
-     * 1: use a complex renderer capable of drawing rounded corners, shadow, skew lines, and arcs too */
-    #define LV_DRAW_SW_COMPLEX          1
-
-    #if LV_DRAW_SW_COMPLEX == 1
-        #define LV_DRAW_SW_SHADOW_CACHE_SIZE 0
-        #define LV_DRAW_SW_CIRCLE_CACHE_SIZE 4
-    #endif
-
-    #define  LV_USE_DRAW_SW_ASM     LV_DRAW_SW_ASM_NONE
-
-    /* Enable drawing complex gradients in software: linear at an angle, radial or conical */
-    #define LV_USE_DRAW_SW_COMPLEX_GRADIENTS    0
-#endif
-
-/* GPU 加速 - STM32F429 不支持 */
-#define LV_USE_DRAW_VGLITE 0
-#define LV_USE_DRAW_PPG 0
-#define LV_USE_DRAW_SDL 0
-#define LV_USE_DRAW_OPENGLES 0
-
-/*=================
- * WIDGET USAGE
+/*=====================
+ *  COMPILER SETTINGS
  *====================*/
 
-/* 基础控件 */
-#define LV_USE_ANIMIMAGE    1
-#define LV_USE_ARC          1
-#define LV_USE_BAR          1
-#define LV_USE_BUTTON       1
-#define LV_USE_BUTTONMATRIX 1
-#define LV_USE_CALENDAR     1
-#define LV_USE_CANVAS       1
-#define LV_USE_CHART        1
-#define LV_USE_CHECKBOX     1
-#define LV_USE_DROPDOWN     1
-#define LV_USE_IMAGE        1
-#define LV_USE_IMAGEBUTTON  1
-#define LV_USE_KEYBOARD     1
-#define LV_USE_LABEL        1
-#define LV_USE_LED          1
-#define LV_USE_LINE         1
-#define LV_USE_LIST         1
-#define LV_USE_LOTTIE       1
-#define LV_USE_MENU         1
-#define LV_USE_MSGBOX       1
-#define LV_USE_ROLLER       1
-#define LV_USE_SCALE        1
-#define LV_USE_SLIDER       1
-#define LV_USE_SPAN         1
-#define LV_USE_SPINBOX      1
-#define LV_USE_SPINNER      1
-#define LV_USE_SWITCH       1
-#define LV_USE_TABLE        1
-#define LV_USE_TABVIEW      1
-#define LV_USE_TEXTAREA     1
-#define LV_USE_TILEVIEW     1
-#define LV_USE_WIN          1
+#        define LV_BIG_ENDIAN_SYSTEM 0
+#        define LV_ATTRIBUTE_TICK_INC
+#        define LV_ATTRIBUTE_TIMER_HANDLER
+#        define LV_ATTRIBUTE_FLUSH_READY
+#        define LV_ATTRIBUTE_MEM_ALIGN_SIZE 1
+#        define LV_ATTRIBUTE_MEM_ALIGN
+#        define LV_ATTRIBUTE_LARGE_CONST
+#        define LV_ATTRIBUTE_LARGE_RAM_ARRAY
+#        define LV_ATTRIBUTE_FAST_MEM
+#        define LV_ATTRIBUTE_DMA
+#        define LV_EXPORT_CONST_INT(int_value) struct _silence_gcc_warning
+#        define LV_USE_LARGE_COORD             0
 
 /*==================
- * LAYOUTS
- *==================*/
+ *   FONT USAGE
+ *===================*/
 
-#define LV_USE_FLEX 1
-#define LV_USE_GRID 1
+#        define LV_FONT_MONTSERRAT_8             0
+#        define LV_FONT_MONTSERRAT_10            0
+#        define LV_FONT_MONTSERRAT_12            0
+#        define LV_FONT_MONTSERRAT_14            1
+#        define LV_FONT_MONTSERRAT_16            1
+#        define LV_FONT_MONTSERRAT_18            1
+#        define LV_FONT_MONTSERRAT_20            1
+#        define LV_FONT_MONTSERRAT_22            0
+#        define LV_FONT_MONTSERRAT_24            1
+#        define LV_FONT_MONTSERRAT_26            0
+#        define LV_FONT_MONTSERRAT_28            0
+#        define LV_FONT_MONTSERRAT_30            0
+#        define LV_FONT_MONTSERRAT_32            0
+#        define LV_FONT_MONTSERRAT_34            0
+#        define LV_FONT_MONTSERRAT_36            0
+#        define LV_FONT_MONTSERRAT_38            0
+#        define LV_FONT_MONTSERRAT_40            0
+#        define LV_FONT_MONTSERRAT_42            0
+#        define LV_FONT_MONTSERRAT_44            0
+#        define LV_FONT_MONTSERRAT_46            0
+#        define LV_FONT_MONTSERRAT_48            0
 
-/*==================
- * THEMES
- *==================*/
+#        define LV_FONT_MONTSERRAT_12_SUBPX      0
+#        define LV_FONT_MONTSERRAT_28_COMPRESSED 0
+#        define LV_FONT_DEJAVU_16_PERSIAN_HEBREW 0
+#        define LV_FONT_SIMSUN_16_CJK            0
+#        define LV_FONT_UNSCII_8                 0
+#        define LV_FONT_UNSCII_16                0
 
-#define LV_USE_THEME_DEFAULT 1
-#if LV_USE_THEME_DEFAULT
-    #define LV_THEME_DEFAULT_DARK 0
-#endif
+#        define LV_FONT_CUSTOM_DECLARE
+#        define LV_FONT_DEFAULT         &lv_font_montserrat_14
+#        define LV_FONT_FMT_TXT_LARGE   0
+#        define LV_USE_FONT_COMPRESSED  0
+#        define LV_USE_FONT_SUBPX       0
+#        define LV_USE_FONT_PLACEHOLDER 1
 
-#define LV_USE_THEME_SIMPLE 1
+/*=================
+ *  TEXT SETTINGS
+ *=================*/
 
-/*==================
- * OTHERS
- *==================*/
-
-/*1: Enable API to take snapshot for object*/
-#define LV_USE_SNAPSHOT 1
-
-/*1: Enable system monitor component*/
-#define LV_USE_SYSMON   1
-#if LV_USE_SYSMON
-    /*1: Show CPU usage and FPS count*/
-    #define LV_USE_PERF_MONITOR 0
-    /*1: Show the used memory and the memory fragmentation*/
-    #define LV_USE_MEM_MONITOR 0
-#endif
-
-/*1: Enable the runtime performance profiler*/
-#define LV_USE_PROFILER 0
-
-/*1: Enable monkey test*/
-#define LV_USE_MONKEY 0
-
-/*1: Enable grid navigation*/
-#define LV_USE_GRIDNAV 0
-
-/*1: Enable lv_obj fragment*/
-#define LV_USE_FRAGMENT 0
-
-/*1: Support using images as font in label or span widgets */
-#define LV_USE_IMGFONT 0
-
-/*1: Enable an observer pattern implementation and API*/
-#define LV_USE_OBSERVER 1
-
-/*1: Enable Pinyin input method*/
-#define LV_USE_IME_PINYIN 0
-
-/*1: Enable file explorer*/
-#define LV_USE_FILE_EXPLORER 0
+#        define LV_TXT_ENC                          LV_TXT_ENC_UTF8
+#        define LV_TXT_BREAK_CHARS                  " ,.;:-_"
+#        define LV_TXT_LINE_BREAK_LONG_LEN          0
+#        define LV_TXT_LINE_BREAK_LONG_PRE_MIN_LEN  3
+#        define LV_TXT_LINE_BREAK_LONG_POST_MIN_LEN 3
+#        define LV_TXT_COLOR_CMD                    "#"
+#        define LV_USE_BIDI                         0
+#        define LV_USE_ARABIC_PERSIAN_CHARS         0
 
 /*==================
- * LIBRARIES
+ *  WIDGET USAGE
  *==================*/
 
-/*PNG decoder library*/
-#define LV_USE_PNG 1
-
-/*BMP decoder library*/
-#define LV_USE_BMP 1
-
-/*JPG + split JPG decoder library*/
-#define LV_USE_SJPG 0
-
-/*GIF decoder library*/
-#define LV_USE_GIF 0
-
-/*QR code library*/
-#define LV_USE_QRCODE 1
-
-/*Barcode code library*/
-#define LV_USE_BARCODE 0
-
-/*FreeType library*/
-#define LV_USE_FREETYPE 0
-
-/* Built-in TTF decoder */
-#define LV_USE_TINY_TTF 0
-
-/*Rlottie library*/
-#define LV_USE_RLOTTIE 0
-
-/*Enable Vector Graphic APIs
- *Requires `LV_USE_MATRIX = 1`*/
-#define LV_USE_VECTOR_GRAPHIC  1
-
-/* Enable ThorVG (vector graphics library) from the src/libs folder
- * 由 CMake 变量 USE_LVGL_THORVG 控制
- * 如果定义了 LV_CONF_BUILD_DISABLE_THORVG_INTERNAL 则禁用 */
-#if defined(LV_CONF_BUILD_DISABLE_THORVG_INTERNAL) && (LV_CONF_BUILD_DISABLE_THORVG_INTERNAL == 1)
-    #define LV_USE_THORVG_INTERNAL 0
-#else
-    #define LV_USE_THORVG_INTERNAL 1
-#endif
-
-/*FFmpeg library for image decoding and playing videos*/
-#define LV_USE_FFMPEG 0
+#        define LV_USE_ARC       1
+#        define LV_USE_BAR       1
+#        define LV_USE_BTN       1
+#        define LV_USE_BTNMATRIX 1
+#        define LV_USE_CANVAS    1
+#        define LV_USE_CHECKBOX  1
+#        define LV_USE_DROPDOWN  1
+#        define LV_USE_IMG       1
+#        define LV_USE_LABEL     1
+#        if LV_USE_LABEL
+#            define LV_LABEL_TEXT_SELECTION 1
+#            define LV_LABEL_LONG_TXT_HINT  1
+#        endif
+#        define LV_USE_LINE   1
+#        define LV_USE_ROLLER 1
+#        if LV_USE_ROLLER
+#            define LV_ROLLER_INF_PAGES 7
+#        endif
+#        define LV_USE_SLIDER   1
+#        define LV_USE_SWITCH   1
+#        define LV_USE_TEXTAREA 1
+#        if LV_USE_TEXTAREA != 0
+#            define LV_TEXTAREA_DEF_PWD_SHOW_TIME 1500
+#        endif
+#        define LV_USE_TABLE 1
 
 /*==================
- * FONT SUPPORT
+ * EXTRA COMPONENTS
  *==================*/
 
-/*Montserrat fonts with various sizes and character sets*/
-#define LV_FONT_MONTSERRAT_8  0
-#define LV_FONT_MONTSERRAT_10 0
-#define LV_FONT_MONTSERRAT_12 0
-#define LV_FONT_MONTSERRAT_14 1
-#define LV_FONT_MONTSERRAT_16 1
-#define LV_FONT_MONTSERRAT_18 1
-#define LV_FONT_MONTSERRAT_20 1
-#define LV_FONT_MONTSERRAT_22 0
-#define LV_FONT_MONTSERRAT_24 1
-#define LV_FONT_MONTSERRAT_26 0
-#define LV_FONT_MONTSERRAT_28 0
-#define LV_FONT_MONTSERRAT_30 0
-#define LV_FONT_MONTSERRAT_32 0
-#define LV_FONT_MONTSERRAT_34 0
-#define LV_FONT_MONTSERRAT_36 0
-#define LV_FONT_MONTSERRAT_38 0
-#define LV_FONT_MONTSERRAT_40 0
-#define LV_FONT_MONTSERRAT_42 0
-#define LV_FONT_MONTSERRAT_44 0
-#define LV_FONT_MONTSERRAT_46 0
-#define LV_FONT_MONTSERRAT_48 0
+#        define LV_USE_ANIMIMG  1
+#        define LV_USE_CALENDAR 1
+#        if LV_USE_CALENDAR
+#            define LV_CALENDAR_WEEK_STARTS_MONDAY 0
+#            if LV_CALENDAR_WEEK_STARTS_MONDAY
+#                define LV_CALENDAR_DEFAULT_DAY_NAMES            \
+                    {                                            \
+                        "Mo", "Tu", "We", "Th", "Fr", "Sa", "Su" \
+                    }
+#            else
+#                define LV_CALENDAR_DEFAULT_DAY_NAMES            \
+                    {                                            \
+                        "Su", "Mo", "Tu", "We", "Th", "Fr", "Sa" \
+                    }
+#            endif
+#            define LV_CALENDAR_DEFAULT_MONTH_NAMES                                                                   \
+                {                                                                                                     \
+                    "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", \
+                        "November", "December"                                                                        \
+                }
+#            define LV_USE_CALENDAR_HEADER_ARROW    1
+#            define LV_USE_CALENDAR_HEADER_DROPDOWN 1
+#        endif
+#        define LV_USE_CHART      1
+#        define LV_USE_COLORWHEEL 1
+#        define LV_USE_IMGBTN     1
+#        define LV_USE_KEYBOARD   1
+#        define LV_USE_LED        1
+#        define LV_USE_LIST       1
+#        define LV_USE_MENU       1
+#        define LV_USE_METER      1
+#        define LV_USE_MSGBOX     1
+#        define LV_USE_SPAN       1
+#        if LV_USE_SPAN
+#            define LV_SPAN_SNIPPET_STACK_SIZE 64
+#        endif
+#        define LV_USE_SPINBOX  1
+#        define LV_USE_SPINNER  1
+#        define LV_USE_TABVIEW  1
+#        define LV_USE_TILEVIEW 1
+#        define LV_USE_WIN      1
 
-/* Demonstrate special features*/
-#define LV_FONT_MONTSERRAT_28_COMPRESSED 0  /* [12KB] compressed pixels */
-#define LV_FONT_DEJAVU_16_PERSIAN_HEBREW 0  /* [21KB] Hebrew, Arabic, Perisan letters */
-#define LV_FONT_SIMSUN_16_CJK            0  /* [2MB] CJK characters */
+/*----------- Themes----------*/
+#        define LV_USE_THEME_DEFAULT 1
+#        if LV_USE_THEME_DEFAULT
+#            define LV_THEME_DEFAULT_DARK            0
+#            define LV_THEME_DEFAULT_GROW            1
+#            define LV_THEME_DEFAULT_TRANSITION_TIME 80
+#        endif
+#        define LV_USE_THEME_BASIC 1
+#        define LV_USE_THEME_MONO  1
+
+/*----------- Layouts----------*/
+#        define LV_USE_FLEX 1
+#        define LV_USE_GRID 1
+
+/*--------------------- 3rd party libraries--------------------*/
+
+#        define LV_USE_FS_STDIO    0
+#        define LV_USE_FS_POSIX    0
+#        define LV_USE_FS_WIN32    0
+#        define LV_USE_FS_FATFS    0
+#        define LV_USE_FS_LITTLEFS 0
+
+#        define LV_USE_PNG         1
+#        define LV_USE_BMP         1
+#        define LV_USE_SJPG        0
+#        define LV_USE_GIF         0
+#        define LV_USE_QRCODE      1
+#        define LV_USE_FREETYPE    0
+#        define LV_USE_TINY_TTF    0
+#        define LV_USE_RLOTTIE     0
+#        define LV_USE_FFMPEG      0
+
+/*----------- Others----------*/
+#        define LV_USE_SNAPSHOT   1
+#        define LV_USE_MONKEY     0
+#        define LV_USE_GRIDNAV    0
+#        define LV_USE_FRAGMENT   0
+#        define LV_USE_IMGFONT    0
+#        define LV_USE_MSG        0
+#        define LV_USE_IME_PINYIN 0
 
 /*==================
- * TEXT ENCODING
- *==================*/
+* EXAMPLES
+*==================*/
+#        define LV_BUILD_EXAMPLES 0
 
-/*Select a character encoding.
- * - LV_TEXT_ENC_UTF8
- * - LV_TEXT_ENC_ASCII
- * */
-#define LV_TEXT_ENC LV_TEXT_ENC_UTF8
+/*===================
+ * DEMO USAGE
+ ====================*/
+#        define LV_USE_DEMO_WIDGETS            0
+#        define LV_USE_DEMO_KEYPAD_AND_ENCODER 0
+#        define LV_USE_DEMO_BENCHMARK          0
+#        define LV_USE_DEMO_STRESS             0
+#        define LV_USE_DEMO_MUSIC              0
 
-/*==================
- * BIDI SETTINGS
- *==================*/
-
-/*Configure the supported Bidirectional languages.
- * - LV_BASE_DIR_LTR: Left-to-Right language
- * - LV_BASE_DIR_RTL: Right-to-Left language
- * - LV_BASE_DIR_AUTO: Detects the direction automatically
- * */
-#define LV_BASE_DIR_LTR LV_DIR_BASE_DIR_LTR
-
-/*==================
- * USE CUSTOM CONFIG HEADER
- *==================*/
-
-/* Include custom configuration header if needed */
-/* #define LV_CONF_PATH "path/to/custom/lv_conf.h" */
-
-/*==================
- * END OF CONFIGURATION
- *==================*/
-
-#endif /*LV_CONF_H*/
+#    endif /*LV_CONF_H*/
 
 #endif /*End of "Content enable"*/

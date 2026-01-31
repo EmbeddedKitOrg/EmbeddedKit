@@ -1,7 +1,6 @@
 option(USE_FREERTOS "Enable FreeRTOS" OFF)
 option(USE_FATFS "ENABLE FATFS" OFF)
 option(USE_LVGL "ENABLE LVGL" OFF)
-option(USE_LVGL_THORVG "Enable LVGL ThorVG vector graphics library" OFF)
 
 # 汇总库
 add_library(l3_middlewares INTERFACE)
@@ -19,9 +18,6 @@ if(USE_LVGL)
     if(USE_FREERTOS)
         target_compile_definitions(l3_middlewares INTERFACE LVGL_USE_FREERTOS=1)
     endif()
-    if(NOT USE_LVGL_THORVG)
-        set(LV_CONF_BUILD_DISABLE_THORVG_INTERNAL 1 CACHE INTERNAL "Disable ThorVG")
-    endif()
     add_subdirectory(LVGL)
 
     add_library(lvgl_config INTERFACE)
@@ -29,7 +25,6 @@ if(USE_LVGL)
     target_compile_definitions(lvgl_config INTERFACE
         LV_CONF_BUILD_DISABLE_EXAMPLES=1
         LV_CONF_BUILD_DISABLE_DEMOS=1
-        LV_CONF_BUILD_DISABLE_THORVG_INTERNAL=$<NOT:$<BOOL:${USE_LVGL_THORVG}>>
     )
 endif()
 
@@ -44,9 +39,6 @@ endif()
 
 if(USE_LVGL)
     target_link_libraries(l3_middlewares INTERFACE lvgl lvgl_config)
-    if(USE_LVGL_THORVG)
-        target_link_libraries(l3_middlewares INTERFACE lvgl::thorvg)
-    endif()
 endif()
 
 target_link_libraries(l3_middlewares INTERFACE l2_core global_macros global_options)
