@@ -25,6 +25,7 @@ if(USE_LVGL)
     target_compile_definitions(lvgl_config INTERFACE
         LV_CONF_BUILD_DISABLE_DEMOS=1
     )
+    target_link_libraries(lvgl PUBLIC l1_mcu)
 endif()
 
 # 链接依赖
