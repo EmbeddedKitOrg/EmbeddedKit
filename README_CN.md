@@ -1,205 +1,230 @@
 # EmbeddedKit (EK)
 
-一个专业的 5 层嵌入式固件框架，遵循严格的架构模式以实现最大模块化和硬件可移植性。项目主要面向 ARM Cortex-M 微控制器（默认配置为 STM32F429），使用基于 CMake 的构建系统，支持多种工具链。
+A professional 6-layer embedded firmware framework designed for maximum modularity and hardware portability. Uses a CMake-based build system with support for multiple toolchains.
 
-[English Version](README.md)
+[中文版](README.md)
 
 ---
 
-## 架构
+## Architecture
 
-EmbeddedKit 遵循严格的自下而上依赖模型，上层仅依赖下层。绝对禁止引入循环依赖。
+EmbeddedKit follows a strict bottom-up dependency model where upper layers depend only on lower layers. Circular dependencies are strictly prohibited.
 
-```text
-L5_App (应用层)
-  └─> 业务逻辑、状态机
-L4_Components (设备驱动组件层)
-  └─> 硬件驱动（OLED、Flash、传感器）- 使用 OOP 模式
-L3_Middlewares (第三方中间件层)
-  └─> FreeRTOS、FatFs、LVGL 等
-L2_Core (核心与硬件抽象层)
-  ├─> utils/ (数据结构、内存管理、日志)
-  └─> hal/ (硬件抽象层：GPIO/UART/I2C 等)
-L1_MCU (MCU 厂商库层)
-  └─> 芯片特定的厂商代码（STM32 HAL、CMSIS）
+```
+L5_App (Application Layer)
+  └─> Business logic, state machines
+L4_Components (Device Driver Component Layer)
+  └─> Hardware drivers (OLED, Flash, sensors) - Using OOP pattern
+L3_Middlewares (Third-party Middleware Layer)
+  └─> FreeRTOS, FatFs, LVGL, etc.
+L2_Core (Core & Hardware Abstraction Layer)
+  ├─> utils/ (Data structures, memory management, logging)
+  └─> hal/ (Hardware abstraction: GPIO/UART/I2C/etc.)
+L1_MCU (MCU Vendor Library Layer)
+  └─> Chip-specific vendor code (STM32 HAL, CMSIS)
+L0_Assets (Resource File Layer)
+  └─> Static resource data (images, fonts, configs, etc.)
 ```
 
-### 关键架构规则
+### Key Architectural Rules
 
-- **L1_MCU（最底层）**：每个 MCU 型号拥有独立子目录，包含厂商 HAL/LL 库、启动代码和 `main.c`。`main.c` 在硬件初始化后调用 L5_App 的 `ek_main()`。禁止跨不同 MCU 共享厂商库。
+- **L0_Assets (Lowest Layer)**: Stores static resource data embedded at compile time (images, fonts, configs, etc.). Has no dependencies on other layers and can be accessed by any layer.
 
-- **L2_Core**：
-  - **utils/**：纯软件实现 - 数据结构、内存管理、日志
-  - **hal/**：硬件抽象层，提供逻辑到物理的映射
-    - `inc/*.h` 绝对不能包含厂商头文件（stm32xxxx.h）
-    - 厂商头文件仅允许在 `src/*.c` 中包含
-    - 所有函数使用 `hal_` 前缀（如 `hal_gpio_write()`）
-  - 内部依赖：hal/ 可以依赖 utils/（同层内部允许）
-  - 命名规范：`ek_` 前缀（utils）和 `hal_` 前缀（hal）
+- **L1_MCU (MCU Vendor Library Layer)**: Each MCU model has an independent subdirectory containing vendor HAL/LL libraries, startup code, and `main.c`. The `main.c` calls `ek_main()` from L5_App after hardware initialization. No sharing of vendor libraries across different MCUs.
 
-- **L3_Middlewares**：每个中间件拥有独立子目录和独立的 CMakeLists.txt。可依赖 L2_Core/hal 进行硬件适配。
+- **L2_Core**:
+  - **utils/**: Pure software implementations - data structures, memory management, logging
+  - **hal/**: Hardware abstraction layer providing logical-to-physical mapping
+    - `inc/*.h` must NOT include vendor headers (stm32xxxx.h)
+    - Vendor headers only allowed in `src/*.c`
+    - All functions use `hal_` prefix (e.g., `hal_gpio_write()`)
+  - Internal dependency: hal/ may depend on utils/ (allowed within same layer)
+  - Naming convention: `ek_` prefix (utils) and `hal_` prefix (hal)
 
-- **L4_Components**：**严格 OOP 模式** - 使用函数指针实现多态。方法的第一个参数必须是对象指针（`self`）。定义抽象接口实现硬件依赖倒置。
+- **L3_Middlewares**: Each middleware has an independent subdirectory with its own CMakeLists.txt. Can depend on L2_Core/hal for hardware adaptation.
 
-- **L5_App**：实现 `ek_main()` 作为应用入口点。应调用 L4 组件，而非直接调用 L1。将业务逻辑封装到模块中。
+- **L4_Components**: **Strict OOP Pattern** - Use function pointers for polymorphism. The first parameter of methods must be the object pointer (`self`). Define abstract interfaces to implement dependency inversion for hardware. **Implemented by users based on actual hardware.**
 
----
-
-## 特性
-
-- **5 层架构**：清晰的职责分离，严格的依赖规则
-- **硬件可移植性**：更换 MCU 只需替换 L1 层
-- **OOP 设计模式**：L4 层使用接口抽象实现依赖倒置
-- **灵活的构建系统**：支持多种工具链（GCC、ARM Compiler 6、Clang）
-- **条件编译**：通过 CMake 选项启用/禁用功能
-- **丰富的数据结构**：链表、环形缓冲区、栈、动态向量（已包含）
-- **内存管理**：基于 TLSF 的动态内存分配器
-- **日志系统**：多级日志，支持彩色输出
-- **RTOS 支持**：FreeRTOS 集成就绪
+- **L5_App**: Implements `ek_main()` as the application entry point. Should call L4 components, not L1 directly. Encapsulate business logic into modules.
 
 ---
 
-## 快速开始
+## Features
 
-### 前置要求
+- **6-Layer Architecture**: Clear separation of concerns with strict dependency rules
+- **OBJECT Library Build Mode**: Avoids static library selective linking issues
+- **Hardware Portability**: Replace MCU by only changing the L1 layer
+- **OOP Design Pattern**: Interface abstraction in L4 for dependency inversion
+- **Flexible Build System**: Support for multiple toolchains (GCC, ARM Compiler 6, Clang)
+- **Conditional Compilation**: Enable/disable features via CMake options
+- **Rich Data Structures**: Linked list, ring buffer, stack, dynamic vector (included)
+- **Memory Management**: TLSF-based dynamic memory allocator
+- **Logging System**: Multi-level logging with color support
+- **RTOS Support**: FreeRTOS integration ready
+- **Resource Management**: Independent resource file layer supporting static data embedding
 
-- CMake 3.20 或更高版本
-- ARM 工具链（gcc-arm-none-eabi、ARM Compiler 6 或 clang）
-- STM32CubeMX（用于生成初始化代码）
+---
 
-### 构建
+## Quick Start
+
+### Prerequisites
+
+- CMake 3.20 or higher
+- ARM toolchain (gcc-arm-none-eabi, ARM Compiler 6, or clang)
+- STM32CubeMX (for generating initialization code)
+
+### Build
 
 ```bash
-# 配置构建（通过缓存变量选择 MCU 型号）
+# Configure build (select MCU model via cache variable)
 cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake -DMCU_MODEL=STM32F429ZIT6
 
-# 构建
+# Build
 cmake --build build
 
-# 输出文件：EK_DEMO.elf, EK_DEMO.hex, EK_DEMO.bin, EK_DEMO.map
+# Output files: EK_DEMO.elf, EK_DEMO.hex, EK_DEMO.bin, EK_DEMO.map
 ```
 
-### 可用工具链
+### Available Toolchains
 
-- `cmake/gcc-arm-none-eabi.cmake` - GCC ARM 工具链
+- `cmake/gcc-arm-none-eabi.cmake` - GCC ARM toolchain
 - `cmake/arm-compile6.cmake` - ARM Compiler 6
 - `cmake/starm-clang.cmake` - STARM Clang
 
 ---
 
-## 目录结构
+## Directory Structure
 
 ```
 EmbeddedKit/
-├── CMakeLists.txt              # 主构建脚本
-├── ek_conf.h                   # 全局配置文件
-├── CLAUDE.md                   # 项目文档和代码修改记录
-├── LICENSE                     # MIT 许可证
-├── cmake/                      # 工具链文件目录
+├── CMakeLists.txt              # Main build script
+├── ek_conf.h                   # Global configuration file
+├── CLAUDE.md                   # Project documentation and changelog
+├── LICENSE                     # MIT License
+├── cmake/                      # Toolchain files
 │   ├── gcc-arm-none-eabi.cmake
 │   ├── arm-compile6.cmake
 │   └── starm-clang.cmake
-├── L1_MCU/                     # 第1层：MCU 厂商库
-│   ├── stub/                   # 弱定义存根
-│   └── STM32F429ZIT6_GCC/      # STM32F429 支持
-├── L2_Core/                    # 第2层：核心与硬件抽象层
-│   ├── utils/                  # 纯软件工具库
-│   ├── hal/                    # 硬件抽象层
-│   └── third_party/            # 第三方库
-├── L3_Middlewares/             # 第3层：中间件
-│   ├── FreeRTOS/               # 实时操作系统
-│   ├── FatFS/                  # 文件系统
-│   └── LVGL/                   # 图形库
-├── L4_Components/              # 第4层：设备驱动（OOP）
-└── L5_App/                     # 第5层：应用逻辑
+├── L0_Assets/                  # Layer 0: Resource files
+├── L1_MCU/                     # Layer 1: MCU vendor libraries
+│   └── STM32F429ZIT6_GCC/      # STM32F429 support
+├── L2_Core/                    # Layer 2: Core & HAL
+│   ├── utils/                  # Pure software utilities
+│   ├── hal/                    # Hardware abstraction layer
+│   └── third_party/            # Third-party libraries
+├── L3_Middlewares/             # Layer 3: Middleware
+│   ├── FreeRTOS/               # Real-time operating system
+│   ├── FatFS/                  # File system
+│   └── LVGL/                   # Graphics library
+├── L4_Components/              # Layer 4: Device drivers (OOP)
+└── L5_App/                     # Layer 5: Application logic
 ```
 
 ---
 
-## 各层说明
+## Layers Description
 
-### L1_MCU（MCU 厂商库层）
+### L0_Assets (Resource File Layer)
 
-存放各 MCU 厂商提供的官方库和启动代码。每个 MCU 型号拥有独立子目录。`main.c` 负责在硬件初始化后调用 `ek_main()`。
+Stores static resource data embedded at compile time, with no dependencies on other layers.
 
-**状态**：STM32F429 支持完成
+**Purpose**: Images, fonts, configuration data, and other static resources
 
-### L2_Core（核心与硬件抽象层）
+**Features**:
+- Resources provided as C arrays or const data
+- Directly linked to final firmware
+- Accessible by any layer
 
-**utils/（硬件无关）**：
-- `ek_def.h` - 通用定义和跨编译器宏
-- `ek_list.h` - 双向循环链表
-- `ek_ringbuf.h` - 环形缓冲区（带元素计数）
-- `ek_stack.h` - 栈数据结构
-- `ek_vec.h` - 动态数组（Vector）
-- `ek_mem.h` - 基于 TLSF 的动态内存管理
-- `ek_log.h` - 分级日志系统
-- `ek_assert.h` - 断言模块
+### L1_MCU (MCU Vendor Library Layer)
 
-**hal/（硬件抽象）**：尚未实现。将提供逻辑到物理的映射（如 `HAL_GPIO_1` → `GPIOA PIN_5`）。
+Contains vendor-provided official libraries and startup code. Each MCU model has an independent subdirectory. The `main.c` is responsible for calling `ek_main()` after hardware initialization.
 
-**third_party/**：
-- `lwprintf` - 轻量级格式化输出库
-- `tlsf` - Two-Level Segregated Fit 内存分配器
+**Currently Supported**: STM32F429, STM32F407
 
-### L3_Middlewares（第三方中间件层）
+**Build Mode**: OBJECT library, linked via `$<TARGET_OBJECTS:l1_mcu>`
 
-每个中间件拥有独立子目录和 CMakeLists.txt。
+### L2_Core (Core & Hardware Abstraction Layer)
 
-**已集成的中间件**：
+**utils/ (Hardware-independent)**:
+- `ek_def.h` - Common definitions and cross-compiler macros
+- `ek_list.h` - Doubly linked list
+- `ek_ringbuf.h` - Ring buffer with element counting
+- `ek_stack.h` - Stack data structure
+- `ek_vec.h` - Dynamic vector (array)
+- `ek_mem.h` - TLSF-based dynamic memory management
+- `ek_log.h` - Multi-level logging system
+- `ek_assert.h` - Assertion module
 
-1. **FreeRTOS** - 实时操作系统
-   - 端口：GCC_ARM_CM4F（对应 STM32F429）
-   - 堆实现：heap_4.c
-   - 配置：168MHz CPU、1000Hz Tick Rate、32KB 堆
-   - 启用方式：`-DUSE_FREERTOS=ON`
+**hal/ (Hardware Abstraction)**: Being implemented. Will provide logical-to-physical mapping (e.g., `HAL_GPIO_1` → `GPIOA PIN_5`).
+- GPIO, UART, SPI, I2C, Tick
 
-2. **FatFS** - 文件系统（框架就绪）
+**third_party/**:
+- `lwprintf` - Lightweight formatted output library
+- `tlsf` - Two-Level Segregated Fit memory allocator
 
-3. **LVGL** - 轻量级图形库（框架就绪）
+### L3_Middlewares (Third-party Middleware Layer)
 
-### L4_Components（硬件驱动组件层）
+Each middleware has an independent subdirectory and CMakeLists.txt.
 
-**核心设计 - OOP 模式**：
-- 使用函数指针定义抽象接口
-- 使用结构体封装属性和方法
-- 依赖倒置 - 组件依赖抽象接口
-- 多态支持 - 同一组件支持多种硬件
+**Integrated Middleware**:
 
-**状态**：目录已创建，组件待实现
+1. **FreeRTOS** - Real-time operating system
+   - Port: GCC_ARM_CM4F (for STM32F429)
+   - Heap implementation: heap_4.c
+   - Configuration: 168MHz CPU, 1000Hz Tick Rate, 32KB heap
+   - Enable via: `-DUSE_FREERTOS=ON`
 
-### L5_App（应用层）
+2. **FatFS** - File system
+   - Enable via: `-DUSE_FATFS=ON`
 
-实现 `ek_main()` 作为应用入口点。应调用 L2~L4 层提供的服务，而非直接调用 L1。
+3. **LVGL** - Lightweight graphics library
+   - Version: v8.3.11
+   - Configuration: RGB565, 128KB memory pool
+   - Enable via: `-DUSE_LVGL=ON`
+   - **Note**: LVGL links to L1_MCU for direct hardware access
 
-**当前实现**：
+### L4_Components (Hardware Driver Component Layer)
+
+**Core Design - OOP Pattern**:
+- Interface abstraction using function pointers
+- Object encapsulation with properties and methods
+- Dependency inversion - components depend on abstract interfaces
+- Polymorphism support - same component for multiple hardware types
+
+**Implementation**: **Implemented by users based on actual hardware**
+
+### L5_App (Application Layer)
+
+Implements `ek_main()` as the application entry point. Should call L2~L4 layer services, not L1 directly.
+
+**Current Implementation**:
 ```c
 void ek_main(void)
 {
-    ek_heap_init();  // 初始化内存堆
+    ek_heap_init();  // Initialize memory heap
 
     while (1)
     {
-        // 业务逻辑
+        // Business logic
     }
 }
 ```
 
 ---
 
-## 配置
+## Configuration
 
-根目录的全局配置文件 `ek_conf.h` 用于管理框架级别的设置：
+The global configuration file `ek_conf.h` in the root directory manages framework-wide settings:
 
 ```c
-// RTOS 配置
+// RTOS Configuration
 #define EK_USE_RTOS (1)
 
-// 内存管理
+// Memory Management
 #define EK_HEAP_NO_TLSF (0)
 #define EK_HEAP_SIZE (30 * 1024)
 
-// 模块功能开关
+// Module Enable/Disable
 #define EK_IO_ENABLE (1)
 #define EK_LOG_ENABLE (1)
 #define EK_LIST_ENABLE (1)
@@ -207,7 +232,7 @@ void ek_main(void)
 #define EK_RINGBUF_ENABLE (1)
 #define EK_STACK_ENABLE (1)
 
-// 日志模块配置
+// Logging Configuration
 #define EK_LOG_DEBUG_ENABLE (1)
 #define EK_LOG_COLOR_ENABLE (1)
 #define EK_LOG_BUFFER_SIZE (256)
@@ -215,32 +240,78 @@ void ek_main(void)
 
 ---
 
-## 项目状态
+## Build System
 
-### 已完成
-- ✅ 完整的 5 层架构设计
-- ✅ CMake 构建系统配置
-- ✅ L1_MCU 层：STM32F429 支持完整（包括 HAL 库、启动文件、main.c）
-- ✅ L2_Core/utils 层：完整实现所有工具模块
-- ✅ L2_Core/third_party：集成 lwprintf 和 tlsf
-- ✅ L3_Middlewares：FreeRTOS 完整集成，FatFS 和 LVGL 框架就绪
-- ✅ L5_App：基础入口实现
-- ✅ 全局配置文件 `ek_conf.h`
-- ✅ 详细的文档
+### OBJECT Library Architecture
 
-### 待实现
-- ⏳ L2_Core/hal 层：硬件抽象层（GPIO、UART、I2C、SPI 等）
-- ⏳ L4_Components 层：具体的设备驱动组件（OLED、Flash、传感器等）
-- ⏳ L5_App 层：具体的业务逻辑应用
+This project uses **OBJECT Library** mode instead of traditional static libraries, offering the following advantages:
+
+**Why use OBJECT libraries?**
+
+Traditional static libraries have selective linking issues:
+- Linker only extracts object files that resolve current undefined references
+- "Skipped" symbols are not included in the final firmware
+- Requires complex options like `--whole-archive`, `--undefined` to force symbol inclusion
+
+OBJECT library advantages:
+- Object files participate directly in final linking, no selective linking issues
+- No need for `--whole-archive`, `--undefined` linker options
+- Simpler build system, more reliable symbol resolution
+
+**CMake Implementation:**
+
+```cmake
+# Define each layer as OBJECT library
+add_library(l0_assets OBJECT)
+add_library(l1_mcu OBJECT)
+add_library(l2_core OBJECT)
+add_library(l4_components OBJECT)
+add_library(l5_app OBJECT)
+
+# L3 remains INTERFACE library (aggregation layer)
+add_library(l3_middlewares INTERFACE)
+
+# Final linking uses $<TARGET_OBJECTS:>
+target_link_libraries(${CMAKE_PROJECT_NAME}
+    $<TARGET_OBJECTS:l5_app>
+    $<TARGET_OBJECTS:l4_components>
+    l3_middlewares                      # INTERFACE library links normally
+    $<TARGET_OBJECTS:l2_core>
+    $<TARGET_OBJECTS:l1_mcu>
+    $<TARGET_OBJECTS:l0_assets>
+)
+```
 
 ---
 
-## 贡献
+## Project Status
 
-欢迎贡献！请遵循本文档描述的架构规则和编码标准。
+### Completed
+- ✅ Complete 6-layer architecture design
+- ✅ CMake build system configuration
+- ✅ L0_Assets: Resource file layer framework ready
+- ✅ L1_MCU: STM32F429 support complete (HAL library, startup files, main.c)
+- ✅ L2_Core/utils: All utility modules implemented
+- ✅ L2_Core/third_party: lwprintf and tlsf integrated
+- ✅ L2_Core/hal: GPIO, UART, SPI, I2C, Tick being implemented
+- ✅ L3_Middlewares: FreeRTOS, FatFS, LVGL fully integrated
+- ✅ L5_App: Basic entry implementation
+- ✅ Global configuration file `ek_conf.h`
+- ✅ Detailed documentation
+
+### To Be Implemented
+- ⏳ L2_Core/hal: Complete remaining peripherals (DAC, ADC, RTC, etc.)
+- ⏳ L4_Components: Device driver components implemented by users based on actual hardware
+- ⏳ L5_App: Specific business logic applications
 
 ---
 
-## 许可证
+## Contributing
 
-本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件。
+Contributions are welcome! Please follow the architectural rules and coding standards described in this document.
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

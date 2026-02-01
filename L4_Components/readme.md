@@ -25,6 +25,21 @@ L4_Components
     └── dev_adc.c
 ```
 
+**OBJECT 库架构**：
+
+本层使用 OBJECT 库模式，组件对象文件直接参与最终链接。
+
+```cmake
+# L4_Components/CMakeLists.txt
+add_library(l4_components OBJECT ${L4_SRCS})
+
+# 最终链接
+target_link_libraries(${CMAKE_PROJECT_NAME}
+    $<TARGET_OBJECTS:l4_components>
+    # ...
+)
+```
+
 ## 3. 核心开发原则 (Strict Rules)
 为了保证代码的可维护性和可扩展性，开发本层时必须遵守以下规则：
 

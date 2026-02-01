@@ -223,7 +223,115 @@ xTaskCreate(myTask, "Task", 128, NULL, 1, NULL);
 
 ---
 
-## 6. 常见问题
+### 5.2 LVGL
+
+LVGL 轻量级图形库已完成集成配置。
+
+**目录结构**:
+```
+LVGL/
+├── CMakeLists.txt              # LVGL 构建脚本
+├── lv_conf.h                   # LVGL 配置文件
+├── lvgl/                       # LVGL 源码
+│   ├── src/                    # 核心源文件
+│   └── examples/               # 示例代码
+└── env_support/cmake/          # CMake 支持文件
+```
+
+**启用/禁用**:
+```cmake
+# 在 CMake 配置时设置
+cmake -DUSE_LVGL=ON   # 启用
+cmake -DUSE_LVGL=OFF  # 禁用
+```
+
+**配置参数**:
+- 版本：v8.3.11（稳定版）
+- 颜色深度：RGB565（16位）
+- 内存池：128KB
+- 配置文件：`L3_Middlewares/LVGL/lv_conf.h`
+
+**特殊说明 - LVGL 链接 L1_MCU**:
+
+LVGL 直接链接了 L1_MCU 层，可访问厂商 HAL 库：
+
+```cmake
+# L3_Middlewares/CMakeLists.txt
+if(USE_LVGL)
+    target_link_libraries(lvgl PUBLIC l1_mcu)  # 允许 LVGL 访问硬件
+endif()
+```
+
+**为什么 LVGL 需要链接 L1_MCU？**
+
+LVGL 某些功能需要直接访问硬件：
+- DMA2D 硬件加速（STM32F429）
+- LTDC 显示控制器
+- FSMC 外部存储器接口
+
+这种设计违反了一般分层规则，但出于图形性能考虑是必要的。
+
+**使用方式**:
+```c
+// 在 L5_App 层代码中
+#include "lvgl.h"
+
+void ek_main(void)
+{
+    // 初始化 LVGL
+    lv_init();
+
+    // 注册显示驱动（需要访问 L1 层的 LTDC）
+    static lv_display_t disp;
+    lv_display_create(&disp);
+
+    while(1)
+    {
+        lv_timer_handler();
+        vTaskDelay(pdMS_TO_TICKS(5));
+    }
+}
+```
+
+**注意事项**:
+1. LVGL 示例库已集成：`lvgl::examples`
+2. 使用 FreeRTOS 时，`LVGL_USE_FREERTOS` 自动定义为 1
+3. DMA2D/LTDC 等硬件加速功能需要在 L1 层配置
+
+---
+
+## 6. 构建系统说明
+
+### OBJECT 库架构
+
+本项目 L3 层使用 INTERFACE 库作为聚合层：
+
+```cmake
+# L3_Middlewares/CMakeLists.txt
+add_library(l3_middlewares INTERFACE)
+
+# 各中间件链接到聚合层
+target_link_libraries(l3_middlewares INTERFACE
+    freertos_kernel    # 如果启用
+    fatfs              # 如果启用
+    lvgl               # 如果启用
+)
+```
+
+**LVGL 的特殊处理**:
+```cmake
+# LVGL 直接链接 L1_MCU（访问硬件）
+target_link_libraries(lvgl PUBLIC l1_mcu)
+
+# 但通过 l3_middlewares 传递给上层
+target_link_libraries(l3_middlewares INTERFACE lvgl)
+```
+
+这种设计允许 LVGL 访问底层硬件，同时保持构建系统的整洁。
+
+----
+
+## 7. 常见问题
 
 **Q: 如何更新第三方库到新版本？**
 

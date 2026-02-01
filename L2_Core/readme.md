@@ -11,6 +11,25 @@ L2_Core 是本项目的核心与硬件抽象层，提供基础功能模块和硬
 - **utils/**：与硬件无关的基础功能（数据结构、内存管理、日志等）
 - **hal/**：硬件抽象层（GPIO、UART、I2C 等）
 
+**OBJECT 库架构**：
+
+本层使用 OBJECT 库模式，所有源文件编译为对象文件后直接参与最终链接。
+
+```cmake
+# L2_Core/CMakeLists.txt
+add_library(l2_core OBJECT ${L2_SRCS})
+
+# 最终链接
+target_link_libraries(${CMAKE_PROJECT_NAME}
+    $<TARGET_OBJECTS:l2_core>
+    # ...
+)
+```
+
+OBJECT 库的优势：
+- 避免静态库的选择性链接问题
+- 所有符号自动包含，无需复杂的链接器选项
+
 ## 2. 目录结构
 ```text
 L2_Core
