@@ -35,6 +35,21 @@ L0_Assets
 
 保持最底层的独立性，确保资源数据可被任何层访问。
 
+**OBJECT 库架构**：
+
+本层使用 OBJECT 库模式，通过 `$<TARGET_OBJECTS:l0_assets>` 链接到最终固件。
+
+```cmake
+# L0_Assets/CMakeLists.txt
+add_library(l0_assets OBJECT)
+
+# 最终链接
+target_link_libraries(${CMAKE_PROJECT_NAME}
+    $<TARGET_OBJECTS:l0_assets>
+    # ...
+)
+```
+
 ## 4. 使用示例
 
 ### 添加图片资源

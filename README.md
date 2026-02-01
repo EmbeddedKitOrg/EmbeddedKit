@@ -52,6 +52,7 @@ L0_Assets (资源文件层)
 ## 特性
 
 - **6 层架构**：清晰的职责分离，严格的依赖规则
+- **对象库构建模式**：使用 OBJECT 库避免静态库的选择性链接问题
 - **硬件可移植性**：更换 MCU 只需替换 L1 层
 - **OOP 设计模式**：L4 层使用接口抽象实现依赖倒置
 - **灵活的构建系统**：支持多种工具链（GCC、ARM Compiler 6、Clang）
@@ -138,7 +139,9 @@ EmbeddedKit/
 
 存放各 MCU 厂商提供的官方库和启动代码。每个 MCU 型号拥有独立子目录。`main.c` 负责在硬件初始化后调用 `ek_main()`。
 
-**当前支持**：STM32F429
+**当前支持**：STM32F429、STM32F407
+
+**构建模式**：OBJECT 库，通过 `$<TARGET_OBJECTS:l1_mcu>` 链接到最终固件
 
 ### L2_Core（核心与硬件抽象层）
 
@@ -178,6 +181,7 @@ EmbeddedKit/
    - 版本：v8.3.11
    - 配置：RGB565、128KB 内存池
    - 启用方式：`-DUSE_LVGL=ON`
+   - **注意**：LVGL 链接了 L1_MCU，可直接访问硬件相关功能
 
 ### L4_Components（硬件驱动组件层）
 
@@ -232,6 +236,50 @@ void ek_main(void)
 #define EK_LOG_DEBUG_ENABLE (1)
 #define EK_LOG_COLOR_ENABLE (1)
 #define EK_LOG_BUFFER_SIZE (256)
+```
+
+---
+
+## 构建系统
+
+### 对象库（OBJECT Library）架构
+
+本项目使用 **OBJECT 库**模式而非传统的静态库模式，具有以下优势：
+
+**为什么使用 OBJECT 库？**
+
+传统静态库（STATIC Library）存在选择性链接问题：
+- 链接器只提取能解析当前未定义引用的目标文件
+- 被"跳过"的符号不会被包含在最终固件中
+- 需要使用 `--whole-archive`、`--undefined` 等复杂选项来强制包含符号
+
+OBJECT 库的优势：
+- 对象文件直接参与最终链接，不存在选择性链接问题
+- 无需 `--whole-archive`、`--undefined` 等链接器选项
+- 构建系统更简洁，符号解析更可靠
+
+**CMake 实现方式：**
+
+```cmake
+# 各层定义为 OBJECT 库
+add_library(l0_assets OBJECT)
+add_library(l1_mcu OBJECT)
+add_library(l2_core OBJECT)
+add_library(l4_components OBJECT)
+add_library(l5_app OBJECT)
+
+# L3 保持 INTERFACE 库（聚合层）
+add_library(l3_middlewares INTERFACE)
+
+# 最终链接使用 $<TARGET_OBJECTS:>
+target_link_libraries(${CMAKE_PROJECT_NAME}
+    $<TARGET_OBJECTS:l5_app>
+    $<TARGET_OBJECTS:l4_components>
+    l3_middlewares                      # INTERFACE 库正常链接
+    $<TARGET_OBJECTS:l2_core>
+    $<TARGET_OBJECTS:l1_mcu>
+    $<TARGET_OBJECTS:l0_assets>
+)
 ```
 
 ---

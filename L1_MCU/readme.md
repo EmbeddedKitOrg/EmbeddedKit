@@ -99,25 +99,39 @@ int main(void)
 }
 ```
 
-**跨层调用机制说明**：
+**跨层调用机制说明（OBJECT 库架构）**：
 
-L1 层的 `main.c` 需要调用 L5 层的 `ek_main()`，这违反了"上层依赖下层"的常规规则。为解决此问题，项目采用链接器选项强制符号解析：
+L1 层的 `main.c` 需要调用 L5 层的 `ek_main()`，这违反了"上层依赖下层"的常规规则。
+
+**旧方案（STATIC 库 + 链接器选项）**：
+需要使用 `--undefined=ek_main` 强制符号解析，以及 `--whole-archive` 包含系统调用符号。
+
+**新方案（OBJECT 库）**：
+通过使用 OBJECT 库，对象文件直接参与最终链接，不存在选择性链接问题：
 
 ```cmake
-# 根目录 CMakeLists.txt
-target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
-    "-Wl,--undefined=ek_main"  # 强制链接器从 L5_App 中提取 ek_main
-)
+# 各层定义为 OBJECT 库
+add_library(l0_assets OBJECT)
+add_library(l1_mcu OBJECT)
+add_library(l2_core OBJECT)
+add_library(l4_components OBJECT)
+add_library(l5_app OBJECT)
 
+# 最终链接使用 $<TARGET_OBJECTS:>
 target_link_libraries(${CMAKE_PROJECT_NAME}
-    l5_app                      # L5 层必须提供 ek_main 强定义
-    l4_components
-    l3_middlewares
-    l2_core
-    "-Wl,--whole-archive" l1_mcu "-Wl,--no-whole-archive"  # 包含 syscalls
-    l0_assets
+    $<TARGET_OBJECTS:l5_app>         # ek_main 符号自动包含
+    $<TARGET_OBJECTS:l4_components>
+    l3_middlewares                   # INTERFACE 库正常链接
+    $<TARGET_OBJECTS:l2_core>
+    $<TARGET_OBJECTS:l1_mcu>         # syscalls 符号自动包含
+    $<TARGET_OBJECTS:l0_assets>
 )
 ```
+
+OBJECT 库的优势：
+- 无需 `--undefined=ek_main`（符号自动包含）
+- 无需 `--whole-archive`（所有对象文件都参与链接）
+- 构建系统更简洁，符号解析更可靠
 
 ### 步骤 4：更新 CMakeLists.txt
 在 L1_MCU/CMakeLists.txt 中使用变量选择 MCU 型号：
@@ -219,11 +233,13 @@ A: main.c 包含 MCU 特定的初始化代码（如 HAL_Init、SystemClock_Confi
 
 **Q: L1 调用 L5 的 ek_main 会不会破坏分层架构？**
 
-A: 这是嵌入式系统的特殊情况。C 标准要求程序从 main 函数开始，而 main 必须在 L1 层（因为需要硬件初始化）。通过 `--undefined=ek_main` 链接器选项，我们在不改变各层静态库属性的前提下实现了这种"反向调用"。L5 层仍是独立的静态库，可以在其他项目中复用。
+A: 这是嵌入式系统的特殊情况。C 标准要求程序从 main 函数开始，而 main 必须在 L1 层（因为需要硬件初始化）。使用 OBJECT 库架构后，对象文件直接参与链接，不需要复杂的链接器选项。L5 层的 `ek_main` 符号会自动被包含，L5 层仍是独立的模块，可以在其他项目中复用。
 
-**Q: 为什么需要 --whole-archive 包含 l1_mcu？**
+**Q: 为什么不再需要 --whole-archive？**
 
-A: libc_nano.a 需要系统调用符号（`_sbrk`, `_write`, `_read` 等），这些符号定义在 L1_MCU 的 syscalls.c 中。由于静态库的选择性链接机制，如果 l1_mcu 没有被引用，这些符号会被跳过。`--whole-archive` 强制包含 l1_mcu 的所有符号。
+A: 旧方案使用 STATIC 库时，libc_nano.a 需要系统调用符号（`_sbrk`, `_write`, `_read` 等），这些符号定义在 L1_MCU 的 syscalls.c 中。由于静态库的选择性链接机制，如果不使用 `--whole-archive`，这些符号会被跳过。
+
+新方案使用 OBJECT 库后，所有对象文件都直接参与最终链接，不存在选择性链接问题，因此不再需要 `--whole-archive`。
 
 **Q: 如何在同一个工程中支持多个 MCU？**
 

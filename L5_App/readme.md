@@ -46,6 +46,26 @@ L5_App
 
 L1_MCU 的 main.c 负责调用此函数。
 
+**OBJECT 库架构**：
+
+本层使用 OBJECT 库模式，应用代码对象文件直接参与最终链接。
+
+```cmake
+# L5_App/CMakeLists.txt
+add_library(l5_app OBJECT ${L5_SRCS})
+
+# 最终链接
+target_link_libraries(${CMAKE_PROJECT_NAME}
+    $<TARGET_OBJECTS:l5_app>  # ek_main 符号自动包含
+    # ...
+)
+```
+
+**符号解析说明**：
+
+- 旧方案（STATIC 库）：需要 `--undefined=ek_main` 强制链接器包含符号
+- 新方案（OBJECT 库）：`ek_main` 符号自动参与链接，无需特殊处理
+
 ## 4. 开发指南
 
 ### 步骤 1：定义应用入口 (inc/app.h)

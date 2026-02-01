@@ -52,6 +52,7 @@ L0_Assets (Resource File Layer)
 ## Features
 
 - **6-Layer Architecture**: Clear separation of concerns with strict dependency rules
+- **OBJECT Library Build Mode**: Avoids static library selective linking issues
 - **Hardware Portability**: Replace MCU by only changing the L1 layer
 - **OOP Design Pattern**: Interface abstraction in L4 for dependency inversion
 - **Flexible Build System**: Support for multiple toolchains (GCC, ARM Compiler 6, Clang)
@@ -138,7 +139,9 @@ Stores static resource data embedded at compile time, with no dependencies on ot
 
 Contains vendor-provided official libraries and startup code. Each MCU model has an independent subdirectory. The `main.c` is responsible for calling `ek_main()` after hardware initialization.
 
-**Currently Supported**: STM32F429
+**Currently Supported**: STM32F429, STM32F407
+
+**Build Mode**: OBJECT library, linked via `$<TARGET_OBJECTS:l1_mcu>`
 
 ### L2_Core (Core & Hardware Abstraction Layer)
 
@@ -178,6 +181,7 @@ Each middleware has an independent subdirectory and CMakeLists.txt.
    - Version: v8.3.11
    - Configuration: RGB565, 128KB memory pool
    - Enable via: `-DUSE_LVGL=ON`
+   - **Note**: LVGL links to L1_MCU for direct hardware access
 
 ### L4_Components (Hardware Driver Component Layer)
 
@@ -232,6 +236,50 @@ The global configuration file `ek_conf.h` in the root directory manages framewor
 #define EK_LOG_DEBUG_ENABLE (1)
 #define EK_LOG_COLOR_ENABLE (1)
 #define EK_LOG_BUFFER_SIZE (256)
+```
+
+---
+
+## Build System
+
+### OBJECT Library Architecture
+
+This project uses **OBJECT Library** mode instead of traditional static libraries, offering the following advantages:
+
+**Why use OBJECT libraries?**
+
+Traditional static libraries have selective linking issues:
+- Linker only extracts object files that resolve current undefined references
+- "Skipped" symbols are not included in the final firmware
+- Requires complex options like `--whole-archive`, `--undefined` to force symbol inclusion
+
+OBJECT library advantages:
+- Object files participate directly in final linking, no selective linking issues
+- No need for `--whole-archive`, `--undefined` linker options
+- Simpler build system, more reliable symbol resolution
+
+**CMake Implementation:**
+
+```cmake
+# Define each layer as OBJECT library
+add_library(l0_assets OBJECT)
+add_library(l1_mcu OBJECT)
+add_library(l2_core OBJECT)
+add_library(l4_components OBJECT)
+add_library(l5_app OBJECT)
+
+# L3 remains INTERFACE library (aggregation layer)
+add_library(l3_middlewares INTERFACE)
+
+# Final linking uses $<TARGET_OBJECTS:>
+target_link_libraries(${CMAKE_PROJECT_NAME}
+    $<TARGET_OBJECTS:l5_app>
+    $<TARGET_OBJECTS:l4_components>
+    l3_middlewares                      # INTERFACE library links normally
+    $<TARGET_OBJECTS:l2_core>
+    $<TARGET_OBJECTS:l1_mcu>
+    $<TARGET_OBJECTS:l0_assets>
+)
 ```
 
 ---
