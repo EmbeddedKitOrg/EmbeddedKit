@@ -13,43 +13,22 @@ file(GLOB MX_Start_S ${CMAKE_CURRENT_SOURCE_DIR}/*.s)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/Core/Src MX_Core_Src)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Src MX_Driver_Src)
 
-# 创建 cubemx_hal OBJECT 库（不生成独立静态库，对象将被添加到 l1_mcu）
-add_library(cubemx_hal OBJECT ${MX_Start_S} ${MX_Core_Src} ${MX_Driver_Src})
-
-# ARM DSP 数学库 - 作为源文件添加
-target_sources(cubemx_hal PRIVATE
+# 直接将源文件添加到 l1_mcu OBJECT 库中
+# CMake 不支持 OBJECT 库的嵌套对象文件传递，所以不创建 cubemx_hal 子库
+target_sources(l1_mcu PRIVATE
+    ${MX_Start_S}
+    ${MX_Core_Src}
+    ${MX_Driver_Src}
     ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/ST/ARM/DSP/Lib/libarm_cortexM4lf_math.a
 )
 
-# 头文件路径 - PUBLIC（传递给使用者）
-target_include_directories(cubemx_hal PUBLIC
+# 将头文件路径和宏定义传递给 l1_mcu
+target_include_directories(l1_mcu PUBLIC
     ${MX_Include_Dirs}
 )
 
-# STM32 宏定义 - PUBLIC（传递给使用者）
-target_compile_definitions(cubemx_hal PUBLIC
+target_compile_definitions(l1_mcu PUBLIC
     USE_HAL_DRIVER
     STM32F429xx
     $<$<CONFIG:Debug>:DEBUG>
-)
-
-# 链接全局配置
-target_link_libraries(cubemx_hal PUBLIC
-    global_macros
-    global_options
-)
-
-# 将 cubemx_hal 的对象文件添加到 l1_mcu（整合到 l1_mcu 静态库中）
-# 这样上层只需要链接 l1_mcu，不需要知道 cubemx_hal 的存在
-target_sources(l1_mcu PRIVATE
-    $<TARGET_OBJECTS:cubemx_hal>
-)
-
-# 将 cubemx_hal 的头文件和宏定义传递给 l1_mcu 的使用者
-target_include_directories(l1_mcu PUBLIC
-    $<TARGET_PROPERTY:cubemx_hal,INTERFACE_INCLUDE_DIRECTORIES>
-)
-
-target_compile_definitions(l1_mcu PUBLIC
-    $<TARGET_PROPERTY:cubemx_hal,INTERFACE_COMPILE_DEFINITIONS>
 )
