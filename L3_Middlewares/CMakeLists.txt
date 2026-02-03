@@ -22,9 +22,7 @@ if(USE_LVGL)
 
     add_library(lvgl_config INTERFACE)
     target_include_directories(lvgl_config INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/LVGL)
-    target_compile_definitions(lvgl_config INTERFACE
-        LV_CONF_BUILD_DISABLE_DEMOS=1
-    )
+    target_compile_definitions(lvgl_config INTERFACE)
     target_link_libraries(lvgl PUBLIC l1_mcu)
 endif()
 
@@ -38,7 +36,7 @@ if(USE_FATFS)
 endif()
 
 if(USE_LVGL)
-    target_link_libraries(l3_middlewares INTERFACE lvgl lvgl::examples lvgl_config)
+    target_link_libraries(l3_middlewares INTERFACE lvgl lvgl::examples lvgl::demos lvgl_config)
 endif()
 
 target_link_libraries(l3_middlewares INTERFACE l2_core global_macros global_options)
