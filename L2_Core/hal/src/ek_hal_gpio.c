@@ -3,7 +3,7 @@
 
 ek_list_node_t ek_hal_gpio_head;
 
-static void xxx_pin_read(void);
+static uint8_t xxx_pin_read(void);
 static void xxx_pin_set(void);
 static void xxx_pin_reset(void);
 static void xxx_pin_toggle(void);
@@ -16,7 +16,7 @@ ek_hal_gpio_t hal_drv_gpio_xxx_pin = {
     .toggle = xxx_pin_toggle,
 };
 
-static void xxx_pin_read(void)
+static uint8_t xxx_pin_read(void)
 {
     // gpio设置读取电平的底层
     // e.g. HAL_GPIO_ReadPin(x, x)
