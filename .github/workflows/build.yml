@@ -93,14 +93,14 @@ jobs:
       - name: Build with GCC - ${{ matrix.config.name }}
         shell: pwsh
         run: |
-          cmake -B build -G Ninja \
-                -DCMAKE_TOOLCHAIN_FILE="cmake/gcc-arm-none-eabi.cmake" \
-                -DCMAKE_BUILD_TYPE=Debug \
-                -DLINKER_SCRIPT="L1_MCU/STM32F407VGT6_GCC/stm32f407xx_flash.ld" \
-                -DMCU_MODEL="STM32F407VGT6_GCC" \
-                -DUSE_FREERTOS=${{ matrix.config.freertos }} \
-                -DUSE_FATFS=OFF \
-                -DUSE_LVGL=${{ matrix.config.lvgl }} \
+          cmake -B build -G Ninja `
+                -DCMAKE_TOOLCHAIN_FILE="cmake/gcc-arm-none-eabi.cmake" `
+                -DCMAKE_BUILD_TYPE=Debug `
+                -DLINKER_SCRIPT="L1_MCU/STM32F407VGT6_GCC/stm32f407xx_flash.ld" `
+                -DMCU_MODEL="STM32F407VGT6_GCC" `
+                -DUSE_FREERTOS=${{ matrix.config.freertos }} `
+                -DUSE_FATFS=OFF `
+                -DUSE_LVGL=${{ matrix.config.lvgl }} `
                 -DUSE_LVGL_THORVG=${{ matrix.config.thorvg }}
           ninja -C build
 
