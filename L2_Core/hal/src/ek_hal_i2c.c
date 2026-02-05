@@ -32,6 +32,9 @@ ek_hal_i2c_t hal_drv_i2c1 = {
 
 static void i2c1_init(void)
 {
+    // i2c外设初始化的底层
+    // e.g. HAL_I2C_Init(&hi2c1)
+
     hal_drv_i2c1.lock = false;
 }
 
@@ -41,10 +44,8 @@ static bool i2c1_send(uint16_t dev_addr, uint8_t *txdata, size_t size)
 
     EK_HAL_LOCK_ON(&hal_drv_i2c1);
 
-    __UNUSED(dev_addr);
-    __UNUSED(txdata);
-    __UNUSED(size);
-    // 具体的i2c底层
+    // i2c发送数据的底层
+    // e.g. HAL_I2C_Master_Transmit(&hi2c1, dev_addr, txdata, size, timeout)
 
     EK_HAL_LOCK_OFF(&hal_drv_i2c1);
 
@@ -57,10 +58,8 @@ static bool i2c1_recieve(uint16_t dev_addr, uint8_t *rxdata, size_t size)
 
     EK_HAL_LOCK_ON(&hal_drv_i2c1);
 
-    __UNUSED(dev_addr);
-    __UNUSED(rxdata);
-    __UNUSED(size);
-    // 具体的i2c底层
+    // i2c接收数据的底层
+    // e.g. HAL_I2C_Master_Receive(&hi2c1, dev_addr, rxdata, size, timeout)
 
     EK_HAL_LOCK_OFF(&hal_drv_i2c1);
 
@@ -77,11 +76,8 @@ i2c1_mem_write(uint16_t dev_addr, uint16_t mem_addr, ek_hal_i2c_mem_size_t mem_s
 
     EK_HAL_LOCK_ON(&hal_drv_i2c1);
 
-    __UNUSED(dev_addr);
-    __UNUSED(mem_addr);
-    __UNUSED(txdata);
-    __UNUSED(size);
-    // 具体的i2c底层
+    // i2c内存写入数据的底层
+    // e.g. HAL_I2C_Mem_Write(&hi2c1, dev_addr, mem_addr, msize, txdata, size, timeout)
 
     EK_HAL_LOCK_OFF(&hal_drv_i2c1);
 
@@ -98,11 +94,8 @@ i2c1_mem_read(uint16_t dev_addr, uint16_t mem_addr, ek_hal_i2c_mem_size_t mem_si
 
     EK_HAL_LOCK_ON(&hal_drv_i2c1);
 
-    __UNUSED(dev_addr);
-    __UNUSED(mem_addr);
-    __UNUSED(rxdata);
-    __UNUSED(size);
-    // 具体的i2c底层
+    // i2c内存读取数据的底层
+    // e.g. HAL_I2C_Mem_Read(&hi2c1, dev_addr, mem_addr, msize, rxdata, size, timeout)
 
     EK_HAL_LOCK_OFF(&hal_drv_i2c1);
 
