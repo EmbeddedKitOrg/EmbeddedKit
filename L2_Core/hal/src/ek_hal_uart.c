@@ -28,6 +28,9 @@ ek_hal_uart_t hal_drv_uart1 = {.idx = 1,
 
 static void uart1_uart_init(void)
 {
+    // uart外设初始化的底层
+    // e.g. HAL_UART_Init(&huart1)
+
     hal_drv_uart1.lock = false;
 
     ek_list_add_tail(&ek_hal_uart_head, &hal_drv_uart1.node);
@@ -39,9 +42,8 @@ static bool uart1_uart_send(uint8_t *txdata, size_t size)
 
     EK_HAL_LOCK_ON(&hal_drv_uart1);
 
-    __UNUSED(txdata);
-    __UNUSED(size);
-    // 放置具体串口发送的底层
+    // uart发送数据的底层
+    // e.g. HAL_UART_Transmit(&huart1, txdata, size, timeout)
 
     EK_HAL_LOCK_OFF(&hal_drv_uart1);
 
@@ -50,7 +52,8 @@ static bool uart1_uart_send(uint8_t *txdata, size_t size)
 
 static void uart1_uart_recieve_to_idle(void)
 {
-    // 建议使用串口+空闲中断+DMA接收数据
+    // uart接收数据到空闲中断的底层
+    // e.g. HAL_UARTEx_ReceiveToIdle(&huart1, rxdata, size, rx_data_len, timeout)
 }
 
 void ek_hal_uart_init(void)

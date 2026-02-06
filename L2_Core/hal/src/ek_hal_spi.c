@@ -25,6 +25,9 @@ ek_hal_spi_t hal_drv_spi1 = {
 
 static void spi1_init(void)
 {
+    // spi外设初始化的底层
+    // e.g. HAL_SPI_Init(&hspi1)
+
     hal_drv_spi1.lock = false;
 
     ek_list_add_tail(&ek_hal_spi_head, &hal_drv_spi1.node);
@@ -36,8 +39,8 @@ static bool spi1_send(uint8_t *txdata, size_t size)
 
     EK_HAL_LOCK_ON(&hal_drv_spi1);
 
-    __UNUSED(txdata);
-    __UNUSED(size);
+    // spi发送数据的底层
+    // e.g. HAL_SPI_Transmit(&hspi1, txdata, size, timeout)
 
     EK_HAL_LOCK_OFF(&hal_drv_spi1);
 
@@ -50,9 +53,8 @@ static bool spi1_recieve(uint8_t *rxdata, size_t size)
 
     EK_HAL_LOCK_ON(&hal_drv_spi1);
 
-    __UNUSED(rxdata);
-    __UNUSED(size);
-    // 具体的spi底层
+    // spi接收数据的底层
+    // e.g. HAL_SPI_Receive(&hspi1, rxdata, size, timeout)
 
     EK_HAL_LOCK_OFF(&hal_drv_spi1);
 
@@ -65,10 +67,8 @@ static bool spi1_write_recieve(uint8_t *txdata, uint8_t *rxdata, size_t size)
 
     EK_HAL_LOCK_ON(&hal_drv_spi1);
 
-    __UNUSED(txdata);
-    __UNUSED(rxdata);
-    __UNUSED(size);
-    // 具体的spi底层
+    // spi同时收发数据的底层
+    // e.g. HAL_SPI_TransmitReceive(&hspi1, txdata, rxdata, size, timeout)
 
     EK_HAL_LOCK_OFF(&hal_drv_spi1);
 

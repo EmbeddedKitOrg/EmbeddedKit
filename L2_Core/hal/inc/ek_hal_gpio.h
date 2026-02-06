@@ -11,6 +11,7 @@ struct ek_hal_gpio_t
     uint8_t idx;
     ek_list_node_t node;
 
+    uint8_t (*read)(void);
     void (*set)(void);
     void (*reset)(void);
     void (*toggle)(void);
