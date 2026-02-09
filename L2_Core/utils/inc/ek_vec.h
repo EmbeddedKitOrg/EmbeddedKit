@@ -1,6 +1,7 @@
 /**
  * @file ek_vec.h
  * @brief 动态数组（Vector）实现
+ * @author N1netyNine99
  *
  * 提供类型安全的动态数组实现，支持动态扩容、元素添加/删除等操作
  * 使用宏实现类型生成，避免 void* 的类型不安全问题

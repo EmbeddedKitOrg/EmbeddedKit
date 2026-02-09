@@ -1,6 +1,7 @@
 /**
  * @file ek_list.h
  * @brief 双向循环链表（Linux 内核风格）
+ * @author N1netyNine99
  *
  * 提供轻量级的双向循环链表实现，所有操作为 O(1) 时间复杂度
  */

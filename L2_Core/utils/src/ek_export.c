@@ -1,3 +1,9 @@
+/**
+ * @file ek_export.c
+ * @brief 函数导出机制实现
+ * @author N1netyNine99
+ */
+
 #include "../inc/ek_export.h"
 
 #if (EK_EXPORT_ENABLE == 1)

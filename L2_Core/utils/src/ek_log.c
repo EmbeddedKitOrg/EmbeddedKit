@@ -1,3 +1,9 @@
+/**
+ * @file ek_log.c
+ * @brief 日志系统实现
+ * @author N1netyNine99
+ */
+
 #include "../inc/ek_log.h"
 
 #if EK_LOG_ENABLE == 1
@@ -17,21 +23,13 @@ static uint8_t _lock = 0;
 #    if (EK_LOG_COLOR_ENABLE == 1)
 
 static const char *const ek_log_color_table[EK_LOG_TYPE_MAX] = {
-    EK_LOG_COLOR_NONE, // EK_LOG_NONE
-    EK_LOG_COLOR_GREEN, // EK_LOG_DEBUG
-    EK_LOG_COLOR_BLUE, // EK_LOG_INFO
-    EK_LOG_COLOR_YELLOW, // EK_LOG_WARN
-    EK_LOG_COLOR_RED, // EK_LOG_ERROR
+    EK_LOG_COLOR_NONE, EK_LOG_COLOR_GREEN, EK_LOG_COLOR_BLUE, EK_LOG_COLOR_YELLOW, / EK_LOG_COLOR_RED,
 };
 
 #    endif /* (EK_LOG_COLOR_ENABLE == 1) */
 
 static const char *ek_log_type_table[EK_LOG_TYPE_MAX] = {
-    "None", // EK_LOG_NONE
-    "Debug", // EK_LOG_DEBUG
-    "Info", // EK_LOG_INFO
-    "Warn", // EK_LOG_WARN
-    "Error" // EK_LOG_ERROR
+    "None", "Debug", "Info", "Warn", "Error",
 };
 
 static char ek_log_buffer[EK_LOG_BUFFER_SIZE];

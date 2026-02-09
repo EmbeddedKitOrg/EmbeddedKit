@@ -1,3 +1,9 @@
+/**
+ * @file ek_assert.c
+ * @brief 断言机制实现
+ * @author N1netyNine99
+ */
+
 #include "../inc/ek_assert.h"
 #include "../inc/ek_log.h"
 #include <string.h>
