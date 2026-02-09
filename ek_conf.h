@@ -26,6 +26,7 @@
  * 模块功能开关
  * - EK_EXPORT_ENABLE: 使能自动初始化
  * - EK_IO_ENABLE: 使能IO库(基于lwprintf)
+ * - EK_STR_ENABLE: 使能字符串处理模块
  * - EK_LOG_ENABLE: 使能日志模块
  * - EK_LIST_ENABLE: 使能链表模块
  * - EK_VEC_ENABLE: 使能向量模块
@@ -35,6 +36,7 @@
  * ======================================================================== */
 #define EK_EXPORT_ENABLE  (0)
 #define EK_IO_ENABLE      (1)
+#define EK_STR_ENABLE     (1)
 #define EK_LOG_ENABLE     (1)
 #define EK_LIST_ENABLE    (1)
 #define EK_VEC_ENABLE     (1)
