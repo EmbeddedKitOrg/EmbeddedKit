@@ -31,6 +31,7 @@ int main(void)
     stack_test();
     ringbuf_test();
     vec_test();
+    str_test();
 
     return 0;
 }

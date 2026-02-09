@@ -11,6 +11,7 @@
 #include "../L2_Core/utils/inc/ek_ringbuf.h"
 #include "../L2_Core/utils/inc/ek_vec.h"
 #include "../L2_Core/utils/inc/ek_assert.h"
+#include "../L2_Core/utils/inc/ek_str.h"
 
 #define PI (3.141592f)
 
@@ -23,5 +24,6 @@ typedef struct
 void stack_test(void);
 void ringbuf_test(void);
 void vec_test(void);
+void str_test(void);
 
 #endif
