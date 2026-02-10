@@ -23,7 +23,7 @@ static uint8_t _lock = 0;
 #    if (EK_LOG_COLOR_ENABLE == 1)
 
 static const char *const ek_log_color_table[EK_LOG_TYPE_MAX] = {
-    EK_LOG_COLOR_NONE, EK_LOG_COLOR_GREEN, EK_LOG_COLOR_BLUE, EK_LOG_COLOR_YELLOW, / EK_LOG_COLOR_RED,
+    EK_LOG_COLOR_NONE, EK_LOG_COLOR_GREEN, EK_LOG_COLOR_BLUE, EK_LOG_COLOR_YELLOW, EK_LOG_COLOR_RED,
 };
 
 #    endif /* (EK_LOG_COLOR_ENABLE == 1) */
