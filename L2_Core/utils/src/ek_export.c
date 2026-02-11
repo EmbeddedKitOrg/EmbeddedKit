@@ -19,7 +19,7 @@ void ek_export_init(void)
 
     for (fn_ptr = &_ek_export_fn_start; fn_ptr < &_ek_export_fn_end; fn_ptr++)
     {
-        ek_assert_tiny(*fn_ptr != NULL);
+        ek_assert_param(*fn_ptr != NULL);
 
         (*fn_ptr)();
     }
