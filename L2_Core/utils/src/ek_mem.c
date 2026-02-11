@@ -1,3 +1,9 @@
+/**
+ * @file ek_mem.c
+ * @brief 内存管理实现
+ * @author N1netyNine99
+ */
+
 #include "../inc/ek_mem.h"
 
 #if EK_HEAP_NO_TLSF == 0

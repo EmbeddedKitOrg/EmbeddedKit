@@ -1,3 +1,9 @@
+/**
+ * @file ek_str.c
+ * @brief 动态字符串管理实现
+ * @author N1netyNine99
+ */
+
 #include "../inc/ek_str.h"
 
 #if EK_STR_ENABLE == 1

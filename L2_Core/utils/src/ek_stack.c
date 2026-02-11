@@ -1,3 +1,9 @@
+/**
+ * @file ek_stack.c
+ * @brief 栈数据结构实现
+ * @author N1netyNine99
+ */
+
 #include "../inc/ek_stack.h"
 
 #if EK_STACK_ENABLE == 1

@@ -1,6 +1,7 @@
 /**
  * @file ek_ringbuf.h
  * @brief 环形缓冲区（Ring Buffer）
+ * @author N1netyNine99
  *
  * 通用的环形缓冲区实现，支持任意数据类型的存储
  */

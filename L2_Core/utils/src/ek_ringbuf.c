@@ -1,3 +1,9 @@
+/**
+ * @file ek_ringbuf.c
+ * @brief 环形缓冲区实现
+ * @author N1netyNine99
+ */
+
 #include "../inc/ek_ringbuf.h"
 
 #if EK_RINGBUF_ENABLE == 1

@@ -1,3 +1,11 @@
+/**
+ * @file ek_mem.h
+ * @brief 内存管理接口
+ * @author N1netyNine99
+ *
+ * 提供基于 TLSF 算法的动态内存分配功能
+ */
+
 #ifndef EK_MEM_H
 #define EK_MEM_H
 
@@ -17,6 +25,12 @@ extern "C"
 {
 #endif
 
+/**
+ * @brief  底层内存分配函数（弱定义）
+ * @note   默认使用 TLSF 实现，如果不使用 TLSF（EK_HEAP_NO_TLSF=1），
+ *         需要用户自行实现这三个函数的强定义版本
+ * @warning 这些函数采用弱定义方式，用户可以覆盖默认实现
+ */
 void *_ek_malloc(size_t size);
 void _ek_free(void *ptr);
 void *_ek_realloc(void *ptr, size_t size);
