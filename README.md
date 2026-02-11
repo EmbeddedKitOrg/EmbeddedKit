@@ -2,7 +2,7 @@
 
 一个专业的 6 层嵌入式固件框架，遵循严格的架构模式以实现最大模块化和硬件可移植性。使用基于 CMake 的构建系统，支持多种工具链。
 
-[English Version](README_CN.md)
+[English Version](README_EN.md)
 
 ---
 
@@ -70,26 +70,52 @@ L0_Assets (资源文件层)
 ### 前置要求
 
 - CMake 3.20 或更高版本
-- ARM 工具链（gcc-arm-none-eabi、ARM Compiler 6 或 clang）
-- STM32CubeMX（用于生成初始化代码）
+- ARM 工具链（gcc-arm-none-eabi 或 STARM Clang）
+- STM32CubeMX 或 GD32 Eclipse（用于生成初始化代码）
+- [just](https://github.com/casey/just)（可选，提供更简洁的构建命令）
 
 ### 构建
 
+**方式一：使用 just（推荐）**
+
+```bash
+# 构建 STM32F407VGT6（GCC ARM）
+just build
+
+# 构建 GD32F470ZGT6（GCC ARM）
+just build-gd
+
+# 构建 STM32F429ZIT6（STARM Clang）
+just build-starm
+
+# 清理构建目录
+just clean
+
+# 运行单元测试
+just test
+```
+
+**方式二：使用 CMake**
+
 ```bash
 # 配置构建（通过缓存变量选择 MCU 型号）
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake -DMCU_MODEL=STM32F429ZIT6
+cmake -B build -G Ninja \
+  -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake \
+  -DMCU_MODEL=STM32F407VGT6_GCC \
+  -DUSE_FREERTOS=OFF \
+  -DUSE_FATFS=OFF \
+  -DUSE_LVGL=OFF
 
 # 构建
 cmake --build build
-
-# 输出文件：EK_DEMO.elf, EK_DEMO.hex, EK_DEMO.bin, EK_DEMO.map
 ```
 
 ### 可用工具链
 
 - `cmake/gcc-arm-none-eabi.cmake` - GCC ARM 工具链
-- `cmake/arm-compile6.cmake` - ARM Compiler 6
-- `cmake/starm-clang.cmake` - STARM Clang
+- `cmake/starm-clang.cmake` - STARM Clang 工具链
+
+**注意**：如需使用 ARM Compiler 6，请自行编写工具链文件。
 
 ---
 
@@ -139,7 +165,7 @@ EmbeddedKit/
 
 存放各 MCU 厂商提供的官方库和启动代码。每个 MCU 型号拥有独立子目录。`main.c` 负责在硬件初始化后调用 `ek_main()`。
 
-**当前支持**：STM32F429、STM32F407
+**当前支持**：STM32F407VGT6_GCC、STM32F429ZIT6_STARM、GD32F470ZGT6
 
 **构建模式**：OBJECT 库，通过 `$<TARGET_OBJECTS:l1_mcu>` 链接到最终固件
 
@@ -154,6 +180,10 @@ EmbeddedKit/
 - `ek_mem.h` - 基于 TLSF 的动态内存管理
 - `ek_log.h` - 分级日志系统
 - `ek_assert.h` - 断言模块
+- `ek_export.h` - 导出宏（自动初始化）
+- `ek_io.h` - IO 模块（基于 lwprintf）
+- `ek_shell.h` - Shell 模块
+- `ek_str.h` - 字符串处理工具
 
 **hal/（硬件抽象）**：实现中。提供逻辑到物理的映射（如 `HAL_GPIO_1` → `GPIOA PIN_5`）。
 - GPIO、UART、SPI、I2C、Tick
@@ -168,18 +198,19 @@ EmbeddedKit/
 
 **已集成的中间件**：
 
-1. **FreeRTOS** - 实时操作系统
+1. **FreeRTOS** - 实时操作系统（✅ 完全支持）
    - 端口：GCC_ARM_CM4F（对应 STM32F429）
    - 堆实现：heap_4.c
    - 配置：168MHz CPU、1000Hz Tick Rate、32KB 堆
    - 启用方式：`-DUSE_FREERTOS=ON`
 
-2. **FatFS** - 文件系统
+2. **FatFS** - 文件系统（✅ 完全支持）
    - 启用方式：`-DUSE_FATFS=ON`
 
-3. **LVGL** - 轻量级图形库
+3. **LVGL** - 轻量级图形库（✅ 完全支持）
    - 版本：v8.3.11
    - 配置：RGB565、128KB 内存池
+   - 包含：官方 examples 和 demos
    - 启用方式：`-DUSE_LVGL=ON`
    - **注意**：LVGL 链接了 L1_MCU，可直接访问硬件相关功能
 
@@ -225,17 +256,24 @@ void ek_main(void)
 #define EK_HEAP_SIZE (30 * 1024)
 
 // 模块功能开关
-#define EK_IO_ENABLE (1)
-#define EK_LOG_ENABLE (1)
-#define EK_LIST_ENABLE (1)
-#define EK_VEC_ENABLE (1)
+#define EK_EXPORT_ENABLE  (0)
+#define EK_IO_ENABLE      (1)
+#define EK_STR_ENABLE     (1)
+#define EK_LOG_ENABLE     (1)
+#define EK_LIST_ENABLE    (1)
+#define EK_VEC_ENABLE     (1)
 #define EK_RINGBUF_ENABLE (1)
-#define EK_STACK_ENABLE (1)
+#define EK_STACK_ENABLE   (1)
+#define EK_SHELL_ENABLE   (1)
 
 // 日志模块配置
 #define EK_LOG_DEBUG_ENABLE (1)
 #define EK_LOG_COLOR_ENABLE (1)
-#define EK_LOG_BUFFER_SIZE (256)
+#define EK_LOG_BUFFER_SIZE  (256)
+
+// 断言模块配置
+#define EK_ASSERT_USE_TINY (1)
+#define EK_ASSERT_WITH_LOG (1)
 ```
 
 ---
@@ -289,12 +327,13 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 ### 已完成
 - ✅ 完整的 6 层架构设计
 - ✅ CMake 构建系统配置
+- ✅ just 命令行工具支持
 - ✅ L0_Assets：资源文件层框架就绪
-- ✅ L1_MCU 层：STM32F429 支持完整（包括 HAL 库、启动文件、main.c）
-- ✅ L2_Core/utils 层：完整实现所有工具模块
+- ✅ L1_MCU 层：STM32F407VGT6_GCC、STM32F429ZIT6_STARM、GD32F470ZGT6 支持完整
+- ✅ L2_Core/utils 层：完整实现所有工具模块（包含 export、io、shell、str 等 12 个模块）
 - ✅ L2_Core/third_party：集成 lwprintf 和 tlsf
 - ✅ L2_Core/hal 层：GPIO、UART、SPI、I2C、Tick 实现中
-- ✅ L3_Middlewares：FreeRTOS、FatFS、LVGL 已完整集成
+- ✅ L3_Middlewares：FreeRTOS、FatFS、LVGL v8.3.11 完全支持（包含 examples 和 demos）
 - ✅ L5_App：基础入口实现
 - ✅ 全局配置文件 `ek_conf.h`
 - ✅ 详细的文档
