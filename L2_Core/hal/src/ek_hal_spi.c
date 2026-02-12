@@ -1,91 +1,99 @@
 #include "../inc/ek_hal_spi.h"
 #include "../../utils/inc/ek_assert.h"
-#include "../../utils/inc/ek_export.h"
-
-#define EK_HAL_LOCK_ON(x)   ((x)->lock = true)
-#define EK_HAL_LOCK_OFF(x)  ((x)->lock = false)
-#define EK_HAL_LOCK_TEST(x) ((x)->lock == true)
+#include "../../utils/inc/ek_assert.h"
 
 ek_list_node_t ek_hal_spi_head;
+static bool _ek_init_flag = false;
 
-static void spi1_init(void);
-static bool spi1_send(uint8_t *txdata, size_t size);
-static bool spi1_recieve(uint8_t *rxdata, size_t size);
-static bool spi1_write_recieve(uint8_t *txdata, uint8_t *rxdata, size_t size);
-
-ek_hal_spi_t hal_drv_spi1 = {
-    .idx = 1,
-    .lock = false,
-
-    .init = spi1_init,
-    .read = spi1_recieve,
-    .write = spi1_send,
-    .write_read = spi1_write_recieve,
-};
-
-static void spi1_init(void)
+/**
+ * @brief 注册 SPI 设备到 HAL 管理链表
+ * @param dev 设备实例指针
+ * @param name 设备名称
+ * @param ops 操作函数集
+ * @param dev_info 驱动私有数据
+ */
+void ek_hal_spi_register(ek_hal_spi_t *const dev, const char *name, const ek_spi_ops_t *ops, void *dev_info)
 {
-    // spi外设初始化的底层
-    // e.g. HAL_SPI_Init(&hspi1)
+    ek_assert_param(dev != NULL);
+    ek_assert_param(name != NULL);
+    ek_assert_param(ops != NULL);
 
-    hal_drv_spi1.lock = false;
+    if (_ek_init_flag == false)
+    {
+        ek_list_init(&ek_hal_spi_head);
+        _ek_init_flag = true;
+    }
 
-    ek_list_add_tail(&ek_hal_spi_head, &hal_drv_spi1.node);
+    dev->name = name;
+    dev->ops = ops;
+    dev->dev_info = dev_info;
+    dev->lock = false;
+    ek_list_add_tail(&ek_hal_spi_head, &dev->node);
+
+    dev->ops->init(dev);
 }
 
-static bool spi1_send(uint8_t *txdata, size_t size)
+/**
+ * @brief 按名称查找已注册的 SPI 设备
+ * @param name 设备名称
+ * @return 找到返回设备指针，未找到返回 NULL
+ */
+ek_hal_spi_t *ek_hal_spi_find(const char *name)
 {
-    if (EK_HAL_LOCK_TEST(&hal_drv_spi1)) return false;
+    ek_assert_param(name != NULL);
 
-    EK_HAL_LOCK_ON(&hal_drv_spi1);
-
-    // spi发送数据的底层
-    // e.g. HAL_SPI_Transmit(&hspi1, txdata, size, timeout)
-
-    EK_HAL_LOCK_OFF(&hal_drv_spi1);
-
-    return true;
-}
-
-static bool spi1_recieve(uint8_t *rxdata, size_t size)
-{
-    if (EK_HAL_LOCK_TEST(&hal_drv_spi1)) return false;
-
-    EK_HAL_LOCK_ON(&hal_drv_spi1);
-
-    // spi接收数据的底层
-    // e.g. HAL_SPI_Receive(&hspi1, rxdata, size, timeout)
-
-    EK_HAL_LOCK_OFF(&hal_drv_spi1);
-
-    return true;
-}
-
-static bool spi1_write_recieve(uint8_t *txdata, uint8_t *rxdata, size_t size)
-{
-    if (EK_HAL_LOCK_TEST(&hal_drv_spi1)) return false;
-
-    EK_HAL_LOCK_ON(&hal_drv_spi1);
-
-    // spi同时收发数据的底层
-    // e.g. HAL_SPI_TransmitReceive(&hspi1, txdata, rxdata, size, timeout)
-
-    EK_HAL_LOCK_OFF(&hal_drv_spi1);
-
-    return true;
-}
-
-void ek_hal_spi_init(void)
-{
     ek_list_node_t *p;
-    ek_list_init(&ek_hal_spi_head);
-
-    spi1_init();
-
     ek_list_iterate(p, &ek_hal_spi_head)
     {
-        ek_hal_spi_t *spi = (ek_hal_spi_t *)ek_list_container(p, ek_hal_spi_t, node);
+        ek_hal_spi_t *dev = ek_list_container(p, ek_hal_spi_t, node);
+
+        if (strcmp(dev->name, name) == 0)
+        {
+            return dev;
+        }
     }
+    return NULL;
 }
 
-EK_EXPORT(ek_hal_spi_init, 0);
+/**
+ * @brief 通过 SPI 发送数据
+ * @param dev 设备实例指针
+ * @param txdata 发送数据缓冲区
+ * @param size 数据长度
+ * @return 成功返回 true，失败返回 false
+ */
+bool ek_hal_spi_write(ek_hal_spi_t *const dev, uint8_t *txdata, size_t size)
+{
+    ek_assert_param(dev != NULL);
+
+    return dev->ops->write(dev, txdata, size);
+}
+
+/**
+ * @brief 通过 SPI 接收数据
+ * @param dev 设备实例指针
+ * @param rxdata 接收数据缓冲区
+ * @param size 数据长度
+ * @return 成功返回 true，失败返回 false
+ */
+bool ek_hal_spi_read(ek_hal_spi_t *const dev, uint8_t *rxdata, size_t size)
+{
+    ek_assert_param(dev != NULL);
+
+    return dev->ops->read(dev, rxdata, size);
+}
+
+/**
+ * @brief 通过 SPI 同时发送和接收数据
+ * @param dev 设备实例指针
+ * @param txdata 发送数据缓冲区
+ * @param rxdata 接收数据缓冲区
+ * @param size 数据长度
+ * @return 成功返回 true，失败返回 false
+ */
+bool ek_hal_spi_write_read(ek_hal_spi_t *const dev, uint8_t *txdata, uint8_t *rxdata, size_t size)
+{
+    ek_assert_param(dev != NULL);
+
+    return dev->ops->write_read(dev, txdata, rxdata, size);
+}

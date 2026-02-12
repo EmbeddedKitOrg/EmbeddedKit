@@ -1,112 +1,130 @@
 #include "../inc/ek_hal_i2c.h"
 #include "../../utils/inc/ek_assert.h"
-#include "../../utils/inc/ek_export.h"
-
-#define EK_HAL_LOCK_ON(x)   ((x)->lock = true)
-#define EK_HAL_LOCK_OFF(x)  ((x)->lock = false)
-#define EK_HAL_LOCK_TEST(x) ((x)->lock == true)
-
-static void i2c1_init(void);
-static bool i2c1_send(uint16_t dev_addr, uint8_t *txdata, size_t size);
-static bool i2c1_recieve(uint16_t dev_addr, uint8_t *rxdata, size_t size);
-static bool
-i2c1_mem_write(uint16_t dev_addr, uint16_t mem_addr, ek_hal_i2c_mem_size_t mem_size, uint8_t *txdata, size_t size);
-static bool
-i2c1_mem_read(uint16_t dev_addr, uint16_t mem_addr, ek_hal_i2c_mem_size_t mem_size, uint8_t *rxdata, size_t size);
+#include "../../utils/inc/ek_assert.h"
 
 ek_list_node_t ek_hal_i2c_head;
+static bool _ek_init_flag = false;
 
-ek_hal_i2c_t hal_drv_i2c1 = {
-    .idx = 1,
-    .speed_hz = 400000,
-
-    .lock = false,
-
-    .init = i2c1_init,
-    .read = i2c1_recieve,
-    .write = i2c1_send,
-
-    .mem_read = i2c1_mem_read,
-    .mem_write = i2c1_mem_write,
-};
-
-static void i2c1_init(void)
+/**
+ * @brief 注册 I2C 设备到 HAL 管理链表
+ * @param dev 设备实例指针
+ * @param name 设备名称
+ * @param ops 操作函数集
+ * @param dev_info 驱动私有数据
+ */
+void ek_hal_i2c_register(ek_hal_i2c_t *const dev, const char *name, const ek_i2c_ops_t *ops, void *dev_info)
 {
-    // i2c外设初始化的底层
-    // e.g. HAL_I2C_Init(&hi2c1)
+    ek_assert_param(dev != NULL);
+    ek_assert_param(name != NULL);
+    ek_assert_param(ops != NULL);
 
-    hal_drv_i2c1.lock = false;
+    if (_ek_init_flag == false)
+    {
+        ek_list_init(&ek_hal_i2c_head);
+        _ek_init_flag = true;
+    }
+
+    dev->name = name;
+    dev->ops = ops;
+    dev->dev_info = dev_info;
+    dev->lock = false;
+    ek_list_add_tail(&ek_hal_i2c_head, &dev->node);
+
+    dev->ops->init(dev);
 }
 
-static bool i2c1_send(uint16_t dev_addr, uint8_t *txdata, size_t size)
+/**
+ * @brief 按名称查找已注册的 I2C 设备
+ * @param name 设备名称
+ * @return 找到返回设备指针，未找到返回 NULL
+ */
+ek_hal_i2c_t *ek_hal_i2c_find(const char *name)
 {
-    if (EK_HAL_LOCK_TEST(&hal_drv_i2c1) == true) return false;
+    ek_assert_param(name != NULL);
 
-    EK_HAL_LOCK_ON(&hal_drv_i2c1);
+    ek_list_node_t *p;
+    ek_list_iterate(p, &ek_hal_i2c_head)
+    {
+        ek_hal_i2c_t *dev = ek_list_container(p, ek_hal_i2c_t, node);
 
-    // i2c发送数据的底层
-    // e.g. HAL_I2C_Master_Transmit(&hi2c1, dev_addr, txdata, size, timeout)
-
-    EK_HAL_LOCK_OFF(&hal_drv_i2c1);
-
-    return true;
+        if (strcmp(dev->name, name) == 0)
+        {
+            return dev;
+        }
+    }
+    return NULL;
 }
 
-static bool i2c1_recieve(uint16_t dev_addr, uint8_t *rxdata, size_t size)
+/**
+ * @brief 通过 I2C 发送数据
+ * @param dev 设备实例指针
+ * @param dev_addr 目标设备地址
+ * @param txdata 发送数据缓冲区
+ * @param size 数据长度
+ * @return 成功返回 true，失败返回 false
+ */
+bool ek_hal_i2c_write(ek_hal_i2c_t *const dev, uint16_t dev_addr, uint8_t *txdata, size_t size)
 {
-    if (EK_HAL_LOCK_TEST(&hal_drv_i2c1) == true) return false;
+    ek_assert_param(dev != NULL);
 
-    EK_HAL_LOCK_ON(&hal_drv_i2c1);
-
-    // i2c接收数据的底层
-    // e.g. HAL_I2C_Master_Receive(&hi2c1, dev_addr, rxdata, size, timeout)
-
-    EK_HAL_LOCK_OFF(&hal_drv_i2c1);
-
-    return true;
+    return dev->ops->write(dev, dev_addr, txdata, size);
 }
 
-static bool
-i2c1_mem_write(uint16_t dev_addr, uint16_t mem_addr, ek_hal_i2c_mem_size_t mem_size, uint8_t *txdata, size_t size)
+/**
+ * @brief 通过 I2C 接收数据
+ * @param dev 设备实例指针
+ * @param dev_addr 目标设备地址
+ * @param rxdata 接收数据缓冲区
+ * @param size 数据长度
+ * @return 成功返回 true，失败返回 false
+ */
+bool ek_hal_i2c_read(ek_hal_i2c_t *const dev, uint16_t dev_addr, uint8_t *rxdata, size_t size)
 {
-    if (EK_HAL_LOCK_TEST(&hal_drv_i2c1) == true) return false;
+    ek_assert_param(dev != NULL);
 
-    // uint16_t msize = (mem_size == EK_HAL_I2C_MEM_8B) ? I2C_MEMADD_SIZE_8BIT : I2C_MEMADD_SIZE_16BIT;
-    // msize 来判断从机设备长度
-
-    EK_HAL_LOCK_ON(&hal_drv_i2c1);
-
-    // i2c内存写入数据的底层
-    // e.g. HAL_I2C_Mem_Write(&hi2c1, dev_addr, mem_addr, msize, txdata, size, timeout)
-
-    EK_HAL_LOCK_OFF(&hal_drv_i2c1);
-
-    return true;
+    return dev->ops->read(dev, dev_addr, rxdata, size);
 }
 
-static bool
-i2c1_mem_read(uint16_t dev_addr, uint16_t mem_addr, ek_hal_i2c_mem_size_t mem_size, uint8_t *rxdata, size_t size)
+/**
+ * @brief 通过 I2C 写入指定寄存器
+ * @param dev 设备实例指针
+ * @param dev_addr 目标设备地址
+ * @param mem_addr 寄存器地址
+ * @param mem_size 寄存器地址宽度（8位/16位）
+ * @param txdata 发送数据缓冲区
+ * @param size 数据长度
+ * @return 成功返回 true，失败返回 false
+ */
+bool ek_hal_i2c_mem_write(ek_hal_i2c_t *const dev,
+                          uint16_t dev_addr,
+                          uint16_t mem_addr,
+                          ek_hal_i2c_size_t mem_size,
+                          uint8_t *txdata,
+                          size_t size)
 {
-    if (EK_HAL_LOCK_TEST(&hal_drv_i2c1) == true) return false;
+    ek_assert_param(dev != NULL);
 
-    // uint16_t msize = (mem_size == EK_HAL_I2C_MEM_8B) ? I2C_MEMADD_SIZE_8BIT : I2C_MEMADD_SIZE_16BIT;
-    // msize 来判断从机设备长度
-
-    EK_HAL_LOCK_ON(&hal_drv_i2c1);
-
-    // i2c内存读取数据的底层
-    // e.g. HAL_I2C_Mem_Read(&hi2c1, dev_addr, mem_addr, msize, rxdata, size, timeout)
-
-    EK_HAL_LOCK_OFF(&hal_drv_i2c1);
-
-    return true;
+    return dev->ops->mem_write(dev, dev_addr, mem_addr, mem_size, txdata, size);
 }
 
-void ek_hal_i2c_init(void)
+/**
+ * @brief 通过 I2C 读取指定寄存器
+ * @param dev 设备实例指针
+ * @param dev_addr 目标设备地址
+ * @param mem_addr 寄存器地址
+ * @param mem_size 寄存器地址宽度（8位/16位）
+ * @param rxdata 接收数据缓冲区
+ * @param size 数据长度
+ * @return 成功返回 true，失败返回 false
+ */
+bool ek_hal_i2c_mem_read(ek_hal_i2c_t *const dev,
+                         uint16_t dev_addr,
+                         uint16_t mem_addr,
+                         ek_hal_i2c_size_t mem_size,
+                         uint8_t *rxdata,
+                         size_t size)
 {
-    ek_list_init(&ek_hal_i2c_head);
+    ek_assert_param(dev != NULL);
 
-    ek_list_add_tail(&ek_hal_i2c_head, &hal_drv_i2c1.node);
+    return dev->ops->mem_read(dev, dev_addr, mem_addr, mem_size, rxdata, size);
 }
-
-EK_EXPORT(ek_hal_i2c_init, 0);
