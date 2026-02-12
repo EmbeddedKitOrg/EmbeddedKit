@@ -38,7 +38,7 @@ typedef void (*_ek_export_init_fn_t)(void);
 /**
  * @brief 字符串化宏（内部使用）
  */
-#    define _EK_STR(x)        _EK_STR_HELPER(x)
+#    define _EK_STR(x) _EK_STR_HELPER(x)
 
 /**
  * @brief 导出函数宏
@@ -57,9 +57,18 @@ typedef void (*_ek_export_init_fn_t)(void);
 #    define EK_EXPORT(fn, prio) \
         const _ek_export_init_fn_t __init_##fn##prio __attribute__((used, section(".ek_export_fn." _EK_STR(prio)))) = fn
 
+#    define EK_EXPORT_HARDWARE(fn)   EK_EXPORT(fn, 0)
+#    define EK_EXPORT_COMPONENTS(fn) EK_EXPORT(fn, 1)
+#    define EK_EXPORT_APP(fn)        EK_EXPORT(fn, 2)
+#    define EK_EXPORT_USER(fn)       EK_EXPORT(fn, 3)
+
 #else
 
 #    define EK_EXPORT(fn, prio)
+#    define EK_EXPORT_HARDWARE(fn)
+#    define EK_EXPORT_COMPONENTS(fn)
+#    define EK_EXPORT_APP(fn)
+#    define EK_EXPORT_USER(fn)
 
 #endif /* EK_EXPORT_ENABLE */
 
