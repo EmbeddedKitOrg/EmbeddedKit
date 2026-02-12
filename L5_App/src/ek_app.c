@@ -14,9 +14,16 @@ EK_IO_FPUTC()
 
 EK_LOG_GET_TICK()
 {
-    // 这里返回你系统的tick
-    // e.g. return HAL_GetTick();
+// 这里返回你系统的tick
+// e.g. return HAL_GetTick();
+#if EK_USE_RTOS == 1
     return (uint32_t)xTaskGetTickCount();
+#else
+    static ek_hal_tick_t *ticker = NULL;
+    if (ticker == NULL) ticker = ek_hal_tick_find("DEFAULT_TICK");
+    ek_assert_param(ticker != NULL);
+    return (uint32_t)ticker->ops->get(ticker);
+#endif
 }
 
 void ek_main(void)

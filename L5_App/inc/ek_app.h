@@ -5,6 +5,7 @@
 #include "ek_mem.h"
 #include "ek_io.h"
 #include "ek_log.h"
+#include "ek_assert.h"
 #include "ek_export.h"
 
 #include "ek_hal_uart.h"
