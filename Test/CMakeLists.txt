@@ -17,12 +17,14 @@ set(CMAKE_BINARY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/build)
 
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} TestSrc)
 
-file(GLOB_RECURSE L2_TestSrc "${CMAKE_CURRENT_SOURCE_DIR}/../L2_Core/*.c")
+file(GLOB_RECURSE L2_TestSrc "${CMAKE_CURRENT_SOURCE_DIR}/../L2_Core/utils/src/*.c")
+file(GLOB_RECURSE L2_TestSrc_3rd "${CMAKE_CURRENT_SOURCE_DIR}/../L2_Core/third_party/*.c")
+
 
 # 添加shell_symbols.c为非嵌入式平台提供链接器符号和内存管理函数
 list(APPEND TestSrc "${CMAKE_CURRENT_SOURCE_DIR}/shell_symbols.c")
 
-add_executable(${CMAKE_PROJECT_NAME} ${TestSrc} ${L2_TestSrc})
+add_executable(${CMAKE_PROJECT_NAME} ${TestSrc} ${L2_TestSrc} ${L2_TestSrc_3rd}) 
 
 include_directories( ${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_PROJECT_NAME}/../L2_Core/utils/inc

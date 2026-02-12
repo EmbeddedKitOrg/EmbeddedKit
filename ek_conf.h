@@ -34,7 +34,7 @@
  * - EK_STACK_ENABLE: 使能栈模块
  * - EK_SHELL_ENABLE: 使能shell模块   
  * ======================================================================== */
-#define EK_EXPORT_ENABLE  (1)
+#define EK_EXPORT_ENABLE  (0)
 #define EK_IO_ENABLE      (1)
 #define EK_STR_ENABLE     (1)
 #define EK_LOG_ENABLE     (1)
