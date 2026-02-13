@@ -1,6 +1,5 @@
 #include "../inc/ek_hal_gpio.h"
 #include "../../utils/inc/ek_assert.h"
-#include "../../utils/inc/ek_export.h"
 
 ek_list_node_t ek_hal_gpio_head;
 static bool _ek_init_flag = false;

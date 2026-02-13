@@ -1,6 +1,5 @@
 #include "../inc/ek_hal_tim.h"
 #include "../../utils/inc/ek_assert.h"
-#include "../../utils/inc/ek_assert.h"
 
 ek_list_node_t ek_hal_tim_head;
 static bool _ek_init_flag = false;

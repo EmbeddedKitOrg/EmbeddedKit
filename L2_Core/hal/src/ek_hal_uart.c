@@ -1,6 +1,5 @@
 #include "../inc/ek_hal_uart.h"
 #include "../../utils/inc/ek_assert.h"
-#include "../../utils/inc/ek_assert.h"
 
 ek_list_node_t ek_hal_uart_head;
 static bool _ek_init_flag = false;
