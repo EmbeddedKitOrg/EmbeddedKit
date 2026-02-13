@@ -2,19 +2,35 @@
 #define EK_HAL_TICK_H
 
 #include "../../utils/inc/ek_def.h"
+#include "../../utils/inc/ek_list.h"
 
 typedef struct ek_hal_tick_t ek_hal_tick_t;
+typedef struct ek_tick_ops_t ek_tick_ops_t;
 
-struct ek_hal_tick_t
+/** @brief Tick 操作函数集 */
+struct ek_tick_ops_t
 {
-    uint8_t idx;
-    uint16_t ms_per_tick;
-    uint32_t tick_to_wait;
-
-    uint32_t (*get)(void);
-    void (*delay)(uint32_t xtick);
+    void (*init)(ek_hal_tick_t *const dev);
+    uint32_t (*get)(ek_hal_tick_t *const dev);
+    void (*delay)(ek_hal_tick_t *const dev, uint32_t xtick);
 };
 
-extern ek_hal_tick_t ek_default_ticker;
+/** @brief Tick 系统节拍设备结构体 */
+struct ek_hal_tick_t
+{
+    ek_list_node_t node;
+    const char *name;
+    const ek_tick_ops_t *ops;
+    void *dev_info;
+
+    uint16_t ms_per_tick;
+};
+
+extern ek_list_node_t ek_hal_tick_head;
+
+void ek_hal_tick_register(ek_hal_tick_t *const dev, const char *name, const ek_tick_ops_t *ops, void *dev_info);
+ek_hal_tick_t *ek_hal_tick_find(const char *name);
+uint32_t ek_hal_tick_get(ek_hal_tick_t *const dev);
+void ek_hal_tick_delay(ek_hal_tick_t *const dev, uint32_t xtick);
 
 #endif // EK_HAL_TICK_H

@@ -1,73 +1,95 @@
 #include "../inc/ek_hal_uart.h"
-#include "../../utils/inc/ek_mem.h"
 #include "../../utils/inc/ek_assert.h"
-#include "../../utils/inc/ek_export.h"
-
-
-#define EK_HAL_LOCK_ON(x)   ((x)->lock = true)
-#define EK_HAL_LOCK_OFF(x)  ((x)->lock = false)
-#define EK_HAL_LOCK_TEST(x) ((x)->lock == true)
-
-#define UART_RX_BUFFER_SIZE 128
+#include "../../utils/inc/ek_assert.h"
 
 ek_list_node_t ek_hal_uart_head;
+static bool _ek_init_flag = false;
 
-static uint8_t uart1_rx_buffer[UART_RX_BUFFER_SIZE]; // 建议通过串口 + 空闲终端 + DMA将数据搬运到这个数组
-static void uart1_uart_init(void);
-static bool uart1_uart_send(uint8_t *TxData, size_t Size);
-static void uart1_uart_recieve_to_idle(void);
-
-ek_hal_uart_t hal_drv_uart1 = {.idx = 1,
-                               .baudrate = 115200,
-                               .buf_size = UART_RX_BUFFER_SIZE,
-                               .rxbuffer = uart1_rx_buffer,
-
-                               .init = uart1_uart_init,
-                               .write = uart1_uart_send,
-                               .read = uart1_uart_recieve_to_idle};
-
-static void uart1_uart_init(void)
+/**
+ * @brief 注册 UART 设备到 HAL 管理链表
+ * @param dev 设备实例指针
+ * @param name 设备名称
+ * @param ops 操作函数集
+ * @param dev_info 驱动私有数据
+ */
+void ek_hal_uart_register(ek_hal_uart_t *const dev, const char *name, const ek_uart_ops_t *ops, void *dev_info)
 {
-    // uart外设初始化的底层
-    // e.g. HAL_UART_Init(&huart1)
+    ek_assert_param(dev != NULL);
+    ek_assert_param(name != NULL);
+    ek_assert_param(ops != NULL);
 
-    hal_drv_uart1.lock = false;
+    if (_ek_init_flag == false)
+    {
+        ek_list_init(&ek_hal_uart_head);
+        _ek_init_flag = true;
+    }
 
-    ek_list_add_tail(&ek_hal_uart_head, &hal_drv_uart1.node);
+    dev->name = name;
+    dev->ops = ops;
+    dev->dev_info = dev_info;
+    dev->lock = false;
+    ek_list_add_tail(&ek_hal_uart_head, &dev->node);
+
+    dev->ops->init(dev);
 }
 
-static bool uart1_uart_send(uint8_t *txdata, size_t size)
+/**
+ * @brief 按名称查找已注册的 UART 设备
+ * @param name 设备名称
+ * @return 找到返回设备指针，未找到返回 NULL
+ */
+ek_hal_uart_t *ek_hal_uart_find(const char *name)
 {
-    if (EK_HAL_LOCK_TEST(&hal_drv_uart1)) return false;
+    ek_assert_param(name != NULL);
 
-    EK_HAL_LOCK_ON(&hal_drv_uart1);
-
-    // uart发送数据的底层
-    // e.g. HAL_UART_Transmit(&huart1, txdata, size, timeout)
-
-    EK_HAL_LOCK_OFF(&hal_drv_uart1);
-
-    return true;
-}
-
-static void uart1_uart_recieve_to_idle(void)
-{
-    // uart接收数据到空闲中断的底层
-    // e.g. HAL_UARTEx_ReceiveToIdle(&huart1, rxdata, size, rx_data_len, timeout)
-}
-
-void ek_hal_uart_init(void)
-{
     ek_list_node_t *p;
-    ek_list_init(&ek_hal_uart_head);
-
-    uart1_uart_init();
-
     ek_list_iterate(p, &ek_hal_uart_head)
     {
-        ek_hal_uart_t *uart = (ek_hal_uart_t *)ek_list_container(p, ek_hal_uart_t, node);
-        uart->read();
+        ek_hal_uart_t *dev = ek_list_container(p, ek_hal_uart_t, node);
+
+        if (strcmp(dev->name, name) == 0)
+        {
+            return dev;
+        }
     }
+    return NULL;
 }
 
-EK_EXPORT(ek_hal_uart_init, 0);
+/**
+ * @brief 通过 UART 发送数据（阻塞模式）
+ * @param dev 设备实例指针
+ * @param txdata 发送数据缓冲区
+ * @param size 数据长度
+ * @return 成功返回 true，失败返回 false
+ */
+bool ek_hal_uart_write(ek_hal_uart_t *const dev, uint8_t *txdata, size_t size)
+{
+    ek_assert_param(dev != NULL);
+
+    return dev->ops->write(dev, txdata, size);
+}
+
+/**
+ * @brief 通过 UART 发送数据（DMA 模式）
+ * @param dev 设备实例指针
+ * @param txdata 发送数据缓冲区
+ * @param size 数据长度
+ * @return 成功返回 true，失败返回 false
+ */
+bool ek_hal_uart_write_dma(ek_hal_uart_t *const dev, uint8_t *txdata, size_t size)
+{
+    ek_assert_param(dev != NULL);
+
+    return dev->ops->write_dma(dev, txdata, size);
+}
+
+/**
+ * @brief 启动 UART 接收
+ * @param dev 设备实例指针
+ */
+void ek_hal_uart_read(ek_hal_uart_t *const dev)
+{
+    ek_assert_param(dev != NULL);
+
+    dev->ops->read(dev);
+}
