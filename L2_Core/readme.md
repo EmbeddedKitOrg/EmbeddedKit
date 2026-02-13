@@ -111,70 +111,7 @@ L2_Core/
             └── shell_cfg.h
 ```
 
-## 3. 实现状态
-
-### 3.1 代码统计
-
-| 分类 | 头文件 | 源文件 | 总行数 | 状态 |
-|------|---------|---------|--------|------|
-| **utils/** | 12 | 8 | 774行 | ✅ 100% |
-| **hal/** | 8 | 8 | 891行 | ✅ 100% |
-| **port/** | 1 | 7 | 955行 | ✅ 100% |
-| **第三方库** | 4 | 5 | 4,238行 | ✅ 100% |
-| **合计** | 25 | 28+ | 6,858行 | ✅ 100% |
-
-### 3.2 utils/ 子目录状态
-
-| 模块 | 头文件 | 源文件 | 状态 | 说明 |
-|------|---------|---------|------|------|
-| ek_def.h | ✅ | - | ✅ 完成 | 跨编译器宏定义 |
-| ek_list.h | ✅ | - | ✅ 完成 | 双向循环链表（纯头文件） |
-| ek_ringbuf | ✅ | ✅ | ✅ 完成 | 环形缓冲区（150行） |
-| ek_stack | ✅ | ✅ | ✅ 完成 | 栈数据结构（119行） |
-| ek_mem | ✅ | ✅ | ✅ 完成 | 动态内存管理（116行） |
-| ek_log | ✅ | ✅ | ✅ 完成 | 分级日志系统（76行） |
-| ek_io | ✅ | ✅ | ✅ 完成 | 标准 IO（33行） |
-| ek_vec.h | ✅ | - | ✅ 完成 | 动态数组（纯宏实现） |
-| ek_str | ✅ | ✅ | ✅ 完成 | 动态字符串（217行） |
-| ek_export | ✅ | ✅ | ✅ 完成 | 函数自动导出（34行） |
-| ek_assert | ✅ | ✅ | ✅ 完成 | 断言模块（29行） |
-| ek_shell.h | ✅ | - | ✅ 完成 | 命令行接口（封装） |
-
-### 3.3 hal/ 子目录状态
-
-| 模块 | 头文件 | 源文件 | 状态 | 说明 |
-|------|---------|---------|------|------|
-| ek_hal_gpio | ✅ | ✅ | ✅ 完成 | GPIO 抽象（102行） |
-| ek_hal_uart | ✅ | ✅ | ✅ 完成 | UART 抽象（95行） |
-| ek_hal_i2c | ✅ | ✅ | ✅ 完成 | I2C 抽象（130行） |
-| ek_hal_spi | ✅ | ✅ | ✅ 完成 | SPI 抽象（99行） |
-| ek_hal_tick | ✅ | ✅ | ✅ 完成 | 系统节拍（79行） |
-| ek_hal_tim | ✅ | ✅ | ✅ 完成 | 定时器（104行） |
-| ek_hal_dma2d | ✅ | ✅ | ✅ 完成 | DMA2D 硬件加速（139行） |
-| ek_hal_ltdc | ✅ | ✅ | ✅ 完成 | LTDC 显示控制器（143行） |
-
-### 3.4 port/ 子目录状态
-
-| 驱动 | 源文件 | 行数 | 状态 |
-|------|---------|------|------|
-| GPIO 驱动 | st_gpio_port.c | 132行 | ✅ 完成 |
-| UART 驱动 | st_uart_port.c | 110行 | ✅ 完成 |
-| I2C 驱动 | st_i2c_port.c | 138行 | ✅ 完成 |
-| SPI 驱动 | st_spi_port.c | 97行 | ✅ 完成 |
-| Tick 驱动 | st_tick_port.c | 50行 | ✅ 完成 |
-| 定时器驱动 | st_tim_port.c | 86行 | ✅ 完成 |
-| DMA2D 驱动 | st_dma2d_port.c | 250行 | ✅ 完成 |
-| LTDC 驱动 | st_ltdc_port.c | 92行 | ✅ 完成 |
-
-### 3.5 第三方库状态
-
-| 库 | 说明 | 状态 |
-|----|----|------|
-| TLSF | Two-Level Segregated Fit 内存分配器 | ✅ 已集成 |
-| lwprintf | 轻量级格式化输出库 | ✅ 已集成 |
-| letter_shell | 命令行 Shell | ✅ 已集成 |
-
-## 4. 核心开发原则 (Strict Rules)
+## 3. 核心开发原则 (Strict Rules)
 
 为了保证架构的整洁性和可移植性，开发本层时必须遵守以下规则：
 
@@ -204,11 +141,11 @@ L2_Core/
 - `port/` 可以依赖 `hal/` 和 `utils/`
 - `utils/` 不能依赖 `hal/` 或 `port/`（保持纯软件实现）
 
-## 5. HAL 架构设计（OOP 模式）
+## 4. HAL 架构设计（OOP 模式）
 
 本层所有 HAL 模块采用统一的 OOP（面向对象）设计模式：
 
-### 5.1 设备结构体
+### 4.1 设备结构体
 
 ```c
 // 设备结构体
@@ -224,7 +161,7 @@ struct ek_hal_xxx_t
 };
 ```
 
-### 5.2 操作函数集（虚函数表）
+### 4.2 操作函数集（虚函数表）
 
 ```c
 // 操作函数集（虚函数表）
@@ -235,7 +172,7 @@ typedef struct ek_xxx_ops_t
 } ek_xxx_ops_t;
 ```
 
-### 5.3 设备管理
+### 4.3 设备管理
 
 - 所有设备通过链表管理
 - 支持按名称查找设备
@@ -254,9 +191,9 @@ void ek_hal_xxx_register(
 ek_hal_xxx_t *ek_hal_xxx_find(const char *name);
 ```
 
-## 6. 移植层设计（port/）
+## 5. 移植层设计（port/）
 
-### 6.1 设备表驱动模式
+### 5.1 设备表驱动模式
 
 移植层使用设备表驱动模式，例如 `st_gpio_port.c`：
 
@@ -287,9 +224,9 @@ EK_EXPORT_COMPONENTS(my_component_init);
 EK_EXPORT_APP(my_app_init);
 ```
 
-## 7. 模块使用指南
+## 6. 模块使用指南
 
-### 7.1 使用双向链表（ek_list.h）
+### 6.1 使用双向链表（ek_list.h）
 
 ```c
 #include "ek_list.h"
@@ -318,7 +255,7 @@ ek_list_iterate(pos, &my_list) {
 ek_list_remove(&node->node);
 ```
 
-### 7.2 使用动态数组（ek_vec.h）
+### 6.2 使用动态数组（ek_vec.h）
 
 ```c
 #include "ek_vec.h"
@@ -344,7 +281,7 @@ ek_vec_iterate(i, my_vec) {
 ek_vec_destroy(my_vec);
 ```
 
-### 7.3 使用动态字符串（ek_str.h）
+### 6.3 使用动态字符串（ek_str.h）
 
 ```c
 #include "ek_str.h"
@@ -364,7 +301,7 @@ printf("%s\n", cstr);  // "Hello World 2024"
 ek_str_free(s);
 ```
 
-### 7.4 使用内存管理（ek_mem.h）
+### 6.4 使用内存管理（ek_mem.h）
 
 ```c
 #include "ek_mem.h"
@@ -387,7 +324,7 @@ uint32_t used = ek_heap_used();        // 已使用
 uint32_t unused = ek_heap_unused();    // 空闲
 ```
 
-### 7.5 使用日志系统（ek_log.h）
+### 6.5 使用日志系统（ek_log.h）
 
 ```c
 #include "ek_log.h"
@@ -402,7 +339,7 @@ void example_function(void)
 }
 ```
 
-### 7.6 使用 HAL 设备
+### 6.6 使用 HAL 设备
 
 ```c
 #include "ek_hal_gpio.h"
@@ -423,7 +360,7 @@ ek_hal_gpio_toggle(gpio);
 ek_gpio_status_t status = ek_hal_gpio_read(gpio);
 ```
 
-### 7.7 使用自动导出
+### 6.7 使用自动导出
 
 ```c
 #include "ek_export.h"
@@ -447,9 +384,9 @@ int main(void)
 }
 ```
 
-## 8. 添加新模块
+## 7. 添加新模块
 
-### 8.1 添加 utils 模块（硬件无关）
+### 7.1 添加 utils 模块（硬件无关）
 
 #### 步骤 1：定义接口 (utils/inc/ek_xxx.h)
 
@@ -485,7 +422,7 @@ int ek_example_do_something(int value)
 }
 ```
 
-### 8.2 添加 hal 模块（硬件抽象）
+### 7.2 添加 hal 模块（硬件抽象）
 
 #### 步骤 1：定义接口 (hal/inc/ek_hal_xxx.h)
 
@@ -592,7 +529,7 @@ void st_xxx_drv_init(void)
 EK_EXPORT_HARDWARE(st_xxx_drv_init);
 ```
 
-### 8.3 添加移植层
+### 7.3 添加移植层
 
 创建新的移植层目录（如 `port/stm32f407/`），参考 `stm32f429zi/` 的实现：
 
@@ -614,7 +551,7 @@ void st_gpio_drv_init(void)
 EK_EXPORT_HARDWARE(st_gpio_drv_init);
 ```
 
-## 9. 常见问题
+## 8. 常见问题
 
 **Q: hal/ 子目录可以直接使用 utils/ 的数据结构吗？**
 
