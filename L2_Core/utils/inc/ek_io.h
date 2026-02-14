@@ -13,7 +13,7 @@
 
 #include "../../../ek_conf.h"
 
-#if EK_IO_ENABLE == 1
+#if EK_IO_NO_LWPRTF == 0
 
 #    include "../../third_party/lwprintf/inc/lwprintf.h"
 
@@ -35,6 +35,25 @@
  */
 void ek_io_init(void);
 
-#endif /* EK_IO_ENABLE */
+#    define ek_printf    lwprintf
+#    define ek_vprintf   lwvprintf
+#    define ek_sprintf   lwsprintf
+#    define ek_snprintf  lwsnprintf
+#    define ek_vsnprintf lwvsnprintf
+
+#else
+
+void ek_io_init(void);
+
+#    define EK_IO_FPUTC()
+
+// 如果不需要使用lwprintf 需要补全下列的宏
+#    define ek_printf
+#    define ek_vsprintf
+#    define ek_sprintf
+#    define ek_snprintf
+#    define ek_vsnprintf
+
+#endif /* EK_IO_NO_LWPRTF */
 
 #endif

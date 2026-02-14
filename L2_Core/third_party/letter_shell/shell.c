@@ -11,8 +11,8 @@
 
 #include "inc/shell.h"
 #include "../lwprintf/inc/lwprintf.h"
-#include "string.h"
-#include "stdarg.h"
+#include <string.h>
+#include <stdarg.h>
 
 #if SHELL_AUTO_PRASE == 1
 #    include "inc/shell_ext.h"
@@ -56,7 +56,7 @@ static const char *shellText[] = {
     [TEXT_READ_NOT_DEF] = "error: shell.read must be defined\r\n",
 };
 
-static SHELL_TypeDef *shellList[SHELL_MAX_NUMBER] = {NULL}; /**< shell列表 */
+static SHELL_TypeDef *shellList[SHELL_MAX_NUMBER] = { NULL }; /**< shell列表 */
 
 static void shellAdd(SHELL_TypeDef *shell);
 static void shellDisplayItem(SHELL_TypeDef *shell, unsigned short index);
@@ -104,12 +104,12 @@ const SHELL_VaribaleTypeDef shellDefaultVariableList[] = {
  * 
  */
 const SHELL_KeyFunctionDef shellDefaultKeyFunctionList[] = {
-    {SHELL_KEY_LF,        shellEnter    },
-    {SHELL_KEY_CR,        shellEnter    },
-    {SHELL_KEY_TAB,       shellTab      },
-    {SHELL_KEY_BACKSPACE, shellBackspace},
-    {SHELL_KEY_DELETE,    shellBackspace},
-    {SHELL_KEY_ESC,       shellAnsiStart},
+    { SHELL_KEY_LF,        shellEnter     },
+    { SHELL_KEY_CR,        shellEnter     },
+    { SHELL_KEY_TAB,       shellTab       },
+    { SHELL_KEY_BACKSPACE, shellBackspace },
+    { SHELL_KEY_DELETE,    shellBackspace },
+    { SHELL_KEY_ESC,       shellAnsiStart },
 };
 
 /**

@@ -255,9 +255,12 @@ The global configuration file `ek_conf.h` in the root directory manages framewor
 #define EK_HEAP_NO_TLSF (0)
 #define EK_HEAP_SIZE    (30 * 1024)
 
+// IO Lib Management
+#define EK_IO_NO_LWPRTF   (0)
+
+
 // Module Enable/Disable
 #define EK_EXPORT_ENABLE  (0)
-#define EK_IO_ENABLE      (1)
 #define EK_STR_ENABLE     (1)
 #define EK_LOG_ENABLE     (1)
 #define EK_LIST_ENABLE    (1)

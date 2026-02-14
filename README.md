@@ -255,9 +255,11 @@ void ek_main(void)
 #define EK_HEAP_NO_TLSF (0)
 #define EK_HEAP_SIZE (30 * 1024)
 
+// IO库管理
+#define EK_IO_NO_LWPRTF   (1)
+
 // 模块功能开关
 #define EK_EXPORT_ENABLE  (0)
-#define EK_IO_ENABLE      (1)
 #define EK_STR_ENABLE     (1)
 #define EK_LOG_ENABLE     (1)
 #define EK_LIST_ENABLE    (1)

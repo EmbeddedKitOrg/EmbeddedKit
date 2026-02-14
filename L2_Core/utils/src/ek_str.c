@@ -111,7 +111,7 @@ bool ek_str_append_fmt(ek_str_t *s, const char *fmt, ...)
     // 获取格式化字符串的长度
     va_list args;
     va_start(args, fmt);
-    int len = lwvsnprintf(NULL, 0, fmt, args);
+    int len = ek_vsnprintf(NULL, 0, fmt, args);
     va_end(args);
 
     if (len < 0) return false;
@@ -120,7 +120,7 @@ bool ek_str_append_fmt(ek_str_t *s, const char *fmt, ...)
 
     va_start(args, fmt);
     // +1 给 \0
-    lwvsnprintf(s->buf + s->len, len + 1, fmt, args);
+    ek_vsnprintf(s->buf + s->len, len + 1, fmt, args);
     va_end(args);
 
     s->len += len;
