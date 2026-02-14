@@ -6,7 +6,7 @@
 
 #include "../inc/ek_io.h"
 
-#if EK_IO_ENABLE == 1
+#if EK_IO_NO_LWPRTF == 0
 
 #    include "../inc/ek_def.h"
 
@@ -30,4 +30,11 @@ void ek_io_init(void)
     lwprintf_init(_ek_io_printf);
 }
 
-#endif /* EK_IO_ENABLE */
+#else
+// 如果不使用lwprintf作为IO库，需要自己在这里实现
+
+void ek_io_init(void)
+{
+}
+
+#endif /* EK_IO_NO_LWPRTF */

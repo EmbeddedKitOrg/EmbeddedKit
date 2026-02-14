@@ -1,14 +1,16 @@
 #include "systick.h"
 
-volatile uint32_t uwTick    = 0;
+volatile uint32_t uwTick = 0;
 volatile uint32_t delayTick = 0;
 
 void SysTick_Init(void)
 {
     /* setup systick timer for 1000Hz interrupts */
-    if (SysTick_Config(SystemCoreClock / 1000U)) {
+    if (SysTick_Config(SystemCoreClock / 1000U))
+    {
         /* capture error */
-        while (1) {
+        while (1)
+        {
         }
     }
     /* configure the systick handler priority */
@@ -24,7 +26,8 @@ void Delay(uint32_t xms)
 {
     delayTick = xms;
 
-    while (delayTick) {
+    while (delayTick)
+    {
     }
 }
 
@@ -36,7 +39,8 @@ uint32_t GetTick(void)
 void Tick_Inc(void)
 {
     uwTick++;
-    if (delayTick) {
+    if (delayTick)
+    {
         delayTick--;
     }
 }
