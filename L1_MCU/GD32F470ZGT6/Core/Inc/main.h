@@ -5,9 +5,8 @@
 #include "systick.h"
 #include "gd32f4xx_libopt.h"
 
-/* _assert */
-#define _assert(X) while ((X) == 0)
-#define MAX_DELAY  UINT32_MAX
+/* ek_assert_param */
+#define MAX_DELAY UINT32_MAX
 
 void Error_Handler(void);
 
