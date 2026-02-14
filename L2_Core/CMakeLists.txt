@@ -1,10 +1,15 @@
 file(GLOB_RECURSE L2_3RD_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/*.c")
-file(GLOB_RECURSE L2_PORT_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/port/*.c")
 
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/utils/src L2_UTILS_SRCS)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/hal/src L2_HAL_SRCS)
+aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f429zi L2_ST_PORT_SRCS)
+aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/port/gd32f470zgt6 L2_GD_PORT_SRCS)
 
-add_library(l2_core OBJECT ${L2_3RD_SRCS} ${L2_UTILS_SRCS} ${L2_PORT_SRCS} ${L2_HAL_SRCS})
+if(${MCU_MODEL} STREQUAL "STM32F429ZIT6_GCC")
+    add_library(l2_core OBJECT ${L2_3RD_SRCS} ${L2_UTILS_SRCS} ${L2_ST_PORT_SRCS} ${L2_HAL_SRCS})
+elseif(${MCU_MODEL} STREQUAL "GD32F470ZGT6")
+    add_library(l2_core OBJECT ${L2_3RD_SRCS} ${L2_UTILS_SRCS} ${L2_GD_PORT_SRCS} ${L2_HAL_SRCS})
+endif()
 
 target_include_directories(l2_core PUBLIC
    ${CMAKE_CURRENT_SOURCE_DIR}/utils/inc
