@@ -59,7 +59,7 @@ void _ek_log_printf(const char *tag, uint32_t line, ek_log_type_t type, uint32_t
 
     va_list args;
     va_start(args, fmt);
-    lwvsnprintf(ek_log_buffer, EK_LOG_BUFFER_SIZE - 1, fmt, args);
+    ek_vsnprintf(ek_log_buffer, EK_LOG_BUFFER_SIZE - 1, fmt, args);
     va_end(args);
 
     ek_printf("%s", ek_log_buffer);
