@@ -25,6 +25,10 @@ target_include_directories(global_macros INTERFACE
 target_compile_definitions(global_macros INTERFACE
     $<$<CONFIG:Debug>:DEBUG>  
     $<$<CONFIG:Release>:NDEBUG>
+
+    # 可以像这样拓展MCU
+    $<$<STREQUAL:"${MCU_MODEL}","STM32F429ZIT6_GCC">:USE_STM32F429>
+    $<$<STREQUAL:"${MCU_MODEL}","GD32F470ZGT6">:USE_GD32F470>
     # 在这里添加你的全局宏
 )
 
