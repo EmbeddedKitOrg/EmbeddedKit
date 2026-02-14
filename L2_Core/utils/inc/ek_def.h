@@ -16,6 +16,7 @@
 #define EK_DEF_H
 
 #include <inttypes.h>
+#include <stdarg.h>
 #include <string.h>
 #include <stddef.h>
 #include <stdint.h>
