@@ -80,6 +80,11 @@
 #    define __ASM           __asm
 /* ========== 不支持的编译器（空定义） ========== */
 #else
+
+#    if 1
+#        error "unsupport compiler.please fixup the marcos below."
+#    endif
+
 #    define __WEAK
 #    define __PACKED
 #    define __PACKED_STRUCT struct
@@ -93,5 +98,12 @@
 #    define __ALWAYS_INLINE static inline
 #    define __ASM           asm
 #endif
+
+/* ========== 功能宏 ========== */
+#define EK_ARRAY_LEN(x)         (sizeof(x) / (sizeof(x[0])))
+#define EK_CLAMP(val, min, max) ((val < min) ? (min) : (val > max ? max : min))
+#define EK_GET_FILE_NAME(file_path)                        \
+    (strrchr(file_path, '/') ? strrchr(file_path, '/') + 1 \
+                             : (strrchr(file_path, '\\') ? strrchr(file_path, '\\') + 1 : file_path))
 
 #endif /* EK_DEF_H */

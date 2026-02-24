@@ -49,7 +49,7 @@ static const ek_gpio_ops_t st_gpio_ops = {
 // 注册到hal
 void st_gpio_drv_init(void)
 {
-    for (uint8_t i = 0; i < sizeof(st_drv_gpio_table) / sizeof(st_drv_gpio_table[0]); i++)
+    for (uint8_t i = 0; i < EK_ARRAY_LEN(st_drv_gpio_table); i++)
     {
         ek_hal_gpio_register(st_drv_gpio_table[i].dev,
                              st_drv_gpio_table[i].name,
