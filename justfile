@@ -1,6 +1,5 @@
 alias b := build
 alias bg := build-gd
-alias bs := build-starm
 alias c := clean
 alias t := test
 
@@ -22,16 +21,6 @@ build-gd:
         -DUSE_FREERTOS=OFF \
         -DUSE_FATFS=OFF \
         -DUSE_LVGL=OFF
-    @ninja -C build
-
-build-starm:
-    @cmake -B build -G Ninja \
-      -DCMAKE_TOOLCHAIN_FILE="cmake/starm-clang.cmake" \
-      -DCMAKE_BUILD_TYPE=Debug \
-      -DMCU_MODEL="STM32F429ZIT6_STARM" \
-      -DUSE_FREERTOS=OFF \
-      -DUSE_FATFS=OFF \
-      -DUSE_LVGL=OFF
     @ninja -C build
 
 clean:
