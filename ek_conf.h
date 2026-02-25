@@ -46,7 +46,7 @@
 #define EK_VEC_ENABLE     (1)
 #define EK_RINGBUF_ENABLE (1)
 #define EK_STACK_ENABLE   (1)
-#define EK_SHELL_ENABLE   (1)
+#define EK_SHELL_ENABLE   (0)
 
 /* ========================================================================
  * 日志模块配置

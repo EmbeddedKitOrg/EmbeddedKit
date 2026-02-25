@@ -46,20 +46,15 @@ void _ek_log_printf(const char *tag, uint32_t line, ek_log_type_t type, uint32_t
     EK_LOG_LOCK();
 
 #    if (EK_LOG_COLOR_ENABLE == 1)
-
-    ek_printf("%s[%s/%s L:%" PRIu32 ",T:%" PRIu32 "]:",
-              ek_log_color_table[type],
-              ek_log_type_table[type],
-              tag,
-              line,
-              _ek_log_get_tick());
+    ek_printf(
+        "%s[%s/%s L:%" PRIu32 ",T:%" PRIu32 "]:", ek_log_color_table[type], ek_log_type_table[type], tag, line, tick);
 #    else /* EK_LOG_COLOR_ENABLE == 1 */
     ek_printf("[%s/%s L:%" PRIu32 ",T:%" PRIu32 "]:", ek_log_type_table[type], tag, line, tick);
 #    endif /* EK_LOG_COLOR_ENABLE == 1 */
 
     va_list args;
     va_start(args, fmt);
-    lwvsnprintf(ek_log_buffer, EK_LOG_BUFFER_SIZE - 1, fmt, args);
+    ek_vsnprintf(ek_log_buffer, EK_LOG_BUFFER_SIZE - 1, fmt, args);
     va_end(args);
 
     ek_printf("%s", ek_log_buffer);
