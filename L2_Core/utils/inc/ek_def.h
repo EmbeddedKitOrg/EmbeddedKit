@@ -78,11 +78,11 @@
 #    define __STATIC_INLINE static __inline
 #    define __ALWAYS_INLINE __forceinline
 #    define __ASM           __asm
-/* ========== 不支持的编译器（空定义） ========== */
+/* ========== 不支持的编译器（需手动适配，默认编译报错） ========== */
 #else
 
 #    if 1
-#        error "unsupport compiler.please fixup the marcos below."
+#        error "Unsupported compiler detected. Please review and update the macro definitions in ek_def.h for this toolchain."
 #    endif
 
 #    define __WEAK
@@ -100,10 +100,10 @@
 #endif
 
 /* ========== 功能宏 ========== */
-#define EK_ARRAY_LEN(x)         (sizeof(x) / (sizeof(x[0])))
-#define EK_CLAMP(val, min, max) ((val < min) ? (min) : (val > max ? max : min))
-#define EK_GET_FILE_NAME(file_path)                        \
-    (strrchr(file_path, '/') ? strrchr(file_path, '/') + 1 \
-                             : (strrchr(file_path, '\\') ? strrchr(file_path, '\\') + 1 : file_path))
+#define EK_ARRAY_LEN(x)         (sizeof(x) / (sizeof((x)[0])))
+#define EK_CLAMP(val, min, max) (((val) < (min)) ? (min) : (((val) > (max)) ? (max) : (val)))
+#define EK_GET_FILE_NAME(file_path)                             \
+    (strrchr((file_path), '/') ? strrchr((file_path), '/') + 1  \
+                               : (strrchr((file_path), '\\') ? strrchr((file_path), '\\') + 1 : (file_path)))
 
 #endif /* EK_DEF_H */
