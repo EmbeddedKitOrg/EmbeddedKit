@@ -63,6 +63,8 @@ set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${CMAKE_PROJE
 # 添加子目录 
 add_subdirectory(L0_Assets)
 add_subdirectory(L1_MCU)
+# L1_MCU 子目录已生成链接脚本并更新了 LINKER_SCRIPT，在此应用
+target_link_options(${CMAKE_PROJECT_NAME} PRIVATE "-T${LINKER_SCRIPT}")
 add_subdirectory(L2_Core)  
 add_subdirectory(L3_Middlewares)  
 add_subdirectory(L4_Components)

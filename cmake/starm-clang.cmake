@@ -41,7 +41,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-Oz -g0")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -fno-rtti -fno-exceptions -fno-threadsafe-statics")
 
 # 链接脚本路径 (可通过 -DLINKER_SCRIPT 覆盖)
-set(LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/L1_MCU/STM32F429ZIT6/stm32f429zit6_flash.ld"
+set(LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/L1_MCU/STM32F429ZIT6_STARM/stm32f429zit6_flash.ld"
     CACHE FILEPATH "The path to the linker script")
 
 if(NOT CMAKE_SOURCE_DIR MATCHES "CMakeScratch")
@@ -60,7 +60,6 @@ elseif(STARM_TOOLCHAIN_CONFIG STREQUAL "STARM_PICOLIBC")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lcrt0-hosted -z norelro")
 endif()
 
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -T \"${LINKER_SCRIPT}\"")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-Map=${CMAKE_PROJECT_NAME}.map -Wl,--gc-sections")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -z noexecstack")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--print-memory-usage")

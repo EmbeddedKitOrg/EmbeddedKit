@@ -18,3 +18,11 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${MCU_MODEL}")
 endif()
 
 add_subdirectory(${MCU_MODEL})
+
+# MCU 子目录通过 PARENT_SCOPE 设置了内存参数，生成链接脚本
+include(EkLinkerScript)
+ek_configure_linker_script()
+
+# 用生成的链接脚本覆盖工具链文件设置的默认值
+set(LINKER_SCRIPT "${EK_GENERATED_LINKER_SCRIPT}"
+    CACHE FILEPATH "The path to the linker script" FORCE)
