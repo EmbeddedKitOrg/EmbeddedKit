@@ -18,10 +18,6 @@ set(CMAKE_EXECUTABLE_SUFFIX_C       ".elf")
 set(CMAKE_EXECUTABLE_SUFFIX_CXX     ".elf")
 set(CMAKE_TRY_COMPILE_TARGET_TYPE   STATIC_LIBRARY)
 
-# 链接脚本路径 (可通过 -DLINKER_SCRIPT 覆盖)
-set(LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/L1_MCU/STM32F429ZIT6_GCC/stm32f429zit6_flash.ld"
-    CACHE FILEPATH "The path to the linker script")
-
 if(NOT CMAKE_SOURCE_DIR MATCHES "CMakeScratch")
     if(NOT EXISTS "${LINKER_SCRIPT}")
         message(WARNING "Linker script not found at: ${LINKER_SCRIPT}")
