@@ -49,8 +49,7 @@ jobs:
           cmake -B build -G Ninja \
                 -DCMAKE_TOOLCHAIN_FILE="cmake/gcc-arm-none-eabi.cmake" \
                 -DCMAKE_BUILD_TYPE=Debug \
-                -DLINKER_SCRIPT="L1_MCU/STM32F429ZIT6_GCC/stm32f429zit6_flash.ld" \
-                -DMCU_MODEL="STM32F429ZIT6_GCC"\
+                -DMCU_MODEL="STM32F429ZIT6_GCC" \
                 -DUSE_FREERTOS=${{ matrix.config.freertos }} \
                 -DUSE_FATFS=OFF \
                 -DUSE_LVGL=${{ matrix.config.lvgl }}
@@ -96,12 +95,10 @@ jobs:
           cmake -B build -G Ninja `
                 -DCMAKE_TOOLCHAIN_FILE="cmake/gcc-arm-none-eabi.cmake" `
                 -DCMAKE_BUILD_TYPE=Debug `
-                -DLINKER_SCRIPT="L1_MCU/STM32F429ZIT6_GCC/stm32f429zit6_flash.ld" `
                 -DMCU_MODEL="STM32F429ZIT6_GCC" `
                 -DUSE_FREERTOS=${{ matrix.config.freertos }} `
                 -DUSE_FATFS=OFF `
-                -DUSE_LVGL=${{ matrix.config.lvgl }} `
-                -DUSE_LVGL_THORVG=${{ matrix.config.thorvg }}
+                -DUSE_LVGL=${{ matrix.config.lvgl }}
           ninja -C build
 
   test:
