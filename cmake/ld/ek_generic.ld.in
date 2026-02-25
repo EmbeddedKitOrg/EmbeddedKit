@@ -29,6 +29,7 @@ ENTRY(Reset_Handler)
 
 /* Highest address of the user mode stack */
 _estack = ORIGIN(RAM) + LENGTH(RAM);    /* end of RAM */
+_sp = _estack;                          /* GD32 startup alias */
 
 /* Generate a link error if heap and stack don't fit into RAM */
 _Min_Heap_Size  = @EK_MIN_HEAP_SIZE@;   /* required amount of heap  */
