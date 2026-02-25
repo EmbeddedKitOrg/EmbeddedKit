@@ -78,11 +78,11 @@
 #    define __STATIC_INLINE static __inline
 #    define __ALWAYS_INLINE __forceinline
 #    define __ASM           __asm
-/* ========== 不支持的编译器（空定义） ========== */
+/* ========== 不支持的编译器（需手动适配，默认编译报错） ========== */
 #else
 
 #    if 1
-#        error "unsupport compiler.please fixup the marcos below."
+#        error "Unsupported compiler detected. Please review and update the macro definitions in ek_def.h for this toolchain."
 #    endif
 
 #    define __WEAK
