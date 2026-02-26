@@ -4,6 +4,11 @@
 #include "../../utils/inc/ek_def.h"
 #include "../../utils/inc/ek_list.h"
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 typedef struct ek_hal_dma_t ek_hal_dma_t;
 typedef struct ek_dma_ops_t ek_dma_ops_t;
 
@@ -41,5 +46,9 @@ ek_hal_dma_t *ek_hal_dma_find(const char *name);
 bool ek_hal_dma_transfer(ek_hal_dma_t *const dev, void *src, void *dst, size_t size, ek_dma_direction_t dir);
 bool ek_hal_dma_transfer_it(ek_hal_dma_t *const dev, void *src, void *dst, size_t size, ek_dma_direction_t dir);
 void ek_hal_dma_abort(ek_hal_dma_t *const dev);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // EK_HAL_DMA_H

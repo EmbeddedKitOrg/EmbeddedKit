@@ -4,6 +4,11 @@
 #include "../../utils/inc/ek_def.h"
 #include "../../utils/inc/ek_list.h"
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 typedef struct ek_hal_pwm_t ek_hal_pwm_t;
 typedef struct ek_pwm_ops_t ek_pwm_ops_t;
 
@@ -42,5 +47,9 @@ void ek_hal_pwm_set_duty(ek_hal_pwm_t *const dev, uint32_t duty);
 void ek_hal_pwm_set_freq(ek_hal_pwm_t *const dev, uint32_t freq);
 uint32_t ek_hal_pwm_get_duty(ek_hal_pwm_t *const dev);
 uint32_t ek_hal_pwm_get_freq(ek_hal_pwm_t *const dev);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // EK_HAL_PWM_H

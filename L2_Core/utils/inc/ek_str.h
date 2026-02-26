@@ -21,6 +21,11 @@
 
 #    include "ek_def.h"
 
+#    ifdef __cplusplus
+extern "C"
+{
+#    endif
+
 /**
  * @brief 动态字符串结构体
  */
@@ -137,6 +142,10 @@ int ek_str_cmp(ek_str_t *s1, ek_str_t *s2);
  * @return 0 相等，< 0 s1 < s2，> 0 s1 > s2
  */
 int ek_str_ncmp(ek_str_t *s1, ek_str_t *s2, size_t n);
+
+#    ifdef __cplusplus
+}
+#    endif
 
 #endif // EK_STR_ENABLE
 

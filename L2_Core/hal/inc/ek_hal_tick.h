@@ -4,6 +4,11 @@
 #include "../../utils/inc/ek_def.h"
 #include "../../utils/inc/ek_list.h"
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 typedef struct ek_hal_tick_t ek_hal_tick_t;
 typedef struct ek_tick_ops_t ek_tick_ops_t;
 
@@ -32,5 +37,9 @@ void ek_hal_tick_register(ek_hal_tick_t *const dev, const char *name, const ek_t
 ek_hal_tick_t *ek_hal_tick_find(const char *name);
 uint32_t ek_hal_tick_get(ek_hal_tick_t *const dev);
 void ek_hal_tick_delay(ek_hal_tick_t *const dev, uint32_t xtick);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // EK_HAL_TICK_H

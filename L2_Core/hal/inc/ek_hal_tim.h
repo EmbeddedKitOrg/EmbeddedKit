@@ -4,6 +4,11 @@
 #include "../../utils/inc/ek_def.h"
 #include "../../utils/inc/ek_list.h"
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 typedef struct ek_hal_tim_base_t ek_hal_tim_base_t;
 typedef struct ek_tim_ops_t ek_tim_ops_t;
 
@@ -52,5 +57,9 @@ void ek_hal_tim_start(ek_hal_tim_base_t *const dev);
 void ek_hal_tim_stop(ek_hal_tim_base_t *const dev);
 uint32_t ek_hal_tim_get(ek_hal_tim_base_t *const dev);
 void ek_hal_tim_set(ek_hal_tim_base_t *const dev, uint32_t value);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // EK_HAL_TIMER_H

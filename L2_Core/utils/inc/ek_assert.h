@@ -59,6 +59,11 @@
 #    define ek_assert_param(expr) ek_assert_full(expr)
 #endif /* EK_ASSERT_USE_TINY */
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 /**
  * @brief 断言失败处理函数
  * @param file 源文件名
@@ -67,5 +72,9 @@
  * @note 此函数会输出断言失败信息，然后进入死循环
  */
 void ek_assert_fault(const char *file, uint32_t line, const char *expr);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* EK_ASSERT_H */

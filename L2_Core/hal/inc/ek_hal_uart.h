@@ -4,6 +4,11 @@
 #include "../../utils/inc/ek_def.h"
 #include "../../utils/inc/ek_list.h"
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 typedef struct ek_hal_uart_t ek_hal_uart_t;
 typedef struct ek_uart_ops_t ek_uart_ops_t;
 
@@ -37,5 +42,9 @@ ek_hal_uart_t *ek_hal_uart_find(const char *name);
 bool ek_hal_uart_write(ek_hal_uart_t *const dev, uint8_t *txdata, size_t size);
 bool ek_hal_uart_write_dma(ek_hal_uart_t *const dev, uint8_t *txdata, size_t size);
 void ek_hal_uart_read(ek_hal_uart_t *const dev);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // EK_HAL_UART_H

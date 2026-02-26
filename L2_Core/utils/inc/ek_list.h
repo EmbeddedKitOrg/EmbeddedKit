@@ -13,7 +13,7 @@
 
 #if EK_LIST_ENABLE == 1
 
-#include "ek_def.h"
+#    include "ek_def.h"
 
 /**
  * @brief 链表节点结构
@@ -81,36 +81,36 @@ __STATIC_INLINE void ek_list_init(ek_list_node_t *head)
 
 /**
  * @brief 内部函数：在两个节点之间插入新节点
- * @param new 要插入的新节点
+ * @param new_node 要插入的新节点
  * @param prev 前一个节点（插入位置之前）
  * @param next 后一个节点（插入位置之后）
  */
-__STATIC_INLINE void __ek_list_add(ek_list_node_t *new, ek_list_node_t *prev, ek_list_node_t *next)
+__STATIC_INLINE void __ek_list_add(ek_list_node_t *new_node, ek_list_node_t *prev, ek_list_node_t *next)
 {
-    prev->next = new;
-    new->next = next;
-    new->prev = prev;
-    next->prev = new;
+    prev->next = new_node;
+    new_node->next = next;
+    new_node->prev = prev;
+    next->prev = new_node;
 }
 
 /**
  * @brief 在链表头部添加节点
  * @param head 链表头节点指针
- * @param new 要添加的新节点
+ * @param new_node 要添加的新节点
  */
-__STATIC_INLINE void ek_list_add_head(ek_list_node_t *head, ek_list_node_t *new)
+__STATIC_INLINE void ek_list_add_head(ek_list_node_t *head, ek_list_node_t *new_node)
 {
-    __ek_list_add(new, head, head->next);
+    __ek_list_add(new_node, head, head->next);
 }
 
 /**
  * @brief 在链表尾部添加节点
  * @param head 链表头节点指针
- * @param new 要添加的新节点
+ * @param new_node 要添加的新节点
  */
-__STATIC_INLINE void ek_list_add_tail(ek_list_node_t *head, ek_list_node_t *new)
+__STATIC_INLINE void ek_list_add_tail(ek_list_node_t *head, ek_list_node_t *new_node)
 {
-    __ek_list_add(new, head->prev, head);
+    __ek_list_add(new_node, head->prev, head);
 }
 
 /**

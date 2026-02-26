@@ -4,6 +4,11 @@
 #include "../../utils/inc/ek_def.h"
 #include "../../utils/inc/ek_list.h"
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 typedef struct ek_hal_ltdc_t ek_hal_ltdc_t;
 typedef struct ek_ltdc_ops_t ek_ltdc_ops_t;
 
@@ -40,5 +45,9 @@ bool ek_hal_ltdc_disable_layer(ek_hal_ltdc_t *const dev, uint32_t layer_idx);
 bool ek_hal_ltdc_reload_config(ek_hal_ltdc_t *const dev);
 void ek_hal_ltdc_display_on(ek_hal_ltdc_t *const dev);
 void ek_hal_ltdc_display_off(ek_hal_ltdc_t *const dev);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // EK_HAL_LTDC_H

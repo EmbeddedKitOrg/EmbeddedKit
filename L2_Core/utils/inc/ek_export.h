@@ -72,10 +72,19 @@ typedef void (*_ek_export_init_fn_t)(void);
 
 #endif /* EK_EXPORT_ENABLE */
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 /**
  * @brief 执行所有导出的初始化函数
  * @note 按优先级顺序调用所有通过 EK_EXPORT 导出的函数
  */
 void ek_export_init(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* EK_EXPORT_H */

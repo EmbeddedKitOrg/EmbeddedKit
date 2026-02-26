@@ -4,6 +4,11 @@
 #include "../../utils/inc/ek_def.h"
 #include "../../utils/inc/ek_list.h"
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 typedef struct ek_hal_i2c_t ek_hal_i2c_t;
 typedef struct ek_i2c_ops_t ek_i2c_ops_t;
 
@@ -64,5 +69,9 @@ bool ek_hal_i2c_mem_read(ek_hal_i2c_t *const dev,
                          ek_hal_i2c_size_t mem_size,
                          uint8_t *rxdata,
                          size_t size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // EK_HAL_I2C_H

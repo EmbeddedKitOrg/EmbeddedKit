@@ -4,6 +4,11 @@
 #include "../../utils/inc/ek_def.h"
 #include "../../utils/inc/ek_list.h"
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 typedef struct ek_hal_gpio_t ek_hal_gpio_t;
 typedef struct ek_gpio_ops_t ek_gpio_ops_t;
 
@@ -55,5 +60,9 @@ ek_hal_gpio_t *ek_hal_gpio_find(const char *name);
 void ek_hal_gpio_set(ek_hal_gpio_t *const dev, ek_gpio_status_t status);
 void ek_hal_gpio_toggle(ek_hal_gpio_t *const dev);
 ek_gpio_status_t ek_hal_gpio_read(ek_hal_gpio_t *const dev);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // EK_HAL_GPIO_H
