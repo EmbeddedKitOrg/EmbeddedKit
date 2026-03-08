@@ -49,8 +49,18 @@ void str_test(void)
     ek_str_cat(s, s1);
     EK_LOG_INFO("cat result:%s", ek_str_get_cstring(s));
 
+    const char *abcdefg = "abcdefg";
+    EK_LOG_INFO("reverse test");
+    EK_LOG_INFO("make a new string:%s", abcdefg);
+    ek_str_t *s2 = ek_str_create(abcdefg);
+    EK_LOG_INFO("string:%s", ek_str_get_cstring(s2));
+    EK_LOG_INFO("reverse start");
+    ek_str_reverse(s2);
+    EK_LOG_INFO("reverse result:%s", ek_str_get_cstring(s2));
+
     ek_str_free(s);
     ek_str_free(s1);
+    ek_str_free(s2);
     EK_LOG_INFO("string finished,unused heap:%zu", ek_heap_unused());
     EK_LOG_INFO("string finished,used heap:%zu", ek_heap_used());
 }

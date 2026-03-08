@@ -170,6 +170,27 @@ ek_str_t *ek_str_slice(const ek_str_t *s, int32_t start, int32_t end)
     return new_s;
 }
 
+bool ek_str_reverse(ek_str_t *s)
+{
+    ek_assert_param(s != NULL);
+
+    if (s->buf == NULL) return false;
+
+    char *left = s->buf;
+    char *right = s->buf + s->len - 1;
+
+    while (left < right)
+    {
+        char temp = *left;
+        *left = *right;
+        *right = temp;
+        left++;
+        right--;
+    }
+
+    return true;
+}
+
 const char *ek_str_get_cstring(ek_str_t *s)
 {
     ek_assert_param(s != NULL);
