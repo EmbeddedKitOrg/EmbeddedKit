@@ -82,7 +82,8 @@
 #else
 
 #    if 1
-#        error "Unsupported compiler detected. Please review and update the macro definitions in ek_def.h for this toolchain."
+#        error \
+            "Unsupported compiler detected. Please review and update the macro definitions in ek_def.h for this toolchain."
 #    endif
 
 #    define __WEAK
@@ -100,10 +101,12 @@
 #endif
 
 /* ========== 功能宏 ========== */
+#define EK_FREQ_K(x)            ((x) * 1000UL)
+#define EK_FREQ_M(x)            ((x) * 1000UL * 1000UL)
 #define EK_ARRAY_LEN(x)         (sizeof(x) / (sizeof((x)[0])))
 #define EK_CLAMP(val, min, max) (((val) < (min)) ? (min) : (((val) > (max)) ? (max) : (val)))
-#define EK_GET_FILE_NAME(file_path)                             \
-    (strrchr((file_path), '/') ? strrchr((file_path), '/') + 1  \
+#define EK_GET_FILE_NAME(file_path)                            \
+    (strrchr((file_path), '/') ? strrchr((file_path), '/') + 1 \
                                : (strrchr((file_path), '\\') ? strrchr((file_path), '\\') + 1 : (file_path)))
 
 #endif /* EK_DEF_H */
