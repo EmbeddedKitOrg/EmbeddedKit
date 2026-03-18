@@ -53,7 +53,7 @@
  * @example
  * EK_LOG_FILE_TAG("main.c");
  */
-#    define EK_LOG_FILE_TAG(tag) static const char *_EK_LOG_TAG_ = tag;
+#    define EK_LOG_FILE_TAG(tag) static const char *_EK_LOG_TAG_ = (tag);
 
 /**
  * @brief 定义获取时间戳函数

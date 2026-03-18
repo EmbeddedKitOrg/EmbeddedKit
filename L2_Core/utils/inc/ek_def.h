@@ -69,7 +69,7 @@
 #    define __WEAK          __weak
 #    define __PACKED        __packed
 #    define __PACKED_STRUCT __packed struct
-#    define __ALIGNED(x)    __align(x)
+#    define __ALIGNED(x)    __align((x))
 #    define __USED          __attribute__((used))
 #    define __SECTION(x)    __attribute__((section(x)))
 #    define __NO_RETURN     __declspec(noreturn)
