@@ -4,6 +4,11 @@
 #include "../../utils/inc/ek_def.h"
 #include "../../utils/inc/ek_list.h"
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 typedef struct ek_hal_dac_t ek_hal_dac_t;
 typedef struct ek_dac_ops_t ek_dac_ops_t;
 
@@ -37,5 +42,9 @@ bool ek_hal_dac_write(ek_hal_dac_t *const dev, uint32_t value);
 bool ek_hal_dac_write_dma(ek_hal_dac_t *const dev, uint32_t *buffer, size_t size);
 void ek_hal_dac_start(ek_hal_dac_t *const dev);
 void ek_hal_dac_stop(ek_hal_dac_t *const dev);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // EK_HAL_DAC_H

@@ -41,7 +41,7 @@ void *_ek_realloc(void *ptr, size_t size);
  * @retval 分配的内存指针，失败返回 NULL
  */
 #ifndef ek_malloc
-#    define ek_malloc(size) _ek_malloc(size)
+#    define ek_malloc(size) _ek_malloc((size))
 #endif
 
 /**
@@ -51,7 +51,7 @@ void *_ek_realloc(void *ptr, size_t size);
  * @retval 重新分配后的内存指针，失败返回 NULL
  */
 #ifndef ek_realloc
-#    define ek_realloc(ptr, size) _ek_realloc(ptr, size)
+#    define ek_realloc(ptr, size) _ek_realloc((ptr), (size))
 #endif
 
 /**
@@ -60,11 +60,11 @@ void *_ek_realloc(void *ptr, size_t size);
  * @note   释放后指针会被置为 NULL，避免悬空指针
  */
 #ifndef ek_free
-#    define ek_free(ptr)   \
-        do                 \
-        {                  \
-            _ek_free(ptr); \
-            ptr = NULL;    \
+#    define ek_free(ptr)     \
+        do                   \
+        {                    \
+            _ek_free((ptr)); \
+            ptr = NULL;      \
         } while (0)
 #endif
 
@@ -109,7 +109,7 @@ extern tlsf_t ek_default_tlsf;
  * @param  size: 内存池大小（字节）
  */
 #    ifndef ek_heap_add_pool
-#        define ek_heap_add_pool(ptr, size) tlsf_add_pool(ek_default_tlsf, ptr, size)
+#        define ek_heap_add_pool(ptr, size) tlsf_add_pool(ek_default_tlsf, (ptr), (size))
 #    endif
 
 /**
@@ -117,7 +117,7 @@ extern tlsf_t ek_default_tlsf;
  * @param  pool: 要移除的内存池指针
  */
 #    ifndef ek_heap_remove_pool
-#        define ek_heap_remove_pool(pool) tlsf_remove_pool(ek_default_tlsf, pool)
+#        define ek_heap_remove_pool(pool) tlsf_remove_pool(ek_default_tlsf, (pool))
 #    endif
 
 /**

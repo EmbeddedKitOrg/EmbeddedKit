@@ -21,6 +21,11 @@
 
 #    include "ek_def.h"
 
+#    ifdef __cplusplus
+extern "C"
+{
+#    endif
+
 /**
  * @brief 动态字符串结构体
  */
@@ -100,6 +105,14 @@ bool ek_str_cat(ek_str_t *dst, ek_str_t *src);
 ek_str_t *ek_str_slice(const ek_str_t *s, int32_t start, int32_t end);
 
 /**
+ * @brief 翻转字符串
+ * @param s 源字符串
+ * @return 是否执行成功
+ * @note 如果字符串的缓冲区为空会直接返回 false
+ */
+bool ek_str_reverse(ek_str_t *s);
+
+/**
  * @brief 获取 C 风格字符串
  * @param s 字符串对象指针
  * @return C 风格字符串指针（以 \0 结尾）
@@ -137,6 +150,10 @@ int ek_str_cmp(ek_str_t *s1, ek_str_t *s2);
  * @return 0 相等，< 0 s1 < s2，> 0 s1 > s2
  */
 int ek_str_ncmp(ek_str_t *s1, ek_str_t *s2, size_t n);
+
+#    ifdef __cplusplus
+}
+#    endif
 
 #endif // EK_STR_ENABLE
 

@@ -54,13 +54,14 @@ typedef void (*_ek_export_init_fn_t)(void);
  * }
  * EK_EXPORT(my_init, 10);  // 优先级 10
  */
-#    define EK_EXPORT(fn, prio) \
-        const _ek_export_init_fn_t __init_##fn##prio __attribute__((used, section(".ek_export_fn." _EK_STR(prio)))) = fn
+#    define EK_EXPORT(fn, prio)                                                                                       \
+        const _ek_export_init_fn_t __init_##fn##prio __attribute__((used, section(".ek_export_fn." _EK_STR(prio)))) = \
+            (fn)
 
-#    define EK_EXPORT_HARDWARE(fn)   EK_EXPORT(fn, 0)
-#    define EK_EXPORT_COMPONENTS(fn) EK_EXPORT(fn, 1)
-#    define EK_EXPORT_APP(fn)        EK_EXPORT(fn, 2)
-#    define EK_EXPORT_USER(fn)       EK_EXPORT(fn, 3)
+#    define EK_EXPORT_HARDWARE(fn)   EK_EXPORT((fn), 0)
+#    define EK_EXPORT_COMPONENTS(fn) EK_EXPORT((fn), 1)
+#    define EK_EXPORT_APP(fn)        EK_EXPORT((fn), 2)
+#    define EK_EXPORT_USER(fn)       EK_EXPORT((fn), 3)
 
 #else
 
@@ -72,10 +73,19 @@ typedef void (*_ek_export_init_fn_t)(void);
 
 #endif /* EK_EXPORT_ENABLE */
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 /**
  * @brief 执行所有导出的初始化函数
  * @note 按优先级顺序调用所有通过 EK_EXPORT 导出的函数
  */
 void ek_export_init(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* EK_EXPORT_H */

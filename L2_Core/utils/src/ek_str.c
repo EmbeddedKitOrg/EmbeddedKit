@@ -20,31 +20,7 @@
             if ((idx) > (len)) (idx) = (len); \
         } while (0)
 
-static bool _ek_str_ensure_cap(ek_str_t *s, uint32_t len)
-{
-    ek_assert_param(s != NULL);
-
-    if (s->cap >= len) return true;
-
-    uint32_t new_cap = s->cap;
-    do
-    {
-        if (new_cap == 0) new_cap = 2;
-        new_cap += new_cap / 2;
-    } while (new_cap < len);
-
-    char *buf = NULL;
-
-    if (s->buf == NULL) buf = ek_malloc(len);
-    else buf = ek_realloc(s->buf, new_cap);
-
-    if (buf == NULL) return false;
-
-    s->buf = buf;
-    s->cap = new_cap;
-
-    return true;
-}
+static bool _ek_str_ensure_cap(ek_str_t *s, uint32_t len);
 
 ek_str_t *ek_str_create(const char *str)
 {
@@ -170,6 +146,27 @@ ek_str_t *ek_str_slice(const ek_str_t *s, int32_t start, int32_t end)
     return new_s;
 }
 
+bool ek_str_reverse(ek_str_t *s)
+{
+    ek_assert_param(s != NULL);
+
+    if (s->buf == NULL) return false;
+
+    char *left = s->buf;
+    char *right = s->buf + s->len - 1;
+
+    while (left < right)
+    {
+        char temp = *left;
+        *left = *right;
+        *right = temp;
+        left++;
+        right--;
+    }
+
+    return true;
+}
+
 const char *ek_str_get_cstring(ek_str_t *s)
 {
     ek_assert_param(s != NULL);
@@ -212,6 +209,32 @@ int ek_str_ncmp(ek_str_t *s1, ek_str_t *s2, size_t n)
     if (n > shorter_len) n = shorter_len;
 
     return strncmp(ek_str_get_cstring(s1), ek_str_get_cstring(s2), n);
+}
+
+static bool _ek_str_ensure_cap(ek_str_t *s, uint32_t len)
+{
+    ek_assert_param(s != NULL);
+
+    if (s->cap >= len) return true;
+
+    uint32_t new_cap = s->cap;
+    do
+    {
+        if (new_cap == 0) new_cap = 2;
+        new_cap += new_cap / 2;
+    } while (new_cap < len);
+
+    char *buf = NULL;
+
+    if (s->buf == NULL) buf = ek_malloc(len);
+    else buf = ek_realloc(s->buf, new_cap);
+
+    if (buf == NULL) return false;
+
+    s->buf = buf;
+    s->cap = new_cap;
+
+    return true;
 }
 
 #endif // EK_STR_ENABLE

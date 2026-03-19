@@ -4,6 +4,11 @@
 #include "../../utils/inc/ek_def.h"
 #include "../../utils/inc/ek_list.h"
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 typedef struct ek_hal_spi_t ek_hal_spi_t;
 typedef struct ek_spi_ops_t ek_spi_ops_t;
 
@@ -34,5 +39,9 @@ ek_hal_spi_t *ek_hal_spi_find(const char *name);
 bool ek_hal_spi_write(ek_hal_spi_t *const dev, uint8_t *txdata, size_t size);
 bool ek_hal_spi_read(ek_hal_spi_t *const dev, uint8_t *rxdata, size_t size);
 bool ek_hal_spi_write_read(ek_hal_spi_t *const dev, uint8_t *txdata, uint8_t *rxdata, size_t size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // EK_HAL_SPI_H

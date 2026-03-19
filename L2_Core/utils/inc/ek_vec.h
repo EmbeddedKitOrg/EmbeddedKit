@@ -62,7 +62,7 @@
  *
  * @warning 遍历过程中不能删除元素，否则会导致索引混乱
  */
-#    define ek_vec_iterate(pos, v) for (pos = 0; pos < v.amount; pos++)
+#    define ek_vec_iterate(pos, v) for (pos = 0; pos < (v).amount; pos++)
 
 /**
  * @brief 从指定索引开始遍历动态数组
@@ -72,7 +72,8 @@
  *
  * @note 如果 index 超出范围，则从数组末尾开始（不会执行循环体）
  */
-#    define ek_vec_iterate_index(pos, index, v) for (pos = (index < v.amount) ? index : v.amount; pos < v.amount; pos++)
+#    define ek_vec_iterate_index(pos, index, v) \
+        for (pos = ((index) < (v).amount) ? (index) : (v).amount; pos < (v).amount; pos++)
 
 /**
  * @brief 初始化动态数组
@@ -80,12 +81,12 @@
  *
  * @note 使用前必须调用此宏进行初始化
  */
-#    define ek_vec_init(v)  \
-        do                  \
-        {                   \
-            v.items = NULL; \
-            v.amount = 0;   \
-            v.cap = 0;      \
+#    define ek_vec_init(v)    \
+        do                    \
+        {                     \
+            (v).items = NULL; \
+            (v).amount = 0;   \
+            (v).cap = 0;      \
         } while (0)
 
 /**
@@ -95,12 +96,12 @@
  * @note 销毁后动态数组变量仍存在，但内容已清空
  * @note 如需重新使用，应重新调用 ek_vec_init
  */
-#    define ek_vec_destroy(v) \
-        do                    \
-        {                     \
-            ek_free(v.items); \
-            v.amount = 0;     \
-            v.cap = 0;        \
+#    define ek_vec_destroy(v)   \
+        do                      \
+        {                       \
+            ek_free((v).items); \
+            (v).amount = 0;     \
+            (v).cap = 0;        \
         } while (0)
 
 /**
@@ -111,22 +112,22 @@
  * @note 当容量不足时自动扩容
  * @note 扩容策略：小数组翻倍，大数组增加 1/2
  */
-#    define ek_vec_append(v, val)                                                                       \
-        do                                                                                              \
-        {                                                                                               \
-            if (v.cap <= v.amount)                                                                      \
-            {                                                                                           \
-                uint32_t _temp_for_cap_ex_ =                                                            \
-                    (v.cap < VEC_LARGE_THRESHOLD) ? (v.cap ? 2 * v.cap : 8) : (v.cap + v.cap / 2);      \
-                void *_temp_for_new_items_ = ek_realloc(v.items, _temp_for_cap_ex_ * sizeof(*v.items)); \
-                if (_temp_for_new_items_ != NULL)                                                       \
-                {                                                                                       \
-                    v.cap = _temp_for_cap_ex_;                                                          \
-                    v.items = _temp_for_new_items_;                                                     \
-                }                                                                                       \
-                else break;                                                                             \
-            }                                                                                           \
-            v.items[v.amount++] = val;                                                                  \
+#    define ek_vec_append(v, val)                                                                            \
+        do                                                                                                   \
+        {                                                                                                    \
+            if ((v).cap <= (v).amount)                                                                       \
+            {                                                                                                \
+                uint32_t _temp_for_cap_ex_ =                                                                 \
+                    ((v).cap < VEC_LARGE_THRESHOLD) ? ((v).cap ? 2 * (v).cap : 8) : ((v).cap + (v).cap / 2); \
+                void *_temp_for_new_items_ = ek_realloc((v).items, _temp_for_cap_ex_ * sizeof(*(v).items));  \
+                if (_temp_for_new_items_ != NULL)                                                            \
+                {                                                                                            \
+                    (v).cap = _temp_for_cap_ex_;                                                             \
+                    (v).items = _temp_for_new_items_;                                                        \
+                }                                                                                            \
+                else break;                                                                                  \
+            }                                                                                                \
+            (v).items[(v).amount++] = (val);                                                                 \
         } while (0)
 
 /**
@@ -137,17 +138,17 @@
  * @note 移除后，后续元素会向前移动填补空位
  * @note 如果索引超出范围，则不执行任何操作
  */
-#    define ek_vec_remove(v, index)                                                                             \
-        do                                                                                                      \
-        {                                                                                                       \
-            if (index < v.amount)                                                                               \
-            {                                                                                                   \
-                for (uint32_t _temp_for_iter_v_ = index; _temp_for_iter_v_ < v.amount - 1; _temp_for_iter_v_++) \
-                {                                                                                               \
-                    v.items[_temp_for_iter_v_] = v.items[_temp_for_iter_v_ + 1];                                \
-                }                                                                                               \
-                v.amount--;                                                                                     \
-            }                                                                                                   \
+#    define ek_vec_remove(v, index)                                                                                 \
+        do                                                                                                          \
+        {                                                                                                           \
+            if ((index) < (v).amount)                                                                               \
+            {                                                                                                       \
+                for (uint32_t _temp_for_iter_v_ = (index); _temp_for_iter_v_ < (v).amount - 1; _temp_for_iter_v_++) \
+                {                                                                                                   \
+                    (v).items[_temp_for_iter_v_] = (v).items[_temp_for_iter_v_ + 1];                                \
+                }                                                                                                   \
+                (v).amount--;                                                                                       \
+            }                                                                                                       \
         } while (0)
 
 /**
@@ -159,14 +160,14 @@
  * @note 时间复杂度：O(1)
  * @warning 会破坏数组中元素的原始顺序，仅适用于对顺序不敏感的场景
  */
-#    define ek_vec_remove_unorder(v, index)             \
-        do                                              \
-        {                                               \
-            if (index < v.amount)                       \
-            {                                           \
-                v.items[index] = v.items[v.amount - 1]; \
-                v.amount--;                             \
-            }                                           \
+#    define ek_vec_remove_unorder(v, index)                     \
+        do                                                      \
+        {                                                       \
+            if ((index) < (v).amount)                           \
+            {                                                   \
+                (v).items[(index)] = (v).items[(v).amount - 1]; \
+                (v).amount--;                                   \
+            }                                                   \
         } while (0)
 
 /**
@@ -179,7 +180,7 @@
 #    define ek_vec_clear(v) \
         do                  \
         {                   \
-            v.amount = 0;   \
+            (v).amount = 0; \
         } while (0)
 
 /**
@@ -189,24 +190,24 @@
  * @note 将容量缩减为当前元素数量，释放多余内存,如果元素数目为0，则会释放items的所有内存
  * @note 如果 realloc 失败，则保持原状态不变
  */
-#    define ek_vec_shrink(v)                                                                   \
-        do                                                                                     \
-        {                                                                                      \
-            if (v.amount)                                                                      \
-            {                                                                                  \
-                void *_temp_for_new_items_ = ek_realloc(v.items, v.amount * sizeof(*v.items)); \
-                if (_temp_for_new_items_)                                                      \
-                {                                                                              \
-                    v.items = _temp_for_new_items_;                                            \
-                    v.cap = v.amount;                                                          \
-                }                                                                              \
-            }                                                                                  \
-            else if (v.items)                                                                  \
-            {                                                                                  \
-                ek_free(v.items);                                                              \
-                v.items = NULL;                                                                \
-                v.cap = 0;                                                                     \
-            }                                                                                  \
+#    define ek_vec_shrink(v)                                                                         \
+        do                                                                                           \
+        {                                                                                            \
+            if ((v).amount)                                                                          \
+            {                                                                                        \
+                void *_temp_for_new_items_ = ek_realloc((v).items, (v).amount * sizeof(*(v).items)); \
+                if (_temp_for_new_items_)                                                            \
+                {                                                                                    \
+                    (v).items = _temp_for_new_items_;                                                \
+                    (v).cap = (v).amount;                                                            \
+                }                                                                                    \
+            }                                                                                        \
+            else if ((v).items)                                                                      \
+            {                                                                                        \
+                ek_free((v).items);                                                                  \
+                (v).items = NULL;                                                                    \
+                (v).cap = 0;                                                                         \
+            }                                                                                        \
         } while (0)
 
 #endif /* EK_VEC_ENABLE */

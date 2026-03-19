@@ -15,7 +15,6 @@
 
 #    include "ek_def.h"
 
-
 /**
  * @brief 环形缓冲区结构
  */
@@ -79,7 +78,7 @@ void ek_ringbuf_destroy(ek_ringbuf_t *rb);
 #    define ek_ringbuf_destroy_safely(rb_ptr) \
         do                                    \
         {                                     \
-            ek_ringbuf_destroy(rb_ptr);       \
+            ek_ringbuf_destroy((rb_ptr));     \
             rb_ptr = NULL;                    \
         } while (0)
 

@@ -102,7 +102,7 @@ void ek_stack_destroy(ek_stack_t *sk);
 #    define ek_stack_destroy_safely(sk_ptr) \
         do                                  \
         {                                   \
-            ek_stack_destroy(sk_ptr);       \
+            ek_stack_destroy((sk_ptr));     \
             sk_ptr = NULL;                  \
         } while (0)
 

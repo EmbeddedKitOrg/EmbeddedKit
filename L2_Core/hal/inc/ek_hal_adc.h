@@ -4,11 +4,17 @@
 #include "../../utils/inc/ek_def.h"
 #include "../../utils/inc/ek_list.h"
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 typedef struct ek_hal_adc_t ek_hal_adc_t;
 typedef struct ek_adc_ops_t ek_adc_ops_t;
 
 /** @brief ADC 分辨率枚举 */
-typedef enum {
+typedef enum
+{
     EK_HAL_ADC_RES_8B,
     EK_HAL_ADC_RES_10B,
     EK_HAL_ADC_RES_12B,
@@ -46,5 +52,9 @@ uint32_t ek_hal_adc_read(ek_hal_adc_t *const dev);
 bool ek_hal_adc_read_dma(ek_hal_adc_t *const dev, uint32_t *buffer, size_t size);
 void ek_hal_adc_start(ek_hal_adc_t *const dev);
 void ek_hal_adc_stop(ek_hal_adc_t *const dev);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // EK_HAL_ADC_H

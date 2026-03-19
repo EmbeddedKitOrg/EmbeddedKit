@@ -13,6 +13,11 @@
 
 #include "../../../ek_conf.h"
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #if EK_IO_NO_LWPRTF == 0
 
 #    include "../../third_party/lwprintf/inc/lwprintf.h"
@@ -55,5 +60,9 @@ void ek_io_init(void);
 #    define ek_vsnprintf
 
 #endif /* EK_IO_NO_LWPRTF */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

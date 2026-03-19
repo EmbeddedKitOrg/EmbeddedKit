@@ -4,6 +4,11 @@
 #include "../../utils/inc/ek_def.h"
 #include "../../utils/inc/ek_list.h"
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 typedef struct ek_hal_dma2d_t ek_hal_dma2d_t;
 typedef struct ek_dma2d_ops_t ek_dma2d_ops_t;
 
@@ -70,5 +75,9 @@ bool ek_hal_dma2d_convert_it(ek_hal_dma2d_t *const dev,
                              uint32_t height,
                              uint32_t offset,
                              ek_dma2d_color_mode_t input_mode);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // EK_HAL_DMA2D_H
