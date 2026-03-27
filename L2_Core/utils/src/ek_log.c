@@ -4,7 +4,7 @@
  * @author N1netyNine99
  */
 
-#include "../inc/ek_log.h"
+#include "ek_log.h"
 
 #if EK_LOG_ENABLE == 1
 

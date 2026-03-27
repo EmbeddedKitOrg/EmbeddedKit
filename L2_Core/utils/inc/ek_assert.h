@@ -14,7 +14,7 @@
 #ifndef EK_ASSERT_H
 #define EK_ASSERT_H
 
-#include "../../../ek_conf.h"
+#include "ek_conf.h"
 #include "ek_def.h"
 
 /**

@@ -3,15 +3,15 @@
 
 #include <stdlib.h>
 
-#include "../L2_Core/utils/inc/ek_io.h"
-#include "../L2_Core/utils/inc/ek_mem.h"
-#include "../L2_Core/utils/inc/ek_def.h"
-#include "../L2_Core/utils/inc/ek_stack.h"
-#include "../L2_Core/utils/inc/ek_log.h"
-#include "../L2_Core/utils/inc/ek_ringbuf.h"
-#include "../L2_Core/utils/inc/ek_vec.h"
-#include "../L2_Core/utils/inc/ek_assert.h"
-#include "../L2_Core/utils/inc/ek_str.h"
+#include "ek_io.h"
+#include "ek_mem.h"
+#include "ek_def.h"
+#include "ek_stack.h"
+#include "ek_log.h"
+#include "ek_ringbuf.h"
+#include "ek_vec.h"
+#include "ek_assert.h"
+#include "ek_str.h"
 
 #define PI (3.141592f)
 

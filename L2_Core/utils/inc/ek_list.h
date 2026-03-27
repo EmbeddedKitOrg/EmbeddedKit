@@ -9,7 +9,7 @@
 #ifndef EK_LIST_H
 #define EK_LIST_H
 
-#include "../../../ek_conf.h"
+#include "ek_conf.h"
 
 #if EK_LIST_ENABLE == 1
 

@@ -1,6 +1,6 @@
-#include "../../hal/inc/ek_hal_tick.h"
-#include "../../utils/inc/ek_assert.h"
-#include "../../utils/inc/ek_export.h"
+#include "ek_hal_tick.h"
+#include "ek_assert.h"
+#include "ek_export.h"
 #include "bsp_timer.h"
 
 // 外部 SysTick 变量（需要在 BSP 层定义）

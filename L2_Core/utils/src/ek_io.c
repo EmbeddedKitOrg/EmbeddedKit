@@ -4,7 +4,7 @@
  * @author N1netyNine99
  */
 
-#include "../inc/ek_io.h"
+#include "ek_io.h"
 
 #if EK_IO_NO_LWPRTF == 0
 

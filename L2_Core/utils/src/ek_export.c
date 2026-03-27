@@ -4,7 +4,7 @@
  * @author N1netyNine99
  */
 
-#include "../inc/ek_export.h"
+#include "ek_export.h"
 
 #if (EK_EXPORT_ENABLE == 1)
 

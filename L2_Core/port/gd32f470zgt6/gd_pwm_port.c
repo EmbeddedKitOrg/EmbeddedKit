@@ -1,6 +1,6 @@
-#include "../../hal/inc/ek_hal_pwm.h"
-#include "../../utils/inc/ek_assert.h"
-#include "../../utils/inc/ek_export.h"
+#include "ek_hal_pwm.h"
+#include "ek_assert.h"
+#include "ek_export.h"
 #include "hal_pwm.h"
 #include "gd32f4xx_timer.h"
 

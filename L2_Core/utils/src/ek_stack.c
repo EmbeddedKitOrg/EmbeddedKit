@@ -4,7 +4,7 @@
  * @author N1netyNine99
  */
 
-#include "../inc/ek_stack.h"
+#include "ek_stack.h"
 
 #if EK_STACK_ENABLE == 1
 

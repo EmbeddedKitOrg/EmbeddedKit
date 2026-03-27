@@ -1,6 +1,6 @@
-#include "../../hal/inc/ek_hal_dma2d.h"
-#include "../../utils/inc/ek_assert.h"
-#include "../../utils/inc/ek_export.h"
+#include "ek_hal_dma2d.h"
+#include "ek_assert.h"
+#include "ek_export.h"
 #include "dma2d.h"
 
 /* CubeMX 生成的 DMA2D 句柄 */

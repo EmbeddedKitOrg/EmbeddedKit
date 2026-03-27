@@ -1,6 +1,6 @@
-#include "../../hal/inc/ek_hal_dac.h"
-#include "../../utils/inc/ek_assert.h"
-#include "../../utils/inc/ek_export.h"
+#include "ek_hal_dac.h"
+#include "ek_assert.h"
+#include "ek_export.h"
 #include "gd32f4xx_dac.h"
 #include "hal_dac.h"
 

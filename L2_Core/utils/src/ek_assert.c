@@ -4,8 +4,8 @@
  * @author N1netyNine99
  */
 
-#include "../inc/ek_assert.h"
-#include "../inc/ek_log.h"
+#include "ek_assert.h"
+#include "ek_log.h"
 
 void ek_assert_fault(const char *file, uint32_t line, const char *expr)
 {

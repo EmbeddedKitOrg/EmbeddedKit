@@ -9,7 +9,7 @@
  */
 
 #include <stdlib.h>
-#include "../L2_Core/third_party/letter_shell/inc/shell.h"
+#include "shell.h"
 
 /* 为测试环境提供shell命令段符号（空段） */
 #if defined(__GNUC__) && !defined(__ARMCC_VERSION)

@@ -4,7 +4,7 @@
  * @author N1netyNine99
  */
 
-#include "../inc/ek_mem.h"
+#include "ek_mem.h"
 
 #if EK_HEAP_NO_TLSF == 0
 
