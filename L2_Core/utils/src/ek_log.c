@@ -34,7 +34,7 @@ static const char *ek_log_type_table[EK_LOG_TYPE_MAX] = {
 
 static char ek_log_buffer[EK_LOG_BUFFER_SIZE];
 
-__WEAK uint32_t _ek_log_get_tick(void)
+__EK_WEAK uint32_t _ek_log_get_tick(void)
 {
     return 0;
 }

@@ -68,7 +68,7 @@ static ek_hal_dma2d_t drv_dma2d1;
 
 __WEAK void ek_dma2d_transfer_cplt_callback(DMA2D_HandleTypeDef *hdma2d)
 {
-    __UNUSED(hdma2d);
+    __EK_UNUSED(hdma2d);
 }
 
 // 注册到 HAL

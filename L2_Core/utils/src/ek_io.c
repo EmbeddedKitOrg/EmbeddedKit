@@ -10,14 +10,14 @@
 
 #    include "../inc/ek_def.h"
 
-__WEAK void _ek_io_fputc(int ch)
+__EK_WEAK void _ek_io_fputc(int ch)
 {
-    __UNUSED(ch);
+    __EK_UNUSED(ch);
 }
 
 static int _ek_io_printf(int ch, lwprintf_t *lwp)
 {
-    __UNUSED(lwp);
+    __EK_UNUSED(lwp);
     if (ch != '\0')
     {
         _ek_io_fputc(ch);

@@ -13,9 +13,9 @@ void ek_assert_fault(const char *file, uint32_t line, const char *expr)
     EK_LOG_FILE_TAG("ek_assert.c");
     EK_LOG_ERROR("file:%s,line:%" PRIu32 ",expr: %s", EK_GET_FILE_NAME(file), line, expr);
 #else
-    __UNUSED(file);
-    __UNUSED(line);
-    __UNUSED(expr);
+    __EK_UNUSED(file);
+    __EK_UNUSED(line);
+    __EK_UNUSED(expr);
 #endif /* EK_ASSERT_WITH_LOG */
 
     while (1)
