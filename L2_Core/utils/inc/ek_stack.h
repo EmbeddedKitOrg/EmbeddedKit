@@ -16,7 +16,7 @@
 #ifndef EK_STACK_H
 #define EK_STACK_H
 
-#include "../../../ek_conf.h"
+#include "ek_conf.h"
 
 #if EK_STACK_ENABLE == 1
 

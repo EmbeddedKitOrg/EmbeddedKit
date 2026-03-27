@@ -20,7 +20,7 @@
 
 #if EK_SHELL_ENABLE == 1
 
-#include "../../third_party/letter_shell/inc/shell.h"
+#include "shell.h"
 
 /**
  * @brief 导出整型变量到 Shell

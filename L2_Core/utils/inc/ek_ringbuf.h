@@ -9,7 +9,7 @@
 #ifndef EK_RINGBUF_H
 #define EK_RINGBUF_H
 
-#include "../../../ek_conf.h"
+#include "ek_conf.h"
 
 #if EK_RINGBUF_ENABLE == 1
 

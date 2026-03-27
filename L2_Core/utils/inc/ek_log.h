@@ -15,7 +15,7 @@
 #ifndef EK_LOG_H
 #define EK_LOG_H
 
-#include "../../../ek_conf.h"
+#include "ek_conf.h"
 
 #if EK_LOG_ENABLE == 1
 

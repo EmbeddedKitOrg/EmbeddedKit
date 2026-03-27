@@ -16,7 +16,7 @@ target_include_directories(l2_core PUBLIC
    ${CMAKE_CURRENT_SOURCE_DIR}/hal/inc
    ${CMAKE_CURRENT_SOURCE_DIR}/port/inc
    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/letter_shell/inc
-   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lwprintf/include
+   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lwprintf/inc
    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tlsf
 )
 

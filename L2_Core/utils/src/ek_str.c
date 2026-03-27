@@ -4,7 +4,7 @@
  * @author N1netyNine99
  */
 
-#include "../inc/ek_str.h"
+#include "ek_str.h"
 
 #if EK_STR_ENABLE == 1
 

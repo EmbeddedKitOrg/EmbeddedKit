@@ -1,6 +1,6 @@
-#include "../../hal/inc/ek_hal_uart.h"
-#include "../../utils/inc/ek_assert.h"
-#include "../../utils/inc/ek_export.h"
+#include "ek_hal_uart.h"
+#include "ek_assert.h"
+#include "ek_export.h"
 #include "hal_usart.h"
 
 #define EK_HAL_LOCK_ON(x)   ((x)->lock = true)

@@ -9,9 +9,9 @@
  * 
  */
 
-#include "inc/shell_cfg.h"
-#include "inc/shell.h"
-#include "inc/shell_ext.h"
+#include "shell_cfg.h"
+#include "shell.h"
+#include "shell_ext.h"
 
 /**
  * @brief 判断数字进制

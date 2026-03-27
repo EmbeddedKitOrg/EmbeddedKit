@@ -9,8 +9,8 @@
  * 
  */
 
-#include "inc/shell.h"
-#include "../lwprintf/inc/lwprintf.h"
+#include "shell.h"
+#include "lwprintf.h"
 #include <string.h>
 #include <stdarg.h>
 

@@ -1,6 +1,6 @@
-#include "../../hal/inc/ek_hal_gpio.h"
-#include "../../utils/inc/ek_assert.h"
-#include "../../utils/inc/ek_export.h"
+#include "ek_hal_gpio.h"
+#include "ek_assert.h"
+#include "ek_export.h"
 #include "gd32f4xx_gpio.h"
 
 // 具体设备的硬件信息

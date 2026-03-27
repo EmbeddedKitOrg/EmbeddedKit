@@ -21,7 +21,7 @@
 #ifndef EK_EXPORT_H
 #define EK_EXPORT_H
 
-#include "../../../ek_conf.h"
+#include "ek_conf.h"
 
 #if (EK_EXPORT_ENABLE == 1)
 

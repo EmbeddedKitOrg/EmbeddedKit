@@ -31,7 +31,7 @@
  * Author:          Tilen MAJERLE <tilen@majerle.eu>
  * Version:         v1.1.0
  */
-#include "inc/lwprintf_sys.h"
+#include "lwprintf_sys.h"
 
 #if LWPRINTF_CFG_OS && !__DOXYGEN__
 

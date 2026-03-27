@@ -31,7 +31,7 @@
  * Author:          Tilen MAJERLE <tilen@majerle.eu>
  * Version:         v1.1.0
  */
-#include "inc/lwprintf.h"
+#include "lwprintf.h"
 #include <float.h>
 #include <limits.h>
 #include <stdint.h>

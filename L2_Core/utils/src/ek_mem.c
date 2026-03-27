@@ -4,7 +4,7 @@
  * @author N1netyNine99
  */
 
-#include "../inc/ek_mem.h"
+#include "ek_mem.h"
 
 #if EK_HEAP_NO_TLSF == 0
 
@@ -66,17 +66,17 @@ tlsf_t ek_default_tlsf;
 static size_t ek_unused_bytes = 0;
 static size_t ek_used_bytes = 0;
 
-__WEAK void *_ek_malloc(size_t size)
+__EK_WEAK void *_ek_malloc(size_t size)
 {
     return tlsf_malloc(ek_default_tlsf, size);
 }
 
-__WEAK void *_ek_realloc(void *ptr, size_t size)
+__EK_WEAK void *_ek_realloc(void *ptr, size_t size)
 {
     return tlsf_realloc(ek_default_tlsf, ptr, size);
 }
 
-__WEAK void _ek_free(void *ptr)
+__EK_WEAK void _ek_free(void *ptr)
 {
     tlsf_free(ek_default_tlsf, ptr);
 }
@@ -84,8 +84,8 @@ __WEAK void _ek_free(void *ptr)
 // walker 函数：统计空闲内存
 static void ek_mem_walker(void *ptr, size_t size, int used, void *user)
 {
-    __UNUSED(ptr);
-    __UNUSED(user);
+    __EK_UNUSED(ptr);
+    __EK_UNUSED(user);
 
     if (!used)
     {

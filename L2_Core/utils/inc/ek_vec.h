@@ -13,7 +13,7 @@
 #ifndef EK_VEC_H
 #define EK_VEC_H
 
-#include "../../../ek_conf.h"
+#include "ek_conf.h"
 
 #if EK_VEC_ENABLE == 1
 

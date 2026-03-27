@@ -1,6 +1,6 @@
-#include "../../hal/inc/ek_hal_spi.h"
-#include "../../utils/inc/ek_assert.h"
-#include "../../utils/inc/ek_export.h"
+#include "ek_hal_spi.h"
+#include "ek_assert.h"
+#include "ek_export.h"
 #include "spi.h"
 
 #define EK_HAL_LOCK_ON(x)   ((x)->lock = true)

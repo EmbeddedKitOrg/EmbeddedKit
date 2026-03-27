@@ -1,5 +1,5 @@
-#include "../inc/ek_hal_dac.h"
-#include "../../utils/inc/ek_assert.h"
+#include "ek_hal_dac.h"
+#include "ek_assert.h"
 
 ek_list_node_t ek_hal_dac_head;
 static bool _ek_init_flag = false;

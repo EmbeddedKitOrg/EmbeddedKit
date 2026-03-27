@@ -10,7 +10,7 @@
 #define EK_MEM_H
 
 #include "ek_def.h"
-#include "../../../ek_conf.h"
+#include "ek_conf.h"
 
 #ifndef EK_HEAP_NO_TLSF
 #    define EK_HEAP_NO_TLSF 0 /* 默认使用 TLSF 内存分配器 */

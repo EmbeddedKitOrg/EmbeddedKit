@@ -26,12 +26,13 @@ list(APPEND TestSrc "${CMAKE_CURRENT_SOURCE_DIR}/shell_symbols.c")
 
 add_executable(${CMAKE_PROJECT_NAME} ${TestSrc} ${L2_TestSrc} ${L2_TestSrc_3rd}) 
 
-include_directories( ${CMAKE_PROJECT_NAME} PRIVATE
-    ${CMAKE_PROJECT_NAME}/../L2_Core/utils/inc
-    ${CMAKE_PROJECT_NAME}/../L2_Core/third_party/tlsf
-    ${CMAKE_PROJECT_NAME}/../L2_Core/third_party/lwprintf/inc
-    ${CMAKE_PROJECT_NAME}/../L2_Core/third_party/letter_shell/inc
-    ${CMAKE_PROJECT_NAME}
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/..
+    ${CMAKE_CURRENT_SOURCE_DIR}/../L2_Core/utils/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../L2_Core/third_party/tlsf
+    ${CMAKE_CURRENT_SOURCE_DIR}/../L2_Core/third_party/lwprintf/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../L2_Core/third_party/letter_shell/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE 
@@ -44,4 +45,3 @@ target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE
     $<$<CONFIG:Debug>:-O0 -g3>
     $<$<CONFIG:Release>:-O3>
 )
-

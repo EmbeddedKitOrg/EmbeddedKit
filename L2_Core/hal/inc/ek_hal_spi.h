@@ -1,8 +1,8 @@
 #ifndef EK_HAL_SPI_H
 #define EK_HAL_SPI_H
 
-#include "../../utils/inc/ek_def.h"
-#include "../../utils/inc/ek_list.h"
+#include "ek_def.h"
+#include "ek_list.h"
 
 #ifdef __cplusplus
 extern "C"
