@@ -58,13 +58,15 @@ typedef void (*_ek_export_init_fn_t)(void);
         const _ek_export_init_fn_t __init_##fn##prio __attribute__((used, section(".ek_export_fn." _EK_STR(prio)))) = \
             (fn)
 
-#    define EK_EXPORT_HARDWARE(fn)   EK_EXPORT((fn), 0)
-#    define EK_EXPORT_COMPONENTS(fn) EK_EXPORT((fn), 1)
-#    define EK_EXPORT_APP(fn)        EK_EXPORT((fn), 2)
-#    define EK_EXPORT_USER(fn)       EK_EXPORT((fn), 3)
+#    define EK_EXPORT_EARLIEST(fn)   EK_EXPORT(fn, 0)
+#    define EK_EXPORT_HARDWARE(fn)   EK_EXPORT(fn, 1)
+#    define EK_EXPORT_COMPONENTS(fn) EK_EXPORT(fn, 2)
+#    define EK_EXPORT_APP(fn)        EK_EXPORT(fn, 3)
+#    define EK_EXPORT_USER(fn)       EK_EXPORT(fn, 4)
 
 #else
 
+#    define EK_EXPORT_EARLIEST(fn)
 #    define EK_EXPORT(fn, prio)
 #    define EK_EXPORT_HARDWARE(fn)
 #    define EK_EXPORT_COMPONENTS(fn)
