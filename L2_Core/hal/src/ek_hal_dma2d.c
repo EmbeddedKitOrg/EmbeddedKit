@@ -26,7 +26,7 @@ void ek_hal_dma2d_register(ek_hal_dma2d_t *const dev, const char *name, const ek
     dev->name = name;
     dev->ops = ops;
     dev->dev_info = dev_info;
-    ek_list_add_tail(&ek_hal_dma2d_head, &dev->node);
+    ek_list_insert_tail(&ek_hal_dma2d_head, &dev->node);
 
     dev->ops->init(dev);
 }
@@ -41,7 +41,7 @@ ek_hal_dma2d_t *ek_hal_dma2d_find(const char *name)
     ek_assert_param(name != NULL);
 
     ek_list_node_t *p;
-    ek_list_iterate(p, &ek_hal_dma2d_head)
+    ek_list_foreach(p, &ek_hal_dma2d_head)
     {
         ek_hal_dma2d_t *dev = ek_list_container(p, ek_hal_dma2d_t, node);
 

@@ -27,7 +27,7 @@ void ek_hal_uart_register(ek_hal_uart_t *const dev, const char *name, const ek_u
     dev->ops = ops;
     dev->dev_info = dev_info;
     dev->lock = false;
-    ek_list_add_tail(&ek_hal_uart_head, &dev->node);
+    ek_list_insert_tail(&ek_hal_uart_head, &dev->node);
 
     dev->ops->init(dev);
 }
@@ -42,7 +42,7 @@ ek_hal_uart_t *ek_hal_uart_find(const char *name)
     ek_assert_param(name != NULL);
 
     ek_list_node_t *p;
-    ek_list_iterate(p, &ek_hal_uart_head)
+    ek_list_foreach(p, &ek_hal_uart_head)
     {
         ek_hal_uart_t *dev = ek_list_container(p, ek_hal_uart_t, node);
 
