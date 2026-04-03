@@ -242,11 +242,11 @@ typedef struct {
 } my_node_t;
 
 // 添加节点
-ek_list_add_tail(&my_list, &node->node);
+ek_list_insert_tail(&my_list, &node->node);
 
 // 遍历链表
 ek_list_node_t *pos;
-ek_list_iterate(pos, &my_list) {
+ek_list_foreach(pos, &my_list) {
     my_node_t *n = ek_list_container(pos, my_node_t, node);
     // 处理节点
 }
@@ -482,13 +482,13 @@ void ek_hal_xxx_register(
     dev->name = name;
     dev->ops = ops;
     dev->dev_info = dev_info;
-    ek_list_add_tail(&ek_hal_xxx_head, &dev->node);
+    ek_list_insert_tail(&ek_hal_xxx_head, &dev->node);
 }
 
 ek_hal_xxx_t *ek_hal_xxx_find(const char *name)
 {
     ek_list_node_t *pos;
-    ek_list_iterate(pos, &ek_hal_xxx_head) {
+    ek_list_foreach(pos, &ek_hal_xxx_head) {
         ek_hal_xxx_t *dev = ek_list_container(pos, ek_hal_xxx_t, node);
         if (strcmp(dev->name, name) == 0) {
             return dev;

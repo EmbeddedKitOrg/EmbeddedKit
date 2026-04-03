@@ -51,9 +51,9 @@ struct ek_list_node_t
  * @param pos 当前节点指针（迭代变量）
  * @param head 链表头节点
  *
- * @warning 遍历过程中不能删除当前节点，否则使用 ek_list_iterate_safe
+ * @warning 遍历过程中不能删除当前节点，否则使用 ek_list_foreach_safe
  */
-#define ek_list_iterate(pos, head) \
+#define ek_list_foreach(pos, head) \
     for (pos = (head)->next; pos != (head); pos = pos->next)
 
 /**
@@ -62,7 +62,7 @@ struct ek_list_node_t
  * @param n 临时节点指针（保存下一个节点）
  * @param head 链表头节点
  */
-#define ek_list_iterate_safe(pos, n, head) \
+#define ek_list_foreach_safe(pos, n, head) \
     for (pos = (head)->next, n = pos->next; pos != (head); pos = n, n = pos->next)
 
 /* clang-format on */
@@ -85,7 +85,7 @@ __EK_STATIC_INLINE void ek_list_init(ek_list_node_t *head)
  * @param prev 前一个节点（插入位置之前）
  * @param next 后一个节点（插入位置之后）
  */
-__EK_STATIC_INLINE void __ek_list_add(ek_list_node_t *new_node, ek_list_node_t *prev, ek_list_node_t *next)
+__EK_STATIC_INLINE void _ek_list_insert(ek_list_node_t *new_node, ek_list_node_t *prev, ek_list_node_t *next)
 {
     prev->next = new_node;
     new_node->next = next;
@@ -98,9 +98,9 @@ __EK_STATIC_INLINE void __ek_list_add(ek_list_node_t *new_node, ek_list_node_t *
  * @param head 链表头节点指针
  * @param new_node 要添加的新节点
  */
-__EK_STATIC_INLINE void ek_list_add_head(ek_list_node_t *head, ek_list_node_t *new_node)
+__EK_STATIC_INLINE void ek_list_insert_head(ek_list_node_t *head, ek_list_node_t *new_node)
 {
-    __ek_list_add(new_node, head, head->next);
+    _ek_list_insert(new_node, head, head->next);
 }
 
 /**
@@ -108,9 +108,9 @@ __EK_STATIC_INLINE void ek_list_add_head(ek_list_node_t *head, ek_list_node_t *n
  * @param head 链表头节点指针
  * @param new_node 要添加的新节点
  */
-__EK_STATIC_INLINE void ek_list_add_tail(ek_list_node_t *head, ek_list_node_t *new_node)
+__EK_STATIC_INLINE void ek_list_insert_tail(ek_list_node_t *head, ek_list_node_t *new_node)
 {
-    __ek_list_add(new_node, head->prev, head);
+    _ek_list_insert(new_node, head->prev, head);
 }
 
 /**
@@ -118,7 +118,7 @@ __EK_STATIC_INLINE void ek_list_add_tail(ek_list_node_t *head, ek_list_node_t *n
  * @param prev 前一个节点
  * @param next 后一个节点
  */
-__EK_STATIC_INLINE void __ek_list_remove(ek_list_node_t *prev, ek_list_node_t *next)
+__EK_STATIC_INLINE void _ek_list_remove(ek_list_node_t *prev, ek_list_node_t *next)
 {
     next->prev = prev;
     prev->next = next;
@@ -132,7 +132,7 @@ __EK_STATIC_INLINE void __ek_list_remove(ek_list_node_t *prev, ek_list_node_t *n
  */
 __EK_STATIC_INLINE void ek_list_remove(ek_list_node_t *remove)
 {
-    __ek_list_remove(remove->prev, remove->next);
+    _ek_list_remove(remove->prev, remove->next);
     remove->prev = NULL;
     remove->next = NULL;
 }
@@ -143,7 +143,7 @@ __EK_STATIC_INLINE void ek_list_remove(ek_list_node_t *remove)
  * @return true 链表为空
  * @return false 链表非空
  */
-__EK_STATIC_INLINE bool ek_list_empty(ek_list_node_t *head)
+__EK_STATIC_INLINE bool ek_list_is_empty(ek_list_node_t *head)
 {
     return head->next == head;
 }

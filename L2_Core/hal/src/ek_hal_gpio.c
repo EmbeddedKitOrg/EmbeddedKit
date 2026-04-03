@@ -30,7 +30,7 @@ void ek_hal_gpio_register(
     dev->mode = mode;
     dev->ops = ops;
     dev->dev_info = dev_info;
-    ek_list_add_tail(&ek_hal_gpio_head, &dev->node);
+    ek_list_insert_tail(&ek_hal_gpio_head, &dev->node);
 
     dev->ops->init(dev, mode);
     dev->status = dev->ops->read(dev);
@@ -46,7 +46,7 @@ ek_hal_gpio_t *ek_hal_gpio_find(const char *name)
     ek_assert_param(name != NULL);
 
     ek_list_node_t *p;
-    ek_list_iterate(p, &ek_hal_gpio_head)
+    ek_list_foreach(p, &ek_hal_gpio_head)
     {
         ek_hal_gpio_t *dev = ek_list_container(p, ek_hal_gpio_t, node);
 
