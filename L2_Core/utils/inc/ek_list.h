@@ -114,6 +114,26 @@ __EK_STATIC_INLINE void ek_list_insert_tail(ek_list_node_t *head, ek_list_node_t
 }
 
 /**
+ * @brief 在指定节点前面插入新节点
+ * @param next 指定节点指针（新节点将插入到此节点前面）
+ * @param new_node 要插入的新节点
+ */
+__EK_STATIC_INLINE void ek_list_insert_before(ek_list_node_t *next, ek_list_node_t *new_node)
+{
+    _ek_list_insert(new_node, next->prev, next);
+}
+
+/**
+ * @brief 在指定节点后面插入新节点
+ * @param prev 指定节点指针（新节点将插入到此节点后面）
+ * @param new_node 要插入的新节点
+ */
+__EK_STATIC_INLINE void ek_list_insert_after(ek_list_node_t *prev, ek_list_node_t *new_node)
+{
+    _ek_list_insert(new_node, prev, prev->next);
+}
+
+/**
  * @brief 内部函数：断开两个节点之间的连接
  * @param prev 前一个节点
  * @param next 后一个节点
