@@ -11,7 +11,7 @@
 
 #include "ek_conf.h"
 
-#if EK_RINGBUF_ENABLE == 1
+#if (EK_RINGBUF_ENABLE == 1) || (EK_RINGBUF_SPSC_ENABLE == 1)
 
 #    include "ek_def.h"
 
@@ -19,7 +19,9 @@
  * @brief 环形缓冲区结构
  */
 typedef struct ek_ringbuf_t ek_ringbuf_t;
+typedef struct ek_ringbuf_spsc_t ek_ringbuf_spsc_t;
 
+#    if EK_RINGBUF_ENABLE == 1
 struct ek_ringbuf_t
 {
     uint8_t *buffer; /**< 缓冲区指针 */
@@ -28,16 +30,29 @@ struct ek_ringbuf_t
     uint32_t item_amount; /**< 当前元素个数 */
     size_t cap; /**< 缓冲区容量（元素个数） */
     size_t item_size; /**< 单个元素大小（字节） */
-#    if EK_USE_RTOS == 1
+#        if EK_USE_RTOS == 1
     bool lock;
-#    endif /* EK_USE_RTOS */
+#        endif /* EK_USE_RTOS */
 };
+#    endif /* EK_RINGBUF_ENABLE */
+
+#    if EK_RINGBUF_SPSC_ENABLE == 1
+struct ek_ringbuf_spsc_t
+{
+    uint8_t *buffer; /**< 缓冲区指针 */
+    uint32_t write_idx; /**< 写入位置索引 */
+    uint32_t read_idx; /**< 读取位置索引 */
+    size_t cap; /**< 底层槽位数量，实际最大可存元素数为 cap - 1 */
+    size_t item_size; /**< 单个元素大小（字节） */
+};
+#    endif /* EK_RINGBUF_SPSC_ENABLE */
 
 #    ifdef __cplusplus
 extern "C"
 {
 #    endif /* __cplusplus */
 
+#    if EK_RINGBUF_ENABLE == 1
 /**
  * @brief 判断环形缓冲区是否已满
  * @param rb 环形缓冲区指针
@@ -75,12 +90,12 @@ void ek_ringbuf_destroy(ek_ringbuf_t *rb);
  * @param rb_ptr 要销毁的环形缓冲区
  *
  */
-#    define ek_ringbuf_destroy_safely(rb_ptr) \
-        do                                    \
-        {                                     \
-            ek_ringbuf_destroy((rb_ptr));     \
-            rb_ptr = NULL;                    \
-        } while (0)
+#        define ek_ringbuf_destroy_safely(rb_ptr) \
+            do                                    \
+            {                                     \
+                ek_ringbuf_destroy(rb_ptr);       \
+                rb_ptr = NULL;                    \
+            } while (0)
 
 /**
  * @brief 向环形缓冲区写入一个元素
@@ -108,11 +123,82 @@ bool ek_ringbuf_read(ek_ringbuf_t *rb, void *item);
  * @return false 查看失败（缓冲区为空）
  */
 bool ek_ringbuf_peek(ek_ringbuf_t *rb, void *item);
+#    endif /* EK_RINGBUF_ENABLE */
+
+#    if EK_RINGBUF_SPSC_ENABLE == 1
+/**
+ * @brief 判断 SPSC 环形缓冲区是否已满
+ * @param rb 环形缓冲区指针
+ * @return true 已满
+ * @return false 未满
+ */
+bool ek_ringbuf_full_spsc(const ek_ringbuf_spsc_t *rb);
+
+/**
+ * @brief 判断 SPSC 环形缓冲区是否为空
+ * @param rb 环形缓冲区指针
+ * @return true 为空
+ * @return false 不为空
+ */
+bool ek_ringbuf_empty_spsc(const ek_ringbuf_spsc_t *rb);
+
+/**
+ * @brief 创建 SPSC 环形缓冲区
+ * @param item_size 单个元素大小（字节）
+ * @param item_amount 底层槽位数量，实际最大可存元素数为 item_amount - 1
+ * @return 成功返回缓冲区指针，失败返回 NULL
+ */
+ek_ringbuf_spsc_t *ek_ringbuf_create_spsc(size_t item_size, uint32_t item_amount);
+
+/**
+ * @brief 销毁 SPSC 环形缓冲区
+ * @param rb 要销毁的环形缓冲区
+ */
+void ek_ringbuf_destroy_spsc(ek_ringbuf_spsc_t *rb);
+
+/**
+ * @brief 销毁 SPSC 环形缓冲区并把 rb_ptr 设置为 NULL
+ * @param rb_ptr 要销毁的环形缓冲区
+ */
+#        define ek_ringbuf_destroy_safely_spsc(rb_ptr) \
+            do                                         \
+            {                                          \
+                ek_ringbuf_destroy_spsc(rb_ptr);       \
+                rb_ptr = NULL;                         \
+            } while (0)
+
+/**
+ * @brief 向 SPSC 环形缓冲区写入一个元素
+ * @param rb 环形缓冲区指针
+ * @param item 要写入的元素指针
+ * @return true 写入成功
+ * @return false 写入失败（缓冲区已满）
+ */
+bool ek_ringbuf_write_spsc(ek_ringbuf_spsc_t *rb, const void *item);
+
+/**
+ * @brief 从 SPSC 环形缓冲区读取一个元素
+ * @param rb 环形缓冲区指针
+ * @param item 存储读取结果的缓冲区指针，传入 NULL 则直接丢弃数据
+ * @return true 读取成功
+ * @return false 读取失败（缓冲区为空）
+ */
+bool ek_ringbuf_read_spsc(ek_ringbuf_spsc_t *rb, void *item);
+
+/**
+ * @brief 查看 SPSC 环形缓冲区首个元素（不移动读指针）
+ * @param rb 环形缓冲区指针
+ * @param item 存储查看结果的缓冲区指针
+ * @return true 查看成功
+ * @return false 查看失败（缓冲区为空）
+ */
+bool ek_ringbuf_peek_spsc(ek_ringbuf_spsc_t *rb, void *item);
+#    endif /* EK_RINGBUF_SPSC_ENABLE */
 
 #    ifdef __cplusplus
 }
 #    endif /* __cplusplus */
 
-#endif /* EK_RINGBUF_ENABLE */
+#endif /* EK_RINGBUF_ENABLE || EK_RINGBUF_SPSC_ENABLE */
 
 #endif /* EK_RINGBUF_H */
