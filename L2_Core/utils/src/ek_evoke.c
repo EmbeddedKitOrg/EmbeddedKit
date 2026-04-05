@@ -331,19 +331,6 @@ void ek_evoke_event_loop(void)
             }
         }
 
-        // 检查延时链表
-        // 如果有延时的事件，则取出最早的唤醒事件然后设置中断时间
-        if (!ek_list_is_empty(&_defer_evt_list))
-        {
-            ek_list_node_t *node = ek_list_get_first(&_defer_evt_list);
-            _defer_req_t *req = ek_list_container(node, _defer_req_t, node);
-            if (req->wakeup_tick != _defer_earilest_tick)
-            {
-                _defer_earilest_tick = req->wakeup_tick;
-                _ek_evoke_set_timer(_defer_earilest_tick - _event_tick_base);
-            }
-        }
-
         // 首先检查就绪链表是否为空
         // 如果不为空则执行所有到期任务
         // 如果为空就直接去检查延时链表
@@ -356,6 +343,19 @@ void ek_evoke_event_loop(void)
             tsk->cb(tsk->wait_event, tsk->arg);
             ek_list_insert_tail(&tsk->wait_event->wait_list, &tsk->node);
             tsk->state = EK_EVOKE_STATE_WAITTING;
+        }
+
+        // 检查延时链表
+        // 如果有延时的事件，则取出最早的唤醒事件然后设置中断时间
+        if (!ek_list_is_empty(&_defer_evt_list))
+        {
+            ek_list_node_t *node = ek_list_get_first(&_defer_evt_list);
+            _defer_req_t *req = ek_list_container(node, _defer_req_t, node);
+            if (req->wakeup_tick != _defer_earilest_tick)
+            {
+                _defer_earilest_tick = req->wakeup_tick;
+                _ek_evoke_set_timer(_defer_earilest_tick - _event_tick_base);
+            }
         }
 
         // 检查睡眠锁，根据锁的状态来执行不同的睡眠状态
