@@ -6,7 +6,7 @@
 
 #include "ek_evoke.h"
 
-#if EK_USE_RTOS == 0
+#if EK_USE_RTOS == 0 && EK_EVOKE_ENABLE == 1
 
 #    include "ek_ringbuf.h"
 #    include "ek_mem.h"
@@ -427,4 +427,4 @@ __EK_WEAK void ek_evoke_set_timer(uint32_t xtick)
     __EK_UNUSED(xtick);
 }
 
-#endif // EK_USE_RTOS
+#endif // EK_USE_RTOS == 0 && EK_EVOKE_ENABLE == 1

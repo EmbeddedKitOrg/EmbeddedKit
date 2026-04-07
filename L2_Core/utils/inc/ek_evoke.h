@@ -15,7 +15,7 @@
 
 #include "ek_conf.h"
 
-#if EK_USE_RTOS == 0
+#if EK_USE_RTOS == 0 && EK_EVOKE_ENABLE == 1
 
 #    include "ek_def.h"
 #    include "ek_list.h"
@@ -280,6 +280,6 @@ void ek_evoke_light_sleep(void);
  */
 void ek_evoke_deep_sleep(void);
 
-#endif // EK_USE_RTOS
+#endif // EK_USE_RTOS == 0 && EK_EVOKE_ENABLE == 1
 
 #endif // EK_EVOKE_H
