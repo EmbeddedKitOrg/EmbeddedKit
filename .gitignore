@@ -1,7 +1,8 @@
-# Claude Code configuration
+# Codex / Claude Code configuration
 .claude/
 .specify/
 .spec-workflow
+.codex
 
 # Common IDE files
 .vscode/
